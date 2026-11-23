@@ -1,0 +1,330 @@
+import React, { useState } from 'react';
+import { useKitchen } from '../../context/KitchenContext';
+import { StockCategory, MeasureIndex } from '../../types/stock';
+import { Package, Plus, DollarSign, RefreshCw, CheckCircle2, TrendingUp } from 'lucide-react';
+
+export const StockManagement: React.FC = () => {
+  const { stockItems, recordStockPurchase, updateStockPrice, updateStockCount, addNewStockItem } = useKitchen();
+
+  const [selectedCat, setSelectedCat] = useState<string>('All');
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [selectedItemForPurchase, setSelectedItemForPurchase] = useState<string>(stockItems[0]?.id || '');
+  const [purchasedQty, setPurchasedQty] = useState<number>(10);
+  const [purchasedUnitPrice, setPurchasedUnitPrice] = useState<number>(0);
+  const [purchaseSuccess, setPurchaseSuccess] = useState(false);
+
+  // New Item modal
+  const [isNewItemModalOpen, setIsNewItemModalOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newBrand, setNewBrand] = useState('');
+  const [newCategory, setNewCategory] = useState<StockCategory>('Grocery');
+  const [newMeasureIndex, setNewMeasureIndex] = useState<MeasureIndex>('kg');
+  const [newPrice, setNewPrice] = useState<number>(0);
+  const [newStock, setNewStock] = useState<number>(0);
+
+  const categories: StockCategory[] = ['Grocery', 'Vegetables', 'Fruits', 'Dairy'];
+
+  const filtered = stockItems.filter((s) => selectedCat === 'All' || s.category === selectedCat);
+
+  const handleRecordPurchase = async () => {
+    if (!selectedItemForPurchase || purchasedQty <= 0 || purchasedUnitPrice <= 0) {
+      alert('Please select item, quantity, and unit purchase price.');
+      return;
+    }
+
+    await recordStockPurchase({
+      ingredientId: selectedItemForPurchase,
+      purchasedQty,
+      purchasedUnitPrice,
+    });
+
+    setPurchaseSuccess(true);
+    setTimeout(() => {
+      setPurchaseSuccess(false);
+      setIsPurchaseModalOpen(false);
+    }, 2000);
+  };
+
+  const handleAddNewItem = async () => {
+    if (!newName) return;
+    await addNewStockItem({
+      name: newName,
+      brand: newBrand,
+      category: newCategory,
+      measureIndex: newMeasureIndex,
+      price: newPrice,
+      currentStock: newStock,
+      reorderLevel: 10,
+    });
+    setIsNewItemModalOpen(false);
+    setNewName('');
+    setNewBrand('');
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            Stock & Weighted Average Price Adjuster
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Categories: <strong>Grocery, Vegetables, Fruits, Dairy</strong>. Automatically adjusts moving average prices when stock is replenished.
+          </p>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setIsNewItemModalOpen(true)}
+            className="flex items-center space-x-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Stock Item</span>
+          </button>
+          <button
+            onClick={() => setIsPurchaseModalOpen(true)}
+            className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Receive Purchase (Adjust Price)</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Category Filter Tabs */}
+      <div className="flex space-x-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl w-fit text-xs font-bold">
+        <button
+          onClick={() => setSelectedCat('All')}
+          className={`px-3 py-1.5 rounded-xl transition-all ${
+            selectedCat === 'All'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+              : 'text-slate-500'
+          }`}
+        >
+          All Items ({stockItems.length})
+        </button>
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setSelectedCat(cat)}
+            className={`px-3 py-1.5 rounded-xl transition-all ${
+              selectedCat === cat
+                ? 'bg-orange-500 text-white shadow-sm'
+                : 'text-slate-500'
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Stock Table */}
+      <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <table className="w-full text-left text-xs">
+          <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-700">
+            <tr>
+              <th className="px-6 py-4">Item Name</th>
+              <th className="px-6 py-4">Brand</th>
+              <th className="px-6 py-4">Category</th>
+              <th className="px-6 py-4">Measure Index</th>
+              <th className="px-6 py-4">Current Stock</th>
+              <th className="px-6 py-4">Adjusted Unit Price</th>
+              <th className="px-6 py-4">Total Asset Value</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+            {filtered.map((item) => (
+              <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30">
+                <td className="px-6 py-3.5 font-bold text-slate-900 dark:text-white">{item.name}</td>
+                <td className="px-6 py-3.5 text-slate-500 dark:text-slate-400 font-medium">{item.brand}</td>
+                <td className="px-6 py-3.5">
+                  <span className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded">
+                    {item.category}
+                  </span>
+                </td>
+                <td className="px-6 py-3.5 font-mono text-slate-500">{item.measureIndex}</td>
+                <td className="px-6 py-3.5 font-bold text-slate-800 dark:text-slate-200">
+                  {item.currentStock} {item.measureIndex}
+                </td>
+                <td className="px-6 py-3.5 font-bold text-orange-600 dark:text-orange-400">
+                  ₹{item.price.toFixed(2)} / {item.measureIndex}
+                </td>
+                <td className="px-6 py-3.5 font-bold text-emerald-600 dark:text-emerald-400">
+                  ₹{(item.currentStock * item.price).toFixed(2)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Modal: Receive Stock Purchase (Adjust Weighted Average Price) */}
+      {isPurchaseModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white">
+              Receive Purchase & Auto-Adjust Price
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              When new stock arrives, enter the purchase quantity and bill rate. The system automatically recalculates the <strong>weighted average price</strong>.
+            </p>
+
+            {purchaseSuccess ? (
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded-xl text-center font-bold text-xs">
+                Stock updated & weighted price adjusted successfully!
+              </div>
+            ) : (
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Select Ingredient</label>
+                  <select
+                    value={selectedItemForPurchase}
+                    onChange={(e) => setSelectedItemForPurchase(e.target.value)}
+                    className="w-full mt-1 p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white text-xs"
+                  >
+                    {stockItems.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} (Current Stock: {s.currentStock} {s.measureIndex} @ ₹{s.price})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-slate-700 dark:text-slate-300">New Qty Purchased</label>
+                    <input
+                      type="number"
+                      value={purchasedQty}
+                      onChange={(e) => setPurchasedQty(parseFloat(e.target.value) || 0)}
+                      className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700 dark:text-slate-300">New Purchase Unit Rate (₹)</label>
+                    <input
+                      type="number"
+                      value={purchasedUnitPrice}
+                      onChange={(e) => setPurchasedUnitPrice(parseFloat(e.target.value) || 0)}
+                      className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-3">
+                  <button
+                    onClick={() => setIsPurchaseModalOpen(false)}
+                    className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRecordPurchase}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold"
+                  >
+                    Apply & Recalculate Price
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Add New Stock Item */}
+      {isNewItemModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white">Add New Stock Item</h3>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300">Item Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Sabudana (Tapioca Pearls)"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300">Brand</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Rajdhani"
+                  value={newBrand}
+                  onChange={(e) => setNewBrand(e.target.value)}
+                  className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Category</label>
+                  <select
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value as StockCategory)}
+                    className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
+                  >
+                    {categories.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Measure Index</label>
+                  <select
+                    value={newMeasureIndex}
+                    onChange={(e) => setNewMeasureIndex(e.target.value as MeasureIndex)}
+                    className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
+                  >
+                    <option value="kg">kg</option>
+                    <option value="litre">litre</option>
+                    <option value="piece">piece</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Unit Price (₹)</label>
+                  <input
+                    type="number"
+                    value={newPrice}
+                    onChange={(e) => setNewPrice(parseFloat(e.target.value) || 0)}
+                    className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Opening Stock</label>
+                  <input
+                    type="number"
+                    value={newStock}
+                    onChange={(e) => setNewStock(parseFloat(e.target.value) || 0)}
+                    className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-3">
+                <button
+                  onClick={() => setIsNewItemModalOpen(false)}
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddNewItem}
+                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold"
+                >
+                  Save Stock Item
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
