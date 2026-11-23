@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Master Ingredients & Rates
+    match /ingredients/{ingredientId} {
+      allow read: if true; // Publicly readable by authorized kitchen terminals
+      allow write: if isAuthenticated();
+    }
+
+    // Master Recipes & Patterns
+    match /recipes/{recipeId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // 15-Day Menu Cycles & Programs
+    match /menu_cycles/{cycleId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Calendar Schedules & Overrides
+    match /calendar_schedules/{scheduleId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Inventory & Stock Audits
+    match /inventory_logs/{logId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
