@@ -65,7 +65,7 @@ interface KitchenContextType {
 const KitchenContext = createContext<KitchenContextType | null>(null);
 
 export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentCenter, currentUser, isAdmin, isSAdmin } = useAuth();
+  const { currentCenter, currentUser, isAdmin, isSAdmin, allUsers } = useAuth();
 
   // Dark / Light Theme
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -160,10 +160,27 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
           ]);
 
         if (isMounted) {
+          let sanitizedPlan = centerPlan;
+          if (sanitizedPlan && sanitizedPlan.approvedByName) {
+            const approverUid = sanitizedPlan.approvedBy;
+            const approverUser =
+              allUsers?.find((u) => u.uid === approverUid) ||
+              (currentUser.uid === approverUid ? currentUser : null);
+            if (
+              approverUser?.role === 'sadmin' ||
+              sanitizedPlan.approvedByName.toLowerCase().includes('sandipan')
+            ) {
+              sanitizedPlan = {
+                ...sanitizedPlan,
+                approvedByName: sanitizedPlan.approvedByName.replace(/\(Admin\)/i, '(Super Admin)'),
+              };
+            }
+          }
+
           setStockItems(centerStock);
           setRecipes(centerRecipes);
           setPatterns(centerPatterns);
-          setActiveMenuPlan(centerPlan);
+          setActiveMenuPlan(sanitizedPlan);
           setAuditLogs(centerLogs);
 
           // Asynchronously ensure all entities and center document are created in Firestore
@@ -523,11 +540,13 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
     }
 
+    const approverRoleTitle = currentUser.role === 'sadmin' || isSAdmin ? 'Super Admin' : 'Admin';
+
     const approvedPlan: FifteenDayMenuPlan = {
       ...activeMenuPlan,
       status: 'approved',
       approvedBy: currentUser.uid,
-      approvedByName: `${currentUser.name} (Admin)`,
+      approvedByName: `${currentUser.name} (${approverRoleTitle})`,
       approvedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -549,7 +568,7 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       performedByName: currentUser.name,
       performedByRole: currentUser.role,
       details: {
-        summary: `Maker-Checker approval: Officially approved 15-day menu plan by ${currentUser.name}. Menu is live and approved.`,
+        summary: `Maker-Checker approval: Officially approved 15-day menu plan by ${currentUser.name} (${approverRoleTitle}). Menu is live and approved.`,
       },
     });
 

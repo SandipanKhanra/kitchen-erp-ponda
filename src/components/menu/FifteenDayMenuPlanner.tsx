@@ -47,7 +47,7 @@ const getMealSlotTitle = (key: MealSlotKey | null) => {
 };
 
 export const FifteenDayMenuPlanner: React.FC = () => {
-  const { currentUser, isAdmin, isSAdmin } = useAuth();
+  const { currentUser, isAdmin, isSAdmin, allUsers } = useAuth();
   const {
     activeMenuPlan,
     saveMenuPlan,
@@ -305,6 +305,21 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   const isApproved = activeMenuPlan.status === 'approved';
   const isSelfCreated = activeMenuPlan.createdBy === currentUser.uid;
 
+  const displayApprovedByName = useMemo(() => {
+    if (!activeMenuPlan.approvedByName) return '';
+    const approverUid = activeMenuPlan.approvedBy;
+    const approverUser =
+      allUsers?.find((u) => u.uid === approverUid) ||
+      (currentUser.uid === approverUid ? currentUser : null);
+    if (
+      approverUser?.role === 'sadmin' ||
+      activeMenuPlan.approvedByName.toLowerCase().includes('sandipan')
+    ) {
+      return activeMenuPlan.approvedByName.replace(/\(Admin\)/i, '(Super Admin)');
+    }
+    return activeMenuPlan.approvedByName;
+  }, [activeMenuPlan.approvedByName, activeMenuPlan.approvedBy, allUsers, currentUser]);
+
   return (
     <div className="space-y-6">
       {/* Top Banner: Maker-Checker Approval Status */}
@@ -341,7 +356,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
               </span>
               {activeMenuPlan.approvedByName && (
                 <span>
-                  &bull; Approved by: <strong className="text-emerald-600 dark:text-emerald-400">{activeMenuPlan.approvedByName}</strong>
+                  &bull; Approved by: <strong className="text-emerald-600 dark:text-emerald-400">{displayApprovedByName}</strong>
                 </span>
               )}
             </div>
