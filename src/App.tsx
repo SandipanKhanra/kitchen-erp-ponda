@@ -1,5 +1,5 @@
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { KitchenProvider } from './context/KitchenContext';
+import { KitchenProvider, useKitchen } from './context/KitchenContext';
 import { Navbar } from './components/layout/Navbar';
 import { FifteenDayMenuPlanner } from './components/menu/FifteenDayMenuPlanner';
 import { DaywiseAndShoppingView } from './components/requisition/DaywiseAndShoppingView';
@@ -9,11 +9,13 @@ import { AdminUserManagement } from './components/admin/AdminUserManagement';
 import { SAdminDashboard } from './components/sadmin/SAdminDashboard';
 import { VaishnavaCalendarView } from './components/calendar/VaishnavaCalendarView';
 import { AuthView } from './components/auth/AuthView';
+import { AuditHistoryModal } from './components/audit/AuditHistoryModal';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { ChefHat } from 'lucide-react';
 
 function AppContent() {
   const { firebaseUser, isDemoMode, isAuthLoading } = useAuth();
+  const { isAuditModalOpen, auditModalCategory, closeAuditModal } = useKitchen();
   const {
     activeTab,
     navigateToTab,
@@ -74,6 +76,14 @@ function AppContent() {
           isModal
           initialTab={authModalTab}
           onClose={closeAuth}
+        />
+      )}
+
+      {/* Audit History Modal */}
+      {isAuditModalOpen && (
+        <AuditHistoryModal
+          initialCategory={auditModalCategory}
+          onClose={closeAuditModal}
         />
       )}
 

@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useKitchen } from '../../context/KitchenContext';
-import { Plus, Trash2, Layers, Utensils, Sparkles, Check, Edit3, Search } from 'lucide-react';
+import { Plus, Trash2, Layers, Utensils, Sparkles, Check, Edit3, Search, History, Building2 } from 'lucide-react';
 import { Recipe, MenuPattern, Occasion, MealType, RecipeType, MeasurableIndex } from '../../types/recipe';
 import { MEAL_TYPES } from '../../config/constants';
 import { Pagination } from '../common/Pagination';
 
 export const RecipeAndPatternManagement: React.FC = () => {
-  const { isAdmin, isSAdmin } = useAuth();
-  const { recipes, patterns, stockItems, saveRecipe, deleteRecipe, savePattern, deletePattern } = useKitchen();
+  const { currentCenter, isAdmin, isSAdmin } = useAuth();
+  const { recipes, patterns, stockItems, saveRecipe, deleteRecipe, savePattern, deletePattern, openAuditModal } = useKitchen();
 
   const [activeTab, setActiveTab] = useState<'recipes' | 'patterns'>('recipes');
   const [searchQuery, setSearchQuery] = useState('');
@@ -57,7 +57,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
     const newRec: Recipe = {
       id: `rec_${Date.now()}`,
-      centerId: 'center_ponda',
+      centerId: currentCenter.id,
       name: recipeName,
       occasion,
       mealType,
@@ -86,7 +86,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
     const newPat: MenuPattern = {
       id: `pat_${Date.now()}`,
-      centerId: 'center_ponda',
+      centerId: currentCenter.id,
       name: patternName,
       mealType: patternMealType,
       recipeIds: selectedRecipeIds,
@@ -136,8 +136,8 @@ export const RecipeAndPatternManagement: React.FC = () => {
           </p>
         </div>
 
-        {/* Tab switch & Add buttons */}
-        <div className="flex items-center space-x-2">
+        {/* Tab switch, Audit History & Add buttons */}
+        <div className="flex items-center space-x-2 flex-wrap gap-y-2">
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
             <button
               onClick={() => setActiveTab('recipes')}
@@ -160,6 +160,15 @@ export const RecipeAndPatternManagement: React.FC = () => {
               Patterns ({patterns.length})
             </button>
           </div>
+
+          <button
+            onClick={() => openAuditModal('recipe')}
+            className="flex items-center space-x-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            title="View recipe audit trail"
+          >
+            <History className="w-3.5 h-3.5 text-purple-500" />
+            <span>Audit History</span>
+          </button>
 
           {(isAdmin || isSAdmin) && (
             <button

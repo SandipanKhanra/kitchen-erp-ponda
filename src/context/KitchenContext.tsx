@@ -4,6 +4,8 @@ import { IngredientStockItem, StockAdjustmentEntry } from '../types/stock';
 import { Recipe, MenuPattern, CalculatedRecipeCost } from '../types/recipe';
 import { FifteenDayMenuPlan } from '../types/menu';
 import { PeriodRequirementSummary } from '../types/requisition';
+import { AuditLogEntry, AuditCategory } from '../types/audit';
+import { kitchenDbService } from '../services/kitchenDbService';
 import {
   INITIAL_STOCK_ITEMS,
   INITIAL_RECIPES,
@@ -18,7 +20,7 @@ interface KitchenContextType {
   // Theme state
   theme: 'light' | 'dark';
   toggleTheme: () => void;
-  // Stock & Inventory (Isolated by Center)
+  // Stock & Inventory (Isolated by Center, synced with Firebase)
   stockItems: IngredientStockItem[];
   stockMap: Map<string, IngredientStockItem>;
   recordStockPurchase: (data: {
@@ -30,7 +32,7 @@ interface KitchenContextType {
   updateStockPrice: (id: string, newPrice: number) => Promise<void>;
   updateStockCount: (id: string, newCount: number) => Promise<void>;
   addNewStockItem: (item: Omit<IngredientStockItem, 'id' | 'centerId' | 'updatedAt'>) => Promise<void>;
-  // Recipes
+  // Recipes (Isolated by Center, synced with Firebase)
   recipes: Recipe[];
   recipeMap: Map<string, Recipe>;
   saveRecipe: (recipe: Recipe) => Promise<void>;
@@ -48,6 +50,14 @@ interface KitchenContextType {
   repetitionCheck: { isValid: boolean; violations: RepetitionViolation[] };
   // Requisition Summary
   requisitionSummary: PeriodRequirementSummary;
+  // Audit Trail & Logging
+  auditLogs: AuditLogEntry[];
+  isAuditModalOpen: boolean;
+  auditModalCategory?: AuditCategory;
+  openAuditModal: (category?: AuditCategory) => void;
+  closeAuditModal: () => void;
+  refreshAuditLogs: () => Promise<void>;
+  isSyncing: boolean;
 }
 
 const KitchenContext = createContext<KitchenContextType | null>(null);
@@ -103,27 +113,21 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     applyTheme(theme);
   }, [theme]);
 
-  // Center-scoped Stock
-  const [allStock, setAllStock] = useState<IngredientStockItem[]>(INITIAL_STOCK_ITEMS);
-  const stockItems = useMemo(
-    () => allStock.filter((s) => s.centerId === currentCenter.id || isSAdmin),
-    [allStock, currentCenter.id, isSAdmin]
+  // Center-scoped Stock (Synced with Firebase)
+  const [stockItems, setStockItems] = useState<IngredientStockItem[]>(() =>
+    INITIAL_STOCK_ITEMS.map((s) => ({ ...s, centerId: currentCenter.id }))
   );
   const stockMap = useMemo(() => new Map(stockItems.map((s) => [s.id, s])), [stockItems]);
 
-  // Center-scoped Recipes
-  const [allRecipes, setAllRecipes] = useState<Recipe[]>(INITIAL_RECIPES);
-  const recipes = useMemo(
-    () => allRecipes.filter((r) => r.centerId === currentCenter.id || isSAdmin),
-    [allRecipes, currentCenter.id, isSAdmin]
+  // Center-scoped Recipes (Synced with Firebase)
+  const [recipes, setRecipes] = useState<Recipe[]>(() =>
+    INITIAL_RECIPES.map((r) => ({ ...r, centerId: currentCenter.id }))
   );
   const recipeMap = useMemo(() => new Map(recipes.map((r) => [r.id, r])), [recipes]);
 
   // Center-scoped Patterns
-  const [allPatterns, setAllPatterns] = useState<MenuPattern[]>(INITIAL_MENU_PATTERNS);
-  const patterns = useMemo(
-    () => allPatterns.filter((p) => p.centerId === currentCenter.id || isSAdmin),
-    [allPatterns, currentCenter.id, isSAdmin]
+  const [patterns, setPatterns] = useState<MenuPattern[]>(() =>
+    INITIAL_MENU_PATTERNS.map((p) => ({ ...p, centerId: currentCenter.id }))
   );
 
   // 15-Day Menu Plan with Maker-Checker
@@ -131,10 +135,62 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     buildInitial15DayMenu(currentCenter.id)
   );
 
-  // When center switches, rebind plan
+  // Audit Logs (Center-Specific)
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [auditModalCategory, setAuditModalCategory] = useState<AuditCategory | undefined>();
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+
+  // Load center-specific data from Firestore and local cache whenever center switches
   useEffect(() => {
-    setActiveMenuPlan(buildInitial15DayMenu(currentCenter.id));
+    let isMounted = true;
+
+    const loadCenterData = async () => {
+      setIsSyncing(true);
+      try {
+        const [centerStock, centerRecipes, centerPatterns, centerPlan, centerLogs] =
+          await Promise.all([
+            kitchenDbService.fetchCenterStock(currentCenter.id),
+            kitchenDbService.fetchCenterRecipes(currentCenter.id),
+            kitchenDbService.fetchCenterPatterns(currentCenter.id),
+            kitchenDbService.fetchCenterMenuPlan(currentCenter.id),
+            kitchenDbService.fetchCenterAuditLogs(currentCenter.id),
+          ]);
+
+        if (isMounted) {
+          setStockItems(centerStock);
+          setRecipes(centerRecipes);
+          setPatterns(centerPatterns);
+          setActiveMenuPlan(centerPlan);
+          setAuditLogs(centerLogs);
+        }
+      } catch (err) {
+        console.warn(`Error syncing data for center ${currentCenter.id}:`, err);
+      } finally {
+        if (isMounted) setIsSyncing(false);
+      }
+    };
+
+    loadCenterData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [currentCenter.id]);
+
+  const openAuditModal = (category?: AuditCategory) => {
+    setAuditModalCategory(category);
+    setIsAuditModalOpen(true);
+  };
+
+  const closeAuditModal = () => {
+    setIsAuditModalOpen(false);
+  };
+
+  const refreshAuditLogs = async () => {
+    const logs = await kitchenDbService.fetchCenterAuditLogs(currentCenter.id);
+    setAuditLogs(logs);
+  };
 
   // Stock Purchase & Moving Weighted Average Price Recalculation
   const recordStockPurchase = async (data: {
@@ -153,31 +209,114 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       data.purchasedUnitPrice
     );
 
-    setAllStock((prev) =>
-      prev.map((s) =>
-        s.id === data.ingredientId
-          ? {
-              ...s,
-              currentStock: newStock,
-              price: newAdjustedPrice,
-              lastPurchasePrice: data.purchasedUnitPrice,
-              updatedAt: new Date().toISOString(),
-            }
-          : s
-      )
+    const updatedItem: IngredientStockItem = {
+      ...item,
+      centerId: currentCenter.id,
+      currentStock: newStock,
+      price: newAdjustedPrice,
+      lastPurchasePrice: data.purchasedUnitPrice,
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Update local state
+    setStockItems((prev) =>
+      prev.map((s) => (s.id === data.ingredientId ? updatedItem : s))
     );
+
+    // Sync to Firestore
+    await kitchenDbService.saveCenterStockItem(currentCenter.id, updatedItem);
+
+    // Record Audit Log
+    const log = await kitchenDbService.logAuditAction({
+      centerId: currentCenter.id,
+      centerName: currentCenter.name,
+      category: 'stock',
+      actionType: 'STOCK_PURCHASE',
+      entityId: item.id,
+      entityName: item.name,
+      performedByUid: currentUser.uid,
+      performedByName: currentUser.name,
+      performedByRole: currentUser.role,
+      details: {
+        summary: `Purchased ${data.purchasedQty} ${item.measureIndex} of "${item.name}" at ₹${data.purchasedUnitPrice.toFixed(2)}/${item.measureIndex}. Moving average price adjusted: ₹${item.price.toFixed(2)} → ₹${newAdjustedPrice.toFixed(2)}. Total stock: ${item.currentStock} → ${newStock} ${item.measureIndex}`,
+        previousValue: { stock: item.currentStock, price: item.price },
+        newValue: { stock: newStock, price: newAdjustedPrice },
+        quantity: data.purchasedQty,
+        unitPrice: data.purchasedUnitPrice,
+        totalCost: data.purchasedQty * data.purchasedUnitPrice,
+        notes: data.notes,
+      },
+    });
+
+    setAuditLogs((prev) => [log, ...prev]);
   };
 
   const updateStockPrice = async (id: string, newPrice: number) => {
-    setAllStock((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, price: newPrice, updatedAt: new Date().toISOString() } : s))
-    );
+    const item = stockMap.get(id);
+    if (!item) return;
+
+    const oldPrice = item.price;
+    const updatedItem: IngredientStockItem = {
+      ...item,
+      price: newPrice,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setStockItems((prev) => prev.map((s) => (s.id === id ? updatedItem : s)));
+    await kitchenDbService.saveCenterStockItem(currentCenter.id, updatedItem);
+
+    const log = await kitchenDbService.logAuditAction({
+      centerId: currentCenter.id,
+      centerName: currentCenter.name,
+      category: 'stock',
+      actionType: 'STOCK_PRICE_UPDATE',
+      entityId: id,
+      entityName: item.name,
+      performedByUid: currentUser.uid,
+      performedByName: currentUser.name,
+      performedByRole: currentUser.role,
+      details: {
+        summary: `Direct price adjustment for "${item.name}": ₹${oldPrice.toFixed(2)} → ₹${newPrice.toFixed(2)} / ${item.measureIndex}`,
+        previousValue: oldPrice,
+        newValue: newPrice,
+      },
+    });
+
+    setAuditLogs((prev) => [log, ...prev]);
   };
 
   const updateStockCount = async (id: string, newCount: number) => {
-    setAllStock((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, currentStock: newCount, updatedAt: new Date().toISOString() } : s))
-    );
+    const item = stockMap.get(id);
+    if (!item) return;
+
+    const oldCount = item.currentStock;
+    const updatedItem: IngredientStockItem = {
+      ...item,
+      currentStock: newCount,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setStockItems((prev) => prev.map((s) => (s.id === id ? updatedItem : s)));
+    await kitchenDbService.saveCenterStockItem(currentCenter.id, updatedItem);
+
+    const log = await kitchenDbService.logAuditAction({
+      centerId: currentCenter.id,
+      centerName: currentCenter.name,
+      category: 'stock',
+      actionType: 'STOCK_COUNT_UPDATE',
+      entityId: id,
+      entityName: item.name,
+      performedByUid: currentUser.uid,
+      performedByName: currentUser.name,
+      performedByRole: currentUser.role,
+      details: {
+        summary: `Physical inventory count adjusted for "${item.name}": ${oldCount} → ${newCount} ${item.measureIndex}`,
+        previousValue: oldCount,
+        newValue: newCount,
+      },
+    });
+
+    setAuditLogs((prev) => [log, ...prev]);
   };
 
   const addNewStockItem = async (
@@ -189,48 +328,136 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       centerId: currentCenter.id,
       updatedAt: new Date().toISOString(),
     };
-    setAllStock((prev) => [newItem, ...prev]);
+
+    setStockItems((prev) => [newItem, ...prev]);
+
+    // Sync to Firestore
+    await kitchenDbService.saveCenterStockItem(currentCenter.id, newItem);
+
+    // Record Audit Log
+    const log = await kitchenDbService.logAuditAction({
+      centerId: currentCenter.id,
+      centerName: currentCenter.name,
+      category: 'stock',
+      actionType: 'STOCK_ADD',
+      entityId: newItem.id,
+      entityName: newItem.name,
+      performedByUid: currentUser.uid,
+      performedByName: currentUser.name,
+      performedByRole: currentUser.role,
+      details: {
+        summary: `Added new stock item "${newItem.name}" (${newItem.category}) with initial stock of ${newItem.currentStock} ${newItem.measureIndex} at ₹${newItem.price.toFixed(2)}/${newItem.measureIndex}`,
+        newValue: newItem,
+        quantity: newItem.currentStock,
+        unitPrice: newItem.price,
+      },
+    });
+
+    setAuditLogs((prev) => [log, ...prev]);
   };
 
-  // Recipe Operations
+  // Recipe Operations (Synced with Firebase per Center)
   const saveRecipe = async (recipe: Recipe) => {
-    setAllRecipes((prev) => {
+    const isNew = !recipes.some((r) => r.id === recipe.id);
+    const recipeWithCenter: Recipe = {
+      ...recipe,
+      centerId: currentCenter.id,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setRecipes((prev) => {
       const idx = prev.findIndex((r) => r.id === recipe.id);
       if (idx >= 0) {
         const copy = [...prev];
-        copy[idx] = recipe;
+        copy[idx] = recipeWithCenter;
         return copy;
       }
-      return [recipe, ...prev];
+      return [recipeWithCenter, ...prev];
     });
+
+    // Sync to Firestore
+    await kitchenDbService.saveCenterRecipe(currentCenter.id, recipeWithCenter);
+
+    // Audit Log
+    const log = await kitchenDbService.logAuditAction({
+      centerId: currentCenter.id,
+      centerName: currentCenter.name,
+      category: 'recipe',
+      actionType: isNew ? 'RECIPE_CREATE' : 'RECIPE_UPDATE',
+      entityId: recipeWithCenter.id,
+      entityName: recipeWithCenter.name,
+      performedByUid: currentUser.uid,
+      performedByName: currentUser.name,
+      performedByRole: currentUser.role,
+      details: {
+        summary: isNew
+          ? `Created recipe "${recipeWithCenter.name}" (${recipeWithCenter.mealType}, ${recipeWithCenter.occasion}, base yield: ${recipeWithCenter.baseYield} ${recipeWithCenter.measurableIndex}, ${recipeWithCenter.ingredients.length} ingredients)`
+          : `Updated recipe "${recipeWithCenter.name}" details and ingredient ratios`,
+        newValue: recipeWithCenter,
+      },
+    });
+
+    setAuditLogs((prev) => [log, ...prev]);
   };
 
   const deleteRecipe = async (id: string) => {
-    setAllRecipes((prev) => prev.filter((r) => r.id !== id));
+    const existing = recipes.find((r) => r.id === id);
+    setRecipes((prev) => prev.filter((r) => r.id !== id));
+
+    // Delete in Firestore
+    await kitchenDbService.deleteCenterRecipe(currentCenter.id, id);
+
+    if (existing) {
+      const log = await kitchenDbService.logAuditAction({
+        centerId: currentCenter.id,
+        centerName: currentCenter.name,
+        category: 'recipe',
+        actionType: 'RECIPE_DELETE',
+        entityId: id,
+        entityName: existing.name,
+        performedByUid: currentUser.uid,
+        performedByName: currentUser.name,
+        performedByRole: currentUser.role,
+        details: {
+          summary: `Deleted recipe "${existing.name}" from ${currentCenter.name}`,
+          previousValue: existing,
+        },
+      });
+      setAuditLogs((prev) => [log, ...prev]);
+    }
   };
 
   // Pattern Operations
   const savePattern = async (pattern: MenuPattern) => {
-    setAllPatterns((prev) => {
+    const patternWithCenter: MenuPattern = {
+      ...pattern,
+      centerId: currentCenter.id,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setPatterns((prev) => {
       const idx = prev.findIndex((p) => p.id === pattern.id);
       if (idx >= 0) {
         const copy = [...prev];
-        copy[idx] = pattern;
+        copy[idx] = patternWithCenter;
         return copy;
       }
-      return [pattern, ...prev];
+      return [patternWithCenter, ...prev];
     });
+
+    await kitchenDbService.saveCenterPattern(currentCenter.id, patternWithCenter);
   };
 
   const deletePattern = async (id: string) => {
-    setAllPatterns((prev) => prev.filter((p) => p.id !== id));
+    setPatterns((prev) => prev.filter((p) => p.id !== id));
   };
 
-  // 15-Day Menu Plan Save
+  // 15-Day Menu Plan Save (Synced with Firebase per Center)
   const saveMenuPlan = async (plan: FifteenDayMenuPlan) => {
-    // If user edited, reset status to pending_approval
+    // If user edited, reset status to pending_approval under Maker-Checker
     const updatedPlan: FifteenDayMenuPlan = {
       ...plan,
+      centerId: currentCenter.id,
       status: 'pending_approval',
       createdBy: currentUser.uid,
       createdByName: `${currentUser.name} (${currentUser.role})`,
@@ -239,7 +466,29 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       approvedByName: undefined,
       updatedAt: new Date().toISOString(),
     };
+
     setActiveMenuPlan(updatedPlan);
+
+    // Sync to Firestore
+    await kitchenDbService.saveCenterMenuPlan(currentCenter.id, updatedPlan);
+
+    // Audit Log
+    const log = await kitchenDbService.logAuditAction({
+      centerId: currentCenter.id,
+      centerName: currentCenter.name,
+      category: 'menu_planner',
+      actionType: 'MENU_PLAN_SAVE',
+      entityId: plan.id,
+      entityName: plan.title,
+      performedByUid: currentUser.uid,
+      performedByName: currentUser.name,
+      performedByRole: currentUser.role,
+      details: {
+        summary: `Saved modifications to 15-day menu plan "${plan.title}". Status reset to pending_approval under Maker-Checker governance.`,
+      },
+    });
+
+    setAuditLogs((prev) => [log, ...prev]);
   };
 
   // Maker-Checker Dual-Approval Rule
@@ -261,26 +510,73 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
     }
 
-    setActiveMenuPlan((prev) => ({
-      ...prev,
+    const approvedPlan: FifteenDayMenuPlan = {
+      ...activeMenuPlan,
       status: 'approved',
       approvedBy: currentUser.uid,
       approvedByName: `${currentUser.name} (Admin)`,
       approvedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    }));
+    };
+
+    setActiveMenuPlan(approvedPlan);
+
+    // Sync to Firestore
+    await kitchenDbService.saveCenterMenuPlan(currentCenter.id, approvedPlan);
+
+    // Audit Log
+    const log = await kitchenDbService.logAuditAction({
+      centerId: currentCenter.id,
+      centerName: currentCenter.name,
+      category: 'menu_planner',
+      actionType: 'MENU_PLAN_APPROVE',
+      entityId: planId,
+      entityName: approvedPlan.title,
+      performedByUid: currentUser.uid,
+      performedByName: currentUser.name,
+      performedByRole: currentUser.role,
+      details: {
+        summary: `Maker-Checker approval: Officially approved 15-day menu plan by ${currentUser.name}. Menu is live and approved.`,
+      },
+    });
+
+    setAuditLogs((prev) => [log, ...prev]);
 
     return { success: true };
   };
 
   const rejectMenuPlan = async (planId: string, reason: string) => {
     if (!isAdmin && !isSAdmin) return;
-    setActiveMenuPlan((prev) => ({
-      ...prev,
+    const rejectedPlan: FifteenDayMenuPlan = {
+      ...activeMenuPlan,
       status: 'rejected',
       rejectionReason: reason,
       updatedAt: new Date().toISOString(),
-    }));
+    };
+
+    setActiveMenuPlan(rejectedPlan);
+
+    // Sync to Firestore
+    await kitchenDbService.saveCenterMenuPlan(currentCenter.id, rejectedPlan);
+
+    // Audit Log
+    const log = await kitchenDbService.logAuditAction({
+      centerId: currentCenter.id,
+      centerName: currentCenter.name,
+      category: 'menu_planner',
+      actionType: 'MENU_PLAN_REJECT',
+      entityId: planId,
+      entityName: rejectedPlan.title,
+      performedByUid: currentUser.uid,
+      performedByName: currentUser.name,
+      performedByRole: currentUser.role,
+      details: {
+        summary: `Maker-Checker rejection: Menu plan rejected by ${currentUser.name}. Reason: "${reason}"`,
+        notes: reason,
+      },
+    });
+
+    setAuditLogs((prev) => [log, ...prev]);
   };
 
   // Repetition Validator
@@ -324,6 +620,13 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
         canApproveActiveMenu,
         repetitionCheck,
         requisitionSummary,
+        auditLogs,
+        isAuditModalOpen,
+        auditModalCategory,
+        openAuditModal,
+        closeAuditModal,
+        refreshAuditLogs,
+        isSyncing,
       }}
     >
       {children}

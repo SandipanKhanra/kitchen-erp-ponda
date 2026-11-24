@@ -81,12 +81,12 @@ service cloud.firestore {
     // 5. Recipes & Patterns
     match /centers/{centerId}/recipes/{recipeId} {
       allow read: if isMember(centerId);
-      allow write: if isAdmin(centerId);
+      allow write: if isMember(centerId);
     }
 
     match /centers/{centerId}/patterns/{patternId} {
       allow read: if isMember(centerId);
-      allow write: if isAdmin(centerId); // Only admin can create/edit/delete patterns
+      allow write: if isMember(centerId);
     }
 
     // 6. 15-Day Menus & Maker-Checker Dual Approvals
@@ -97,7 +97,9 @@ service cloud.firestore {
         // Standard edit: resets to pending_approval
         (request.resource.data.status == 'pending_approval') ||
         // Maker-Checker approval: ONLY an admin DIFFERENT from creator can set to 'approved'!
-        (request.resource.data.status == 'approved' && isAdmin(centerId) && resource.data.createdBy != request.auth.uid)
+        (request.resource.data.status == 'approved' && isAdmin(centerId) && resource.data.createdBy != request.auth.uid) ||
+        // Maker-Checker rejection by an admin
+        (request.resource.data.status == 'rejected' && isAdmin(centerId))
       );
       allow delete: if isAdmin(centerId);
     }
@@ -106,6 +108,13 @@ service cloud.firestore {
     match /vaishnava_calendar/{occasionId} {
       allow read: if true;
       allow write: if isSAdmin();
+    }
+
+    // 8. Audit Logs (Center-Specific Audit Trail for Menu Plans, Recipes, and Stock)
+    match /centers/{centerId}/audit_logs/{auditId} {
+      allow read: if isMember(centerId);
+      allow create: if isMember(centerId);
+      allow update, delete: if isSAdmin();
     }
   }
 }

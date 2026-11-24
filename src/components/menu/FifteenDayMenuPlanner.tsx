@@ -11,6 +11,7 @@ import {
   Sparkles,
   Info,
   Clock,
+  History,
 } from 'lucide-react';
 import { MealType } from '../../types/recipe';
 
@@ -23,6 +24,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     rejectMenuPlan,
     canApproveActiveMenu,
     repetitionCheck,
+    openAuditModal,
     recipes,
     recipeMap,
     patterns,
@@ -96,8 +98,17 @@ export const FifteenDayMenuPlanner: React.FC = () => {
             </div>
           </div>
 
-          {/* Maker-Checker Action Buttons */}
-          <div className="flex items-center space-x-2 text-xs">
+          {/* Maker-Checker Action Buttons & Audit Trail */}
+          <div className="flex items-center space-x-2 text-xs flex-wrap gap-y-2">
+            <button
+              onClick={() => openAuditModal('menu_planner')}
+              className="flex items-center space-x-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3.5 py-2 rounded-xl font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"
+              title="View revision and Maker-Checker approval history"
+            >
+              <History className="w-4 h-4 text-orange-500" />
+              <span>Audit History</span>
+            </button>
+
             {isPending && isSelfCreated && !isSAdmin && (
               <div className="flex items-center space-x-1.5 text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/40 px-3 py-2 rounded-xl border border-amber-300">
                 <Info className="w-4 h-4 text-amber-600" />
