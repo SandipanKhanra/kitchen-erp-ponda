@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { useKitchen } from '../../context/KitchenContext';
 import { StockCategory, MeasureIndex } from '../../types/stock';
-import { Package, Plus, DollarSign, RefreshCw, CheckCircle2, TrendingUp } from 'lucide-react';
+import { Package, Plus, DollarSign, RefreshCw, CheckCircle2, TrendingUp, Search } from 'lucide-react';
+import { Pagination } from '../common/Pagination';
 
 export const StockManagement: React.FC = () => {
   const { stockItems, recordStockPurchase, updateStockPrice, updateStockCount, addNewStockItem } = useKitchen();
 
   const [selectedCat, setSelectedCat] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
+
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [selectedItemForPurchase, setSelectedItemForPurchase] = useState<string>(stockItems[0]?.id || '');
   const [purchasedQty, setPurchasedQty] = useState<number>(10);
@@ -24,7 +29,26 @@ export const StockManagement: React.FC = () => {
 
   const categories: StockCategory[] = ['Grocery', 'Vegetables', 'Fruits', 'Dairy'];
 
-  const filtered = stockItems.filter((s) => selectedCat === 'All' || s.category === selectedCat);
+  const filtered = stockItems.filter((s) => {
+    const matchCat = selectedCat === 'All' || s.category === selectedCat;
+    const matchSearch =
+      !searchQuery.trim() ||
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.brand.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  const paginatedItems = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const handleCatChange = (cat: string) => {
+    setSelectedCat(cat);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  };
 
   const handleRecordPurchase = async () => {
     if (!selectedItemForPurchase || purchasedQty <= 0 || purchasedUnitPrice <= 0) {
@@ -91,72 +115,110 @@ export const StockManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Category Filter Tabs */}
-      <div className="flex space-x-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl w-fit text-xs font-bold">
-        <button
-          onClick={() => setSelectedCat('All')}
-          className={`px-3 py-1.5 rounded-xl transition-all ${
-            selectedCat === 'All'
-              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-              : 'text-slate-500'
-          }`}
-        >
-          All Items ({stockItems.length})
-        </button>
-        {categories.map((cat) => (
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        {/* Category Filter Tabs */}
+        <div className="flex flex-wrap gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl text-xs font-bold w-full sm:w-auto">
           <button
-            key={cat}
-            onClick={() => setSelectedCat(cat)}
+            onClick={() => handleCatChange('All')}
             className={`px-3 py-1.5 rounded-xl transition-all ${
-              selectedCat === cat
-                ? 'bg-orange-500 text-white shadow-sm'
+              selectedCat === 'All'
+                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                 : 'text-slate-500'
             }`}
           >
-            {cat}
+            All ({stockItems.length})
           </button>
-        ))}
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => handleCatChange(cat)}
+              className={`px-3 py-1.5 rounded-xl transition-all ${
+                selectedCat === cat
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Search Input */}
+        <div className="relative w-full sm:w-64">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            placeholder="Search stock by name..."
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900 dark:text-white placeholder-slate-400"
+          />
+        </div>
       </div>
 
       {/* Stock Table */}
       <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-700">
-            <tr>
-              <th className="px-6 py-4">Item Name</th>
-              <th className="px-6 py-4">Brand</th>
-              <th className="px-6 py-4">Category</th>
-              <th className="px-6 py-4">Measure Index</th>
-              <th className="px-6 py-4">Current Stock</th>
-              <th className="px-6 py-4">Adjusted Unit Price</th>
-              <th className="px-6 py-4">Total Asset Value</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-            {filtered.map((item) => (
-              <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30">
-                <td className="px-6 py-3.5 font-bold text-slate-900 dark:text-white">{item.name}</td>
-                <td className="px-6 py-3.5 text-slate-500 dark:text-slate-400 font-medium">{item.brand}</td>
-                <td className="px-6 py-3.5">
-                  <span className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded">
-                    {item.category}
-                  </span>
-                </td>
-                <td className="px-6 py-3.5 font-mono text-slate-500">{item.measureIndex}</td>
-                <td className="px-6 py-3.5 font-bold text-slate-800 dark:text-slate-200">
-                  {item.currentStock} {item.measureIndex}
-                </td>
-                <td className="px-6 py-3.5 font-bold text-orange-600 dark:text-orange-400">
-                  ₹{item.price.toFixed(2)} / {item.measureIndex}
-                </td>
-                <td className="px-6 py-3.5 font-bold text-emerald-600 dark:text-emerald-400">
-                  ₹{(item.currentStock * item.price).toFixed(2)}
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs min-w-[650px]">
+            <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-700">
+              <tr>
+                <th className="px-6 py-4">Item Name</th>
+                <th className="px-6 py-4">Brand</th>
+                <th className="px-6 py-4">Category</th>
+                <th className="px-6 py-4">Measure Index</th>
+                <th className="px-6 py-4">Current Stock</th>
+                <th className="px-6 py-4">Adjusted Unit Price</th>
+                <th className="px-6 py-4">Total Asset Value</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+              {paginatedItems.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-10 text-center text-slate-400">
+                    No items found matching your filters.
+                  </td>
+                </tr>
+              ) : (
+                paginatedItems.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30">
+                    <td className="px-6 py-3.5 font-bold text-slate-900 dark:text-white">{item.name}</td>
+                    <td className="px-6 py-3.5 text-slate-500 dark:text-slate-400 font-medium">{item.brand}</td>
+                    <td className="px-6 py-3.5">
+                      <span className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded">
+                        {item.category}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3.5 font-mono text-slate-500">{item.measureIndex}</td>
+                    <td className="px-6 py-3.5 font-bold text-slate-800 dark:text-slate-200">
+                      {item.currentStock} {item.measureIndex}
+                    </td>
+                    <td className="px-6 py-3.5 font-bold text-orange-600 dark:text-orange-400">
+                      ₹{item.price.toFixed(2)} / {item.measureIndex}
+                    </td>
+                    <td className="px-6 py-3.5 font-bold text-emerald-600 dark:text-emerald-400">
+                      ₹{(item.currentStock * item.price).toFixed(2)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setCurrentPage(1);
+        }}
+        pageSizeOptions={[6, 8, 16, 24]}
+      />
 
       {/* Modal: Receive Stock Purchase (Adjust Weighted Average Price) */}
       {isPurchaseModalOpen && (

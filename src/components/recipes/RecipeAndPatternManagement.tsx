@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useKitchen } from '../../context/KitchenContext';
-import { Plus, Trash2, Layers, Utensils, Sparkles, Check, Edit3 } from 'lucide-react';
+import { Plus, Trash2, Layers, Utensils, Sparkles, Check, Edit3, Search } from 'lucide-react';
 import { Recipe, MenuPattern, Occasion, MealType, RecipeType, MeasurableIndex } from '../../types/recipe';
 import { MEAL_TYPES } from '../../config/constants';
+import { Pagination } from '../common/Pagination';
 
 export const RecipeAndPatternManagement: React.FC = () => {
   const { isAdmin, isSAdmin } = useAuth();
   const { recipes, patterns, stockItems, saveRecipe, deleteRecipe, savePattern, deletePattern } = useKitchen();
 
   const [activeTab, setActiveTab] = useState<'recipes' | 'patterns'>('recipes');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [recipePage, setRecipePage] = useState(1);
+  const [recipePageSize, setRecipePageSize] = useState(6);
+  const [patternPage, setPatternPage] = useState(1);
+  const [patternPageSize, setPatternPageSize] = useState(6);
 
   // New Recipe Form state
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
@@ -95,6 +101,29 @@ export const RecipeAndPatternManagement: React.FC = () => {
     setSelectedRecipeIds([]);
   };
 
+  const filteredRecipes = recipes.filter(
+    (r) =>
+      !searchQuery.trim() ||
+      r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.occasion.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const paginatedRecipes = filteredRecipes.slice(
+    (recipePage - 1) * recipePageSize,
+    recipePage * recipePageSize
+  );
+
+  const filteredPatterns = patterns.filter(
+    (p) =>
+      !searchQuery.trim() ||
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.mealType.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const paginatedPatterns = filteredPatterns.slice(
+    (patternPage - 1) * patternPageSize,
+    patternPage * patternPageSize
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -142,100 +171,154 @@ export const RecipeAndPatternManagement: React.FC = () => {
             </button>
           )}
         </div>
+
+        {/* Search Bar */}
+        <div className="relative w-full sm:w-64">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            placeholder={`Search ${activeTab}...`}
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setRecipePage(1);
+              setPatternPage(1);
+            }}
+            className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900 dark:text-white placeholder-slate-400"
+          />
+        </div>
       </div>
 
       {/* View 1: Recipes */}
       {activeTab === 'recipes' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {recipes.map((rec) => (
-            <div
-              key={rec.id}
-              className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center space-x-1.5">
-                    <span
-                      className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
-                        rec.occasion === 'Ekadashi'
-                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
-                          : rec.occasion === 'Fasting'
-                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
-                          : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      {rec.occasion}
-                    </span>
-                    <span className="text-[9px] font-bold text-slate-400 bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 rounded">
-                      {rec.mealType}
-                    </span>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {paginatedRecipes.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-slate-400 text-xs">
+                No recipes found matching your search.
+              </div>
+            ) : (
+              paginatedRecipes.map((rec) => (
+                <div
+                  key={rec.id}
+                  className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center space-x-1.5">
+                        <span
+                          className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                            rec.occasion === 'Ekadashi'
+                              ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                              : rec.occasion === 'Fasting'
+                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                              : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          {rec.occasion}
+                        </span>
+                        <span className="text-[9px] font-bold text-slate-400 bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 rounded">
+                          {rec.mealType}
+                        </span>
+                      </div>
+                      <h3 className="font-extrabold text-slate-900 dark:text-white text-base mt-1.5">{rec.name}</h3>
+                    </div>
                   </div>
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base mt-1.5">{rec.name}</h3>
+
+                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{rec.description}</p>
+
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex justify-between items-center text-xs text-slate-500">
+                    <span>
+                      Index: <strong className="text-slate-700 dark:text-slate-300">{rec.measurableIndex}</strong>
+                    </span>
+                    <span>{rec.ingredients.length} Ingredients</span>
+                  </div>
                 </div>
-              </div>
+              ))
+            )}
+          </div>
 
-              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{rec.description}</p>
-
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex justify-between items-center text-xs text-slate-500">
-                <span>
-                  Index: <strong className="text-slate-700 dark:text-slate-300">{rec.measurableIndex}</strong>
-                </span>
-                <span>{rec.ingredients.length} Ingredients</span>
-              </div>
-            </div>
-          ))}
+          <Pagination
+            currentPage={recipePage}
+            totalItems={filteredRecipes.length}
+            pageSize={recipePageSize}
+            onPageChange={setRecipePage}
+            onPageSizeChange={(size) => {
+              setRecipePageSize(size);
+              setRecipePage(1);
+            }}
+            pageSizeOptions={[6, 12, 18]}
+          />
         </div>
       )}
 
       {/* View 2: Patterns (Only Admin) */}
       {activeTab === 'patterns' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {patterns.map((pat) => (
-              <div
-                key={pat.id}
-                className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="text-[10px] font-black uppercase bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-400 px-2 py-0.5 rounded">
-                      {pat.mealType} Pattern
-                    </span>
-                    <h3 className="font-extrabold text-slate-900 dark:text-white text-base mt-1">
-                      {pat.name}
-                    </h3>
-                  </div>
-                  {(isAdmin || isSAdmin) && (
-                    <button
-                      onClick={() => deletePattern(pat.id)}
-                      className="text-rose-500 hover:text-rose-700 p-1"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-
-                <p className="text-xs text-slate-500 dark:text-slate-400">{pat.description}</p>
-
-                <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-700">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Contains Recipes:</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {pat.recipeIds.map((rId) => {
-                      const r = recipes.find((item) => item.id === rId);
-                      return (
-                        <span
-                          key={rId}
-                          className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2 py-1 rounded-lg font-medium"
-                        >
-                          {r?.name || 'Recipe'}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {paginatedPatterns.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-slate-400 text-xs">
+                No patterns found matching your search.
               </div>
-            ))}
+            ) : (
+              paginatedPatterns.map((pat) => (
+                <div
+                  key={pat.id}
+                  className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-[10px] font-black uppercase bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-400 px-2 py-0.5 rounded">
+                        {pat.mealType} Pattern
+                      </span>
+                      <h3 className="font-extrabold text-slate-900 dark:text-white text-base mt-1">
+                        {pat.name}
+                      </h3>
+                    </div>
+                    {(isAdmin || isSAdmin) && (
+                      <button
+                        onClick={() => deletePattern(pat.id)}
+                        className="text-rose-500 hover:text-rose-700 p-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{pat.description}</p>
+
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-700">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Contains Recipes:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {pat.recipeIds.map((rId) => {
+                        const r = recipes.find((item) => item.id === rId);
+                        return (
+                          <span
+                            key={rId}
+                            className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2 py-1 rounded-lg font-medium"
+                          >
+                            {r?.name || 'Recipe'}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
+
+          <Pagination
+            currentPage={patternPage}
+            totalItems={filteredPatterns.length}
+            pageSize={patternPageSize}
+            onPageChange={setPatternPage}
+            onPageSizeChange={(size) => {
+              setPatternPageSize(size);
+              setPatternPage(1);
+            }}
+            pageSizeOptions={[4, 6, 12]}
+          />
         </div>
       )}
 

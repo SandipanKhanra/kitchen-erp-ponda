@@ -154,7 +154,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
           <span className="font-bold text-slate-500 uppercase">Select Day (1 — 15)</span>
           <span className="text-slate-400">Fixed 3 Meals &bull; Ekadashi Auto-Guarded</span>
         </div>
-        <div className="grid grid-cols-5 sm:grid-cols-15 gap-2">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {Array.from({ length: 15 }, (_, i) => i + 1).map((dayNum) => {
             const day = activeMenuPlan.days[dayNum];
             const isSelected = selectedDay === dayNum;
@@ -164,7 +164,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
               <button
                 key={dayNum}
                 onClick={() => setSelectedDay(dayNum)}
-                className={`py-2.5 rounded-xl font-black text-xs transition-all flex flex-col items-center relative ${
+                className={`flex-1 min-w-[52px] sm:min-w-[60px] py-2.5 rounded-xl font-black text-xs transition-all flex flex-col items-center relative ${
                   isSelected
                     ? 'bg-gradient-to-tr from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25 scale-105'
                     : isEkadashi
@@ -172,7 +172,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                     : 'bg-slate-50 dark:bg-slate-900/60 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                 }`}
               >
-                <span className="text-[9px] font-bold opacity-75">D{dayNum}</span>
+                <span className="text-[10px] font-bold opacity-75">D{dayNum}</span>
                 {isEkadashi && (
                   <span className="text-[8px] font-black uppercase text-amber-500 mt-0.5">
                     Ekadashi
