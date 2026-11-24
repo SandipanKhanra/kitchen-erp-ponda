@@ -39,12 +39,13 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
   const handleAddIngredientToRecipe = () => {
     if (stockItems.length === 0) return;
+    const defaultStock = stockItems[0];
     setIngredientsList((prev) => [
       ...prev,
       {
-        ingredientId: stockItems[0].id,
+        ingredientId: defaultStock.id,
         quantity: 1,
-        unit: stockItems[0].measureIndex,
+        unit: defaultStock.measureIndex || 'kg',
       },
     ]);
   };
@@ -137,11 +138,11 @@ export const RecipeAndPatternManagement: React.FC = () => {
         </div>
 
         {/* Tab switch, Audit History & Add buttons */}
-        <div className="flex items-center space-x-2 flex-wrap gap-y-2">
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+          <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl text-xs font-bold">
             <button
               onClick={() => setActiveTab('recipes')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg transition-all ${
                 activeTab === 'recipes'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -151,7 +152,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('patterns')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg transition-all ${
                 activeTab === 'patterns'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -163,7 +164,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
           <button
             onClick={() => openAuditModal('recipe')}
-            className="flex items-center space-x-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            className="flex items-center space-x-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"
             title="View recipe audit trail"
           >
             <History className="w-3.5 h-3.5 text-purple-500" />
@@ -173,7 +174,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
           {(isAdmin || isSAdmin) && (
             <button
               onClick={() => (activeTab === 'recipes' ? setIsRecipeModalOpen(true) : setIsPatternModalOpen(true))}
-              className="flex items-center space-x-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-md shadow-orange-500/20"
+              className="flex items-center space-x-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{activeTab === 'recipes' ? 'Add Recipe' : 'Create Pattern (Admin)'}</span>
@@ -236,11 +237,28 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
                   <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{rec.description}</p>
 
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex justify-between items-center text-xs text-slate-500">
-                    <span>
-                      Index: <strong className="text-slate-700 dark:text-slate-300">{rec.measurableIndex}</strong>
-                    </span>
-                    <span>{rec.ingredients.length} Ingredients</span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 text-xs space-y-1.5">
+                    <div className="flex justify-between items-center text-slate-500">
+                      <span>
+                        Base Yield: <strong className="text-slate-700 dark:text-slate-300">{rec.baseYield} {rec.measurableIndex}</strong>
+                      </span>
+                      <span>{rec.ingredients.length} Ingredients</span>
+                    </div>
+                    {rec.ingredients.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {rec.ingredients.slice(0, 4).map((ing, i) => {
+                          const stockItem = stockItems.find((s) => s.id === ing.ingredientId);
+                          return (
+                            <span key={i} className="text-[10px] bg-slate-100 dark:bg-slate-700/70 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded font-medium">
+                              {ing.quantity} {ing.unit} {stockItem?.name || 'Item'}
+                            </span>
+                          );
+                        })}
+                        {rec.ingredients.length > 4 && (
+                          <span className="text-[10px] text-slate-400">+{rec.ingredients.length - 4} more</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))
@@ -403,15 +421,19 @@ export const RecipeAndPatternManagement: React.FC = () => {
                 </div>
 
                 {ingredientsList.map((ing, idx) => (
-                  <div key={idx} className="flex gap-2 items-center">
+                  <div key={idx} className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
                     <select
                       value={ing.ingredientId}
                       onChange={(e) => {
                         const copy = [...ingredientsList];
+                        const chosen = stockItems.find((s) => s.id === e.target.value);
                         copy[idx].ingredientId = e.target.value;
+                        if (chosen && !copy[idx].unit) {
+                          copy[idx].unit = chosen.measureIndex || 'kg';
+                        }
                         setIngredientsList(copy);
                       }}
-                      className="flex-1 p-2 border border-slate-200 dark:border-slate-700 rounded-lg dark:bg-slate-900 dark:text-white text-xs"
+                      className="flex-1 min-w-[130px] p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white text-xs"
                     >
                       {stockItems.map((s) => (
                         <option key={s.id} value={s.id}>
@@ -430,29 +452,51 @@ export const RecipeAndPatternManagement: React.FC = () => {
                         copy[idx].quantity = parseFloat(e.target.value) || 0;
                         setIngredientsList(copy);
                       }}
-                      className="w-20 p-2 border border-slate-200 dark:border-slate-700 rounded-lg dark:bg-slate-900 dark:text-white text-xs"
+                      className="w-20 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white text-xs font-semibold"
                     />
+
+                    {/* Choose measuring index individually whether kg, litre, g, ml, piece, etc. */}
+                    <select
+                      value={ing.unit || 'kg'}
+                      onChange={(e) => {
+                        const copy = [...ingredientsList];
+                        copy[idx].unit = e.target.value;
+                        setIngredientsList(copy);
+                      }}
+                      className="w-24 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white text-xs font-bold cursor-pointer"
+                      title="Measuring index for this ingredient (kg, litre, etc.)"
+                    >
+                      <option value="kg">kg</option>
+                      <option value="g">g</option>
+                      <option value="litre">litre</option>
+                      <option value="ml">ml</option>
+                      <option value="piece">piece</option>
+                      <option value="cup">cup</option>
+                      <option value="tbsp">tbsp</option>
+                      <option value="tsp">tsp</option>
+                    </select>
 
                     <button
                       onClick={() => setIngredientsList(ingredientsList.filter((_, i) => i !== idx))}
-                      className="text-rose-500 p-1"
+                      className="text-slate-400 hover:text-rose-500 p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                      title="Remove ingredient"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 ))}
               </div>
 
-              <div className="flex justify-end space-x-2 pt-3">
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-3">
                 <button
                   onClick={() => setIsRecipeModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl"
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveRecipe}
-                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold"
+                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition"
                 >
                   Save Recipe
                 </button>
@@ -512,16 +556,16 @@ export const RecipeAndPatternManagement: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2 pt-3">
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-3">
                 <button
                   onClick={() => setIsPatternModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl"
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSavePattern}
-                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold"
+                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition"
                 >
                   Save Pattern
                 </button>

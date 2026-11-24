@@ -151,17 +151,17 @@ export const SAdminDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
                     <button
                       onClick={() => approveCenterRequest(req.id)}
-                      className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold shadow-md shadow-emerald-600/20"
+                      className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold shadow-md shadow-emerald-600/20 transition"
                     >
                       <CheckCircle2 className="w-4 h-4" />
                       <span>Approve & Create Center</span>
                     </button>
                     <button
                       onClick={() => setRejectingId(req.id)}
-                      className="flex items-center space-x-1.5 border border-rose-300 text-rose-600 hover:bg-rose-50 px-4 py-2 rounded-xl font-bold"
+                      className="flex items-center space-x-1.5 border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 px-4 py-2 rounded-xl font-bold transition"
                     >
                       <XCircle className="w-4 h-4" />
                       <span>Reject</span>

@@ -97,10 +97,10 @@ export const StockManagement: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           <button
             onClick={() => openAuditModal('stock')}
-            className="flex items-center space-x-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            className="flex items-center space-x-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"
             title="View purchase & stock adjustment history"
           >
             <History className="w-3.5 h-3.5 text-emerald-500" />
@@ -108,14 +108,14 @@ export const StockManagement: React.FC = () => {
           </button>
           <button
             onClick={() => setIsNewItemModalOpen(true)}
-            className="flex items-center space-x-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="flex items-center space-x-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Stock Item</span>
           </button>
           <button
             onClick={() => setIsPurchaseModalOpen(true)}
-            className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20"
+            className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Receive Purchase (Adjust Price)</span>
@@ -281,16 +281,16 @@ export const StockManagement: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-end space-x-2 pt-3">
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-3">
                   <button
                     onClick={() => setIsPurchaseModalOpen(false)}
-                    className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl"
+                    className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleRecordPurchase}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition"
                   >
                     Apply & Recalculate Price
                   </button>
@@ -377,16 +377,16 @@ export const StockManagement: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2 pt-3">
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-3">
                 <button
                   onClick={() => setIsNewItemModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl"
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddNewItem}
-                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold"
+                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition"
                 >
                   Save Stock Item
                 </button>

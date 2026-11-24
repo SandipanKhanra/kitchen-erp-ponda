@@ -28,7 +28,7 @@ function AppContent() {
   // Loading Splash Screen while Firebase Auth initializes
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-transparent flex flex-col items-center justify-center p-4">
         <div className="p-4 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white shadow-2xl shadow-orange-500/30 animate-bounce mb-4">
           <ChefHat className="w-10 h-10" />
         </div>
@@ -45,7 +45,7 @@ function AppContent() {
   // If not signed in and not in demo mode: Show Auth View directly as clean centered page
   if (!firebaseUser && !isDemoMode) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex items-center justify-center p-3 sm:p-4 transition-colors duration-200">
+      <div className="min-h-screen bg-transparent text-slate-900 dark:text-slate-100 flex items-center justify-center p-3 sm:p-4 transition-colors duration-200">
         <AuthView initialTab={authModalTab} />
       </div>
     );
@@ -53,7 +53,7 @@ function AppContent() {
 
   // Authenticated or Demo Mode App Shell
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
+    <div className="min-h-screen bg-transparent text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
       <Navbar
         activeTab={activeTab}
         setActiveTab={navigateToTab}

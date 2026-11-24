@@ -255,16 +255,16 @@ export const AdminUserManagement: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-end space-x-2 pt-3">
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-3">
                   <button
                     onClick={() => setIsRequestModalOpen(false)}
-                    className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold"
+                    className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleRaiseRequest}
-                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold shadow-md shadow-orange-500/20"
+                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition"
                   >
                     Submit Request to SAdmin
                   </button>

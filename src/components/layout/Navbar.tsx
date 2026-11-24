@@ -19,7 +19,6 @@ import {
   Menu,
   X,
   ChevronDown,
-  History,
 } from 'lucide-react';
 
 export type NavTab =
@@ -51,7 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
     centerRequests,
     logout,
   } = useAuth();
-  const { theme, toggleTheme, openAuditModal, auditLogs } = useKitchen();
+  const { theme, toggleTheme } = useKitchen();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -262,23 +261,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
                       </div>
                     </div>
 
-                    {/* Audit Trail Action */}
-                    <button
-                      onClick={() => {
-                        setProfileDropdownOpen(false);
-                        openAuditModal();
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition duration-150 border border-slate-200/60 dark:border-slate-700/60"
-                    >
-                      <span className="flex items-center space-x-2">
-                        <History className="w-4 h-4 text-orange-500" />
-                        <span>Audit Trail & Activity Log</span>
-                      </span>
-                      <span className="text-[10px] bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded font-mono">
-                        {auditLogs.length}
-                      </span>
-                    </button>
-
                     {/* Sign Out Button */}
                     <button
                       onClick={() => {
@@ -471,25 +453,15 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      openAuditModal();
-                    }}
-                    className="flex items-center space-x-1.5 py-1.5 px-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold"
-                  >
-                    <History className="w-3.5 h-3.5 text-orange-500" />
-                    <span>Audit Trail ({auditLogs.length})</span>
-                  </button>
+                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-end">
                   <button
                     onClick={() => {
                       setMobileMenuOpen(false);
                       logout();
                     }}
-                    className="flex items-center space-x-1.5 py-1.5 px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900/80 text-rose-600 dark:text-rose-300 rounded-xl text-xs font-bold transition border border-rose-200/50 dark:border-rose-900/40"
+                    className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900/80 text-rose-600 dark:text-rose-300 rounded-xl text-xs font-bold transition border border-rose-200/50 dark:border-rose-900/40"
                   >
-                    <LogOut className="w-3.5 h-3.5" />
+                    <LogOut className="w-4 h-4" />
                     <span>Sign Out</span>
                   </button>
                 </div>

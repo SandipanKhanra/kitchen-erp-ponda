@@ -9,7 +9,7 @@
   text-rendering: optimizeLegibility;
 }
 
-/* Color Scheme & Background Fallbacks */
+/* Color Scheme & Modern Ambient Backgrounds */
 html.dark,
 html[data-theme='dark'],
 body.dark {
@@ -28,11 +28,28 @@ html[data-theme='light'] {
 html.dark body,
 body.dark {
   background-color: #020617 !important;
+  background-image: 
+    radial-gradient(rgba(255, 255, 255, 0.07) 1.2px, transparent 1.2px),
+    radial-gradient(ellipse 850px 500px at 50% -60px, rgba(249, 115, 22, 0.15), transparent 75%),
+    radial-gradient(circle 600px at 95% 15%, rgba(99, 102, 241, 0.10), transparent 70%),
+    radial-gradient(circle 500px at 5% 55%, rgba(16, 185, 129, 0.05), transparent 70%);
+  background-size: 24px 24px, 100% 100%, 100% 100%, 100% 100%;
+  background-position: 0 0, 0 0, 0 0, 0 0;
+  background-attachment: fixed;
   color: #f8fafc !important;
 }
 
-html:not(.dark) body {
+html:not(.dark) body,
+html[data-theme='light'] body {
   background-color: #f8fafc;
+  background-image: 
+    radial-gradient(rgba(148, 163, 184, 0.22) 1.2px, transparent 1.2px),
+    radial-gradient(ellipse 850px 500px at 50% -70px, rgba(249, 115, 22, 0.08), transparent 75%),
+    radial-gradient(circle 650px at 95% 20%, rgba(245, 158, 11, 0.05), transparent 70%),
+    radial-gradient(circle 500px at 5% 60%, rgba(59, 130, 246, 0.04), transparent 70%);
+  background-size: 24px 24px, 100% 100%, 100% 100%, 100% 100%;
+  background-position: 0 0, 0 0, 0 0, 0 0;
+  background-attachment: fixed;
   color: #0f172a;
 }
 

@@ -57,14 +57,14 @@ export const DaywiseAndShoppingView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+          <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl text-xs font-bold">
             <button
               onClick={() => {
                 setSubView('shopping');
                 setSearchQuery('');
               }}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg transition-all ${
                 subView === 'shopping'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -77,7 +77,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
                 setSubView('daywise');
                 setSearchQuery('');
               }}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg transition-all ${
                 subView === 'daywise'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -89,7 +89,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
 
           <button
             onClick={handleExportCSV}
-            className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20"
+            className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition"
           >
             <Download className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Export CSV</span>

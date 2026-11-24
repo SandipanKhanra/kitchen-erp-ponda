@@ -1,6 +1,7 @@
 import { FifteenDayMenuPlan } from '../types/menu';
 import { Recipe } from '../types/recipe';
 import { IngredientStockItem } from '../types/stock';
+import { convertToBaseUnit } from './unitConverter';
 import {
   DayRequirement,
   DayWiseRequirementItem,
@@ -46,8 +47,13 @@ export function calculateDayWiseAndShoppingRequirements(
         const scaleMultiplier = headcount / recipe.baseYield;
 
         recipe.ingredients.forEach((item) => {
+          const stockItem = stockMap.get(item.ingredientId);
+          // Convert recipe ingredient quantity (which can be kg, g, litre, ml, piece, cup, tbsp, tsp) into stock item's base unit
+          const normalizedQty = stockItem
+            ? convertToBaseUnit(item.quantity, item.unit, stockItem.measureIndex)
+            : item.quantity;
           const wastage = 1 + (item.wastagePercent || 0) / 100;
-          const consumed = item.quantity * scaleMultiplier * wastage;
+          const consumed = normalizedQty * scaleMultiplier * wastage;
 
           const currentDayTotal = dayIngredientsMap.get(item.ingredientId) || 0;
           dayIngredientsMap.set(item.ingredientId, currentDayTotal + consumed);
