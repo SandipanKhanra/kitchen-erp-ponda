@@ -59,12 +59,19 @@ export function calculateDayWiseAndShoppingRequirements(
 
         recipe.ingredients.forEach((item) => {
           const stockItem = stockMap.get(item.ingredientId);
+          const isPiece =
+            stockItem?.measureIndex === 'piece' ||
+            item.unit === 'piece' ||
+            item.unit === 'pcs';
+
           // Convert recipe ingredient quantity into stock item's base unit
           const normalizedQty = stockItem
             ? convertToBaseUnit(item.quantity, item.unit, stockItem.measureIndex)
             : item.quantity;
           const wastage = 1 + (item.wastagePercent || 0) / 100;
-          const consumed = normalizedQty * scaleMultiplier * wastage;
+          const rawConsumed = normalizedQty * scaleMultiplier * wastage;
+          // For piece-based ingredients, always keep whole round pieces
+          const consumed = isPiece ? Math.max(1, Math.round(rawConsumed)) : rawConsumed;
 
           const currentDayTotal = dayIngredientsMap.get(item.ingredientId) || 0;
           dayIngredientsMap.set(item.ingredientId, currentDayTotal + consumed);
@@ -73,7 +80,7 @@ export function calculateDayWiseAndShoppingRequirements(
           cumulativeDemandMap.set(item.ingredientId, currentCycleTotal + consumed);
 
           const unitPrice = stockItem?.price || 0;
-          const roundedQty = Math.round(consumed * 100) / 100;
+          const roundedQty = isPiece ? Math.round(consumed) : Math.round(consumed * 100) / 100;
           const lineCost = Math.round(roundedQty * unitPrice * 100) / 100;
           recipeTotalCost += lineCost;
 
@@ -112,7 +119,8 @@ export function calculateDayWiseAndShoppingRequirements(
       const stockItem = stockMap.get(ingId);
       if (!stockItem) return;
 
-      const roundedQty = Math.round(qty * 100) / 100;
+      const isPiece = stockItem.measureIndex === 'piece';
+      const roundedQty = isPiece ? Math.round(qty) : Math.round(qty * 100) / 100;
       const unitPrice = stockItem.price;
       const lineCost = Math.round(roundedQty * unitPrice * 100) / 100;
       dayCost += lineCost;
@@ -153,9 +161,15 @@ export function calculateDayWiseAndShoppingRequirements(
     const stockItem = stockMap.get(ingId);
     if (!stockItem) return;
 
-    const roundedDemand = Math.round(totalDemand * 100) / 100;
-    const currentStock = stockItem.currentStock;
-    const netToPurchase = Math.max(0, Math.round((roundedDemand - currentStock) * 100) / 100);
+    const isPiece = stockItem.measureIndex === 'piece';
+    const roundedDemand = isPiece ? Math.round(totalDemand) : Math.round(totalDemand * 100) / 100;
+    const currentStock = isPiece ? Math.round(stockItem.currentStock) : stockItem.currentStock;
+    const netToPurchase = Math.max(
+      0,
+      isPiece
+        ? Math.round(roundedDemand - currentStock)
+        : Math.round((roundedDemand - currentStock) * 100) / 100
+    );
     const estimatedPurchaseCost = Math.round(netToPurchase * stockItem.price * 100) / 100;
 
     totalNetProcurementCost += estimatedPurchaseCost;

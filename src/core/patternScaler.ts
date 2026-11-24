@@ -20,9 +20,13 @@ export function scaleRecipeForHeadcount(
 
   const multiplier = targetHeadcount / recipe.baseYield;
 
-  return recipe.ingredients.map((item) => ({
-    ingredientId: item.ingredientId,
-    quantity: Math.round(item.quantity * multiplier * 1000) / 1000,
-    unit: item.unit,
-  }));
+  return recipe.ingredients.map((item) => {
+    const isPiece = item.unit === 'piece' || item.unit === 'pcs';
+    const rawQty = item.quantity * multiplier;
+    return {
+      ingredientId: item.ingredientId,
+      quantity: isPiece ? Math.max(1, Math.round(rawQty)) : Math.round(rawQty * 1000) / 1000,
+      unit: item.unit,
+    };
+  });
 }

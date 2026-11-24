@@ -19,6 +19,9 @@ export const StockManagement: React.FC = () => {
   const [purchasedUnitPrice, setPurchasedUnitPrice] = useState<number>(0);
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
 
+  const selectedPurchaseStockItem = stockItems.find((s) => s.id === selectedItemForPurchase);
+  const isPurchasePiece = selectedPurchaseStockItem?.measureIndex === 'piece';
+
   // New Item modal
   const [isNewItemModalOpen, setIsNewItemModalOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -267,13 +270,13 @@ export const StockManagement: React.FC = () => {
                     <input
                       type="number"
                       min="0"
-                      step="any"
+                      step={isPurchasePiece ? '1' : 'any'}
                       placeholder="0"
                       value={purchasedQty === 0 ? '' : purchasedQty}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => {
-                        const { numValue } = sanitizeNumericChange(e, true);
-                        setPurchasedQty(numValue);
+                        const { numValue } = sanitizeNumericChange(e, !isPurchasePiece);
+                        setPurchasedQty(isPurchasePiece ? Math.round(numValue) : numValue);
                       }}
                       className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
                     />
@@ -361,7 +364,13 @@ export const StockManagement: React.FC = () => {
                   <label className="font-bold text-slate-700 dark:text-slate-300">Measure Index</label>
                   <select
                     value={newMeasureIndex}
-                    onChange={(e) => setNewMeasureIndex(e.target.value as MeasureIndex)}
+                    onChange={(e) => {
+                      const val = e.target.value as MeasureIndex;
+                      setNewMeasureIndex(val);
+                      if (val === 'piece' && newStock) {
+                        setNewStock(Math.round(newStock));
+                      }
+                    }}
                     className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
                   >
                     <option value="kg">kg</option>
@@ -393,13 +402,14 @@ export const StockManagement: React.FC = () => {
                   <input
                     type="number"
                     min="0"
-                    step="any"
+                    step={newMeasureIndex === 'piece' ? '1' : 'any'}
                     placeholder="0"
                     value={newStock === 0 ? '' : newStock}
                     onFocus={(e) => e.target.select()}
                     onChange={(e) => {
-                      const { numValue } = sanitizeNumericChange(e, true);
-                      setNewStock(numValue);
+                      const isPiece = newMeasureIndex === 'piece';
+                      const { numValue } = sanitizeNumericChange(e, !isPiece);
+                      setNewStock(isPiece ? Math.round(numValue) : numValue);
                     }}
                     className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
                   />

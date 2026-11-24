@@ -52,15 +52,20 @@ export function convertToBaseUnit(
     if (to === 'g' || to === 'ml') return quantity * 5;
   }
 
-  // Discrete unit conversions
+  // Discrete unit conversions (always whole round numbers for pieces)
   if ((to === 'pcs' || to === 'piece') && from === 'dozen') {
-    return quantity * 12;
+    return Math.round(quantity * 12);
   }
   if (to === 'dozen' && (from === 'pcs' || from === 'piece')) {
     return quantity / 12;
   }
   if ((to === 'pcs' && from === 'piece') || (to === 'piece' && from === 'pcs')) {
-    return quantity;
+    return Math.round(quantity);
+  }
+
+  // Any conversion to discrete piece unit must be a round number
+  if (to === 'piece' || to === 'pcs') {
+    return Math.round(quantity);
   }
 
   // Fallback direct 1:1 if unknown

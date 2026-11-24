@@ -445,15 +445,16 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
                     <input
                       type="number"
-                      step="any"
+                      step={ing.unit === 'piece' ? '1' : 'any'}
                       min="0"
                       placeholder="0"
                       value={ing.quantity === 0 ? '' : ing.quantity}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => {
-                        const { numValue } = sanitizeNumericChange(e, true);
+                        const isPiece = ing.unit === 'piece';
+                        const { numValue } = sanitizeNumericChange(e, !isPiece);
                         const copy = [...ingredientsList];
-                        copy[idx].quantity = numValue;
+                        copy[idx].quantity = isPiece ? Math.round(numValue) : numValue;
                         setIngredientsList(copy);
                       }}
                       className="w-20 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white text-xs font-semibold"
@@ -464,7 +465,11 @@ export const RecipeAndPatternManagement: React.FC = () => {
                       value={ing.unit || 'kg'}
                       onChange={(e) => {
                         const copy = [...ingredientsList];
-                        copy[idx].unit = e.target.value;
+                        const chosenUnit = e.target.value;
+                        copy[idx].unit = chosenUnit;
+                        if (chosenUnit === 'piece' && copy[idx].quantity) {
+                          copy[idx].quantity = Math.round(copy[idx].quantity);
+                        }
                         setIngredientsList(copy);
                       }}
                       className="w-24 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white text-xs font-bold cursor-pointer"
