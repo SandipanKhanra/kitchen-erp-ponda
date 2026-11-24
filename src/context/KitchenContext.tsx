@@ -66,21 +66,41 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   });
 
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
-  };
-
-  useEffect(() => {
-    const isDark = theme === 'dark';
-    document.documentElement.classList.toggle('dark', isDark);
-    if (document.body) {
-      document.body.classList.toggle('dark', isDark);
+  const applyTheme = (targetTheme: 'light' | 'dark') => {
+    const isDark = targetTheme === 'dark';
+    const root = document.documentElement;
+    if (isDark) {
+      root.classList.add('dark');
+      root.setAttribute('data-theme', 'dark');
+      if (document.body) {
+        document.body.classList.add('dark');
+        document.body.setAttribute('data-theme', 'dark');
+      }
+    } else {
+      root.classList.remove('dark');
+      root.setAttribute('data-theme', 'light');
+      if (document.body) {
+        document.body.classList.remove('dark');
+        document.body.setAttribute('data-theme', 'light');
+      }
     }
     try {
-      localStorage.setItem('kitchen_theme', theme);
+      localStorage.setItem('kitchen_theme', targetTheme);
     } catch (e) {
       console.warn('Failed to save theme in localStorage', e);
     }
+  };
+
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === 'light' ? 'dark' : 'light';
+      applyTheme(next);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    applyTheme(theme);
   }, [theme]);
 
   // Center-scoped Stock

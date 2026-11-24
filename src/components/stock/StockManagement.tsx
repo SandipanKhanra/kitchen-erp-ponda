@@ -159,7 +159,7 @@ export const StockManagement: React.FC = () => {
 
       {/* Stock Table */}
       <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto pb-1">
           <table className="w-full text-left text-xs min-w-[650px]">
             <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-700">
               <tr>

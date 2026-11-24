@@ -109,7 +109,7 @@ export const AdminUserManagement: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700/60">
+        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700/60 pb-1">
           <table className="w-full text-left text-xs min-w-[550px]">
             <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-700">
               <tr>

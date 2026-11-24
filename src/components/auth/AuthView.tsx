@@ -36,11 +36,11 @@ export const AuthView: React.FC<AuthViewProps> = ({
   }, [isModal, onClose]);
 
   const containerClasses = isModal
-    ? 'fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md overflow-y-auto'
+    ? 'fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto overscroll-contain'
     : 'w-full flex items-center justify-center py-6 sm:py-10 px-3 sm:px-4';
 
   const cardClasses =
-    'relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-7 transition-all my-auto max-h-[calc(100vh-2rem)] overflow-y-auto';
+    'relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-7 transition-all my-auto';
 
   return (
     <div
