@@ -5,12 +5,15 @@ import { convertToBaseUnit } from './unitConverter';
 import {
   DayRequirement,
   DayWiseRequirementItem,
+  RecipeCostBreakdown,
+  RecipeIngredientCostItem,
   ConsolidatedShoppingItem,
   PeriodRequirementSummary,
 } from '../types/requisition';
 
 /**
- * Calculates day-wise ingredient requirements and total shopping list for a 15-day menu.
+ * Calculates day-wise ingredient requirements, per-recipe costs, individual item costs,
+ * and the total consolidated shopping list for a 15-day menu.
  * Automatically deducts current stock to determine net required purchases.
  */
 export function calculateDayWiseAndShoppingRequirements(
@@ -33,10 +36,16 @@ export function calculateDayWiseAndShoppingRequirements(
       (day.lunch.headcount || 0) +
       (day.dinner.headcount || 0);
 
-    const mealSlots = [day.breakfast, day.lunch, day.dinner];
+    const recipeCostBreakdowns: RecipeCostBreakdown[] = [];
 
-    // Compute ingredient consumption for this day
-    mealSlots.forEach((slot) => {
+    const mealSlots: { mealType: 'Breakfast' | 'Lunch' | 'Dinner'; slot: typeof day.breakfast }[] = [
+      { mealType: 'Breakfast', slot: day.breakfast },
+      { mealType: 'Lunch', slot: day.lunch },
+      { mealType: 'Dinner', slot: day.dinner },
+    ];
+
+    // Compute ingredient consumption and per-recipe costs for this day
+    mealSlots.forEach(({ mealType, slot }) => {
       const headcount = slot.headcount || 0;
       if (headcount <= 0) return;
 
@@ -45,10 +54,12 @@ export function calculateDayWiseAndShoppingRequirements(
         if (!recipe || recipe.baseYield <= 0) return;
 
         const scaleMultiplier = headcount / recipe.baseYield;
+        let recipeTotalCost = 0;
+        const recipeItems: RecipeIngredientCostItem[] = [];
 
         recipe.ingredients.forEach((item) => {
           const stockItem = stockMap.get(item.ingredientId);
-          // Convert recipe ingredient quantity (which can be kg, g, litre, ml, piece, cup, tbsp, tsp) into stock item's base unit
+          // Convert recipe ingredient quantity into stock item's base unit
           const normalizedQty = stockItem
             ? convertToBaseUnit(item.quantity, item.unit, stockItem.measureIndex)
             : item.quantity;
@@ -60,11 +71,40 @@ export function calculateDayWiseAndShoppingRequirements(
 
           const currentCycleTotal = cumulativeDemandMap.get(item.ingredientId) || 0;
           cumulativeDemandMap.set(item.ingredientId, currentCycleTotal + consumed);
+
+          const unitPrice = stockItem?.price || 0;
+          const roundedQty = Math.round(consumed * 100) / 100;
+          const lineCost = Math.round(roundedQty * unitPrice * 100) / 100;
+          recipeTotalCost += lineCost;
+
+          recipeItems.push({
+            ingredientId: item.ingredientId,
+            name: stockItem?.name || 'Ingredient',
+            category: stockItem?.category || 'Grocery',
+            measureIndex: stockItem?.measureIndex || 'kg',
+            requiredQty: roundedQty,
+            unitPrice,
+            cost: lineCost,
+          });
+        });
+
+        recipeTotalCost = Math.round(recipeTotalCost * 100) / 100;
+        const costPerPerson =
+          headcount > 0 ? Math.round((recipeTotalCost / headcount) * 100) / 100 : 0;
+
+        recipeCostBreakdowns.push({
+          recipeId: rId,
+          recipeName: recipe.name,
+          mealType,
+          headcount,
+          recipeTotalCost,
+          costPerPerson,
+          items: recipeItems,
         });
       });
     });
 
-    // Build DayRequirement
+    // Build consolidated DayRequirement ingredients
     const dayItems: DayWiseRequirementItem[] = [];
     let dayCost = 0;
 
@@ -73,7 +113,8 @@ export function calculateDayWiseAndShoppingRequirements(
       if (!stockItem) return;
 
       const roundedQty = Math.round(qty * 100) / 100;
-      const lineCost = Math.round(roundedQty * stockItem.price * 100) / 100;
+      const unitPrice = stockItem.price;
+      const lineCost = Math.round(roundedQty * unitPrice * 100) / 100;
       dayCost += lineCost;
 
       dayItems.push({
@@ -82,10 +123,12 @@ export function calculateDayWiseAndShoppingRequirements(
         category: stockItem.category,
         measureIndex: stockItem.measureIndex,
         requiredQty: roundedQty,
+        unitPrice,
         cost: lineCost,
       });
     });
 
+    dayCost = Math.round(dayCost * 100) / 100;
     totalMenuCost += dayCost;
 
     dailyRequirements.push({
@@ -94,8 +137,11 @@ export function calculateDayWiseAndShoppingRequirements(
       isEkadashi: day.isEkadashi,
       occasionName: day.occasionTitle,
       totalHeadcount: totalDayHeadcount,
+      recipes: recipeCostBreakdowns,
       ingredients: dayItems,
-      dayTotalCost: Math.round(dayCost * 100) / 100,
+      dayTotalCost: dayCost,
+      costPerPerson:
+        totalDayHeadcount > 0 ? Math.round((dayCost / totalDayHeadcount) * 100) / 100 : 0,
     });
   }
 
@@ -110,9 +156,9 @@ export function calculateDayWiseAndShoppingRequirements(
     const roundedDemand = Math.round(totalDemand * 100) / 100;
     const currentStock = stockItem.currentStock;
     const netToPurchase = Math.max(0, Math.round((roundedDemand - currentStock) * 100) / 100);
-    const estimatedCost = Math.round(netToPurchase * stockItem.price * 100) / 100;
+    const estimatedPurchaseCost = Math.round(netToPurchase * stockItem.price * 100) / 100;
 
-    totalNetProcurementCost += estimatedCost;
+    totalNetProcurementCost += estimatedPurchaseCost;
 
     shoppingList.push({
       ingredientId: ingId,
@@ -124,11 +170,12 @@ export function calculateDayWiseAndShoppingRequirements(
       currentStock,
       netToPurchase,
       currentPrice: stockItem.price,
-      estimatedPurchaseCost: estimatedCost,
+      estimatedPurchaseCost,
     });
   });
 
-  shoppingList.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+  // Sort shopping list alphabetically by name
+  shoppingList.sort((a, b) => a.name.localeCompare(b.name));
 
   return {
     centerId: menuPlan.centerId,

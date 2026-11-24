@@ -6,7 +6,28 @@ export interface DayWiseRequirementItem {
   category: StockCategory;
   measureIndex: MeasureIndex;
   requiredQty: number;
+  unitPrice: number;
   cost: number;
+}
+
+export interface RecipeIngredientCostItem {
+  ingredientId: string;
+  name: string;
+  category: StockCategory;
+  measureIndex: MeasureIndex;
+  requiredQty: number;
+  unitPrice: number;
+  cost: number;
+}
+
+export interface RecipeCostBreakdown {
+  recipeId: string;
+  recipeName: string;
+  mealType: 'Breakfast' | 'Lunch' | 'Dinner';
+  headcount: number;
+  recipeTotalCost: number;
+  costPerPerson: number;
+  items: RecipeIngredientCostItem[];
 }
 
 export interface DayRequirement {
@@ -15,8 +36,10 @@ export interface DayRequirement {
   isEkadashi: boolean;
   occasionName?: string;
   totalHeadcount: number;
+  recipes: RecipeCostBreakdown[];
   ingredients: DayWiseRequirementItem[];
   dayTotalCost: number;
+  costPerPerson?: number;
 }
 
 export interface ConsolidatedShoppingItem {

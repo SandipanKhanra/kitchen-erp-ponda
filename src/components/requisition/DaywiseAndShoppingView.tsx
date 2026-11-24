@@ -1,6 +1,19 @@
 import React, { useState } from 'react';
 import { useKitchen } from '../../context/KitchenContext';
-import { Download, ShoppingBag, Calendar, DollarSign, PackageCheck, Layers, Search } from 'lucide-react';
+import {
+  Download,
+  ShoppingBag,
+  Calendar,
+  DollarSign,
+  PackageCheck,
+  Layers,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  Utensils,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
 import { Pagination } from '../common/Pagination';
 
 export const DaywiseAndShoppingView: React.FC = () => {
@@ -12,17 +25,47 @@ export const DaywiseAndShoppingView: React.FC = () => {
   const [dayPage, setDayPage] = useState(1);
   const [dayPageSize, setDayPageSize] = useState(5);
 
+  // Expanded individual item cost breakdown per recipe
+  const [expandedRecipeIds, setExpandedRecipeIds] = useState<Record<string, boolean>>({});
+  // Per-day view mode: 'recipes' (per-recipe cost breakdown) or 'items' (consolidated all items cost)
+  const [dayViewMode, setDayViewMode] = useState<Record<number, 'recipes' | 'items'>>({});
+
+  const toggleRecipeExpand = (key: string) => {
+    setExpandedRecipeIds((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const setDayMode = (dayNum: number, mode: 'recipes' | 'items') => {
+    setDayViewMode((prev) => ({
+      ...prev,
+      [dayNum]: mode,
+    }));
+  };
+
+  /**
+   * Export the procurement / purchase order sheet for the market or vendors.
+   * As requested: strictly excludes total need, current stock, unit price, and estimated cost.
+   * Only includes essential purchase procurement columns: S.No., Category, Item Name, Brand, Quantity to Purchase, Unit.
+   */
   const handleExportCSV = () => {
-    const headers = ['Category,Item Name,Brand,Total Needed,Current Stock,Net To Purchase,Measure,Unit Price (INR),Estimated Cost (INR)'];
-    const rows = requisitionSummary.shoppingList.map((item) =>
-      `"${item.category}","${item.name}","${item.brand}",${item.totalPeriodDemand},${item.currentStock},${item.netToPurchase},"${item.measureIndex}",${item.currentPrice},${item.estimatedPurchaseCost}`
+    const headers = ['S.No.,Category,Item Name,Brand,Quantity to Purchase,Unit'];
+    const itemsToPurchase = requisitionSummary.shoppingList.filter((item) => item.netToPurchase > 0);
+    const exportList = itemsToPurchase.length > 0 ? itemsToPurchase : requisitionSummary.shoppingList;
+
+    const rows = exportList.map((item, idx) =>
+      `"${idx + 1}","${item.category}","${item.name}","${item.brand || '-'}",${item.netToPurchase},"${item.measureIndex}"`
     );
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers, ...rows].join('\n');
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `iskcon_kitchen_requisition_${requisitionSummary.startDate}_to_${requisitionSummary.endDate}.csv`);
+    link.setAttribute(
+      'download',
+      `ponda_kitchen_purchase_order_${requisitionSummary.startDate}_to_${requisitionSummary.endDate}.csv`
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -53,7 +96,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
             Day-Wise Demand & Consolidated Shopping Requisition
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Calculates exact ingredient usage for each day across Breakfast, Lunch, and Dinner, deducts current stock, and generates a procurement shopping sheet.
+            Calculates exact ingredient usage and costs across Breakfast, Lunch, and Dinner with per-recipe and item-level cost breakdowns, and generates clean purchase procurement sheets.
           </p>
         </div>
 
@@ -83,16 +126,17 @@ export const DaywiseAndShoppingView: React.FC = () => {
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Daily Usage ({requisitionSummary.dailyRequirements.length} Days)
+              Daily Usage & Costs ({requisitionSummary.dailyRequirements.length} Days)
             </button>
           </div>
 
           <button
             onClick={handleExportCSV}
             className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition"
+            title="Download purchase order list without internal stocks and prices"
           >
             <Download className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Export CSV</span>
+            <span className="hidden sm:inline">Export Purchase Order (CSV)</span>
           </button>
         </div>
       </div>
@@ -129,7 +173,9 @@ export const DaywiseAndShoppingView: React.FC = () => {
           <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">
             15 Days
           </div>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">{requisitionSummary.startDate} to {requisitionSummary.endDate}</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+            {requisitionSummary.startDate} to {requisitionSummary.endDate}
+          </span>
         </div>
       </div>
 
@@ -228,53 +274,227 @@ export const DaywiseAndShoppingView: React.FC = () => {
         </div>
       )}
 
-      {/* SubView 2: Day-by-Day Itemized Usage */}
+      {/* SubView 2: Day-by-Day Itemized Usage & Cost Breakdown */}
       {subView === 'daywise' && (
-        <div className="space-y-4">
-          {paginatedDays.map((day) => (
-            <div
-              key={day.dayNumber}
-              className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm space-y-3"
-            >
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 dark:border-slate-700 pb-3 gap-2">
-                <div className="flex items-center space-x-2">
-                  <span className="bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-400 text-xs font-black px-2 py-0.5 rounded">
-                    DAY {day.dayNumber}
-                  </span>
-                  <span className="font-bold text-slate-900 dark:text-white text-sm">{day.date}</span>
-                  {day.isEkadashi && (
-                    <span className="bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-xs font-bold px-2 py-0.5 rounded-full border border-purple-300">
-                      ✨ {day.occasionName || 'Ekadashi'}
-                    </span>
-                  )}
-                </div>
-                <div className="sm:text-right">
-                  <div className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                    Day Total: ₹{day.dayTotalCost.toFixed(2)}
-                  </div>
-                  <span className="text-[10px] text-slate-400">{day.totalHeadcount} Total Meals Served</span>
-                </div>
-              </div>
+        <div className="space-y-5">
+          {paginatedDays.map((day) => {
+            const currentMode = dayViewMode[day.dayNumber] || 'recipes';
 
-              {/* Ingredients consumed on this day */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                {day.ingredients.map((ing) => (
-                  <div
-                    key={ing.ingredientId}
-                    className="bg-slate-50 dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700 flex justify-between items-center"
-                  >
-                    <div>
-                      <div className="font-bold text-slate-800 dark:text-white truncate max-w-[120px]">{ing.name}</div>
-                      <div className="text-[10px] text-slate-400">
-                        {ing.requiredQty} {ing.measureIndex}
+            return (
+              <div
+                key={day.dayNumber}
+                className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 p-5 sm:p-6 shadow-sm space-y-4"
+              >
+                {/* Day Header with Cost Summary and View Switcher */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 dark:border-slate-700/80 pb-4 gap-3">
+                  <div>
+                    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                      <span className="bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-400 text-xs font-black px-2.5 py-1 rounded-md">
+                        DAY {day.dayNumber}
+                      </span>
+                      <span className="font-extrabold text-slate-900 dark:text-white text-base">
+                        {day.date}
+                      </span>
+                      {day.isEkadashi && (
+                        <span className="bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-purple-300">
+                          ✨ {day.occasionName || 'Ekadashi Fasting'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1 flex items-center space-x-2">
+                      <span>{day.totalHeadcount} Total Meals Served</span>
+                      <span>&bull;</span>
+                      <span>Avg ₹{(day.costPerPerson || 0).toFixed(2)} / meal portion</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-end">
+                    {/* View Switcher: Per-Recipe Cost vs Consolidated All Items Cost */}
+                    <div className="flex bg-slate-100 dark:bg-slate-700/60 p-1 rounded-xl text-xs font-bold">
+                      <button
+                        onClick={() => setDayMode(day.dayNumber, 'recipes')}
+                        className={`px-3 py-1.5 rounded-lg transition-all ${
+                          currentMode === 'recipes'
+                            ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Per-Recipe Cost ({day.recipes?.length || 0})
+                      </button>
+                      <button
+                        onClick={() => setDayMode(day.dayNumber, 'items')}
+                        className={`px-3 py-1.5 rounded-lg transition-all ${
+                          currentMode === 'items'
+                            ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        All Items Cost ({day.ingredients.length})
+                      </button>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-[10px] text-slate-400 font-bold uppercase">Day Cost</div>
+                      <div className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400">
+                        ₹{day.dayTotalCost.toFixed(2)}
                       </div>
                     </div>
-                    <span className="font-semibold text-slate-600 dark:text-slate-300 text-[11px]">₹{ing.cost.toFixed(1)}</span>
                   </div>
-                ))}
+                </div>
+
+                {/* Mode 1: Per-Recipe Cost with Option to Expand Individual Item Costs */}
+                {currentMode === 'recipes' && (
+                  <div className="space-y-3">
+                    {(!day.recipes || day.recipes.length === 0) ? (
+                      <div className="py-8 text-center text-slate-400 text-xs">
+                        No recipes assigned for Day {day.dayNumber}. Use the 15-Day Menu Planner to assign dishes.
+                      </div>
+                    ) : (
+                      day.recipes.map((rec, rIdx) => {
+                        const recipeKey = `d${day.dayNumber}_r${rIdx}_${rec.recipeId}`;
+                        const isExpanded = !!expandedRecipeIds[recipeKey];
+
+                        return (
+                          <div
+                            key={recipeKey}
+                            className="bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 p-3.5 sm:p-4 space-y-3 transition"
+                          >
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                              <div className="flex items-center space-x-2">
+                                <span
+                                  className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                                    rec.mealType === 'Breakfast'
+                                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                                      : rec.mealType === 'Lunch'
+                                      ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'
+                                      : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                                  }`}
+                                >
+                                  {rec.mealType}
+                                </span>
+                                <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">
+                                  {rec.recipeName}
+                                </h4>
+                                <span className="text-[11px] text-slate-400 font-semibold">
+                                  ({rec.headcount} Pax)
+                                </span>
+                              </div>
+
+                              <div className="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-end">
+                                <div className="text-right">
+                                  <span className="text-xs font-black text-slate-900 dark:text-white">
+                                    ₹{rec.recipeTotalCost.toFixed(2)}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 block font-medium">
+                                    ₹{rec.costPerPerson.toFixed(2)} / plate
+                                  </span>
+                                </div>
+
+                                {/* Option to see individual item cost */}
+                                <button
+                                  onClick={() => toggleRecipeExpand(recipeKey)}
+                                  className="flex items-center space-x-1 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition shadow-sm"
+                                  title="View individual ingredients and cost breakdown for this recipe"
+                                >
+                                  <span>{isExpanded ? 'Hide Item Costs' : `View Item Costs (${rec.items.length})`}</span>
+                                  {isExpanded ? (
+                                    <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+                                  ) : (
+                                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Individual Item Cost Breakdown (Expanded View) */}
+                            {isExpanded && (
+                              <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 animate-fade-in">
+                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-2">
+                                  Itemized Ingredient Costs for {rec.recipeName} ({rec.headcount} Pax):
+                                </div>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-left text-xs">
+                                    <thead className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100/70 dark:bg-slate-800/60">
+                                      <tr>
+                                        <th className="px-3 py-1.5 rounded-l-lg">Ingredient</th>
+                                        <th className="px-3 py-1.5">Category</th>
+                                        <th className="px-3 py-1.5">Quantity Used</th>
+                                        <th className="px-3 py-1.5">Unit Rate (₹)</th>
+                                        <th className="px-3 py-1.5 text-right rounded-r-lg">Total Cost (₹)</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                      {rec.items.map((ing) => (
+                                        <tr key={ing.ingredientId} className="hover:bg-white/60 dark:hover:bg-slate-800/40">
+                                          <td className="px-3 py-1.5 font-bold text-slate-800 dark:text-slate-200">
+                                            {ing.name}
+                                          </td>
+                                          <td className="px-3 py-1.5 text-[10px] text-slate-400">
+                                            {ing.category}
+                                          </td>
+                                          <td className="px-3 py-1.5 font-medium text-slate-700 dark:text-slate-300">
+                                            {ing.requiredQty} {ing.measureIndex}
+                                          </td>
+                                          <td className="px-3 py-1.5 font-mono text-slate-500 dark:text-slate-400">
+                                            ₹{ing.unitPrice.toFixed(2)} / {ing.measureIndex}
+                                          </td>
+                                          <td className="px-3 py-1.5 font-bold text-slate-900 dark:text-white text-right">
+                                            ₹{ing.cost.toFixed(2)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+
+                {/* Mode 2: Consolidated All Items Cost for the Day */}
+                {currentMode === 'items' && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs min-w-[500px]">
+                      <thead className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100/70 dark:bg-slate-800/60">
+                        <tr>
+                          <th className="px-3 py-2 rounded-l-lg">Ingredient</th>
+                          <th className="px-3 py-2">Category</th>
+                          <th className="px-3 py-2">Total Day Quantity</th>
+                          <th className="px-3 py-2">Unit Rate (₹)</th>
+                          <th className="px-3 py-2 text-right rounded-r-lg">Day Cost (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {day.ingredients.map((ing) => (
+                          <tr key={ing.ingredientId} className="hover:bg-slate-50/60 dark:hover:bg-slate-700/30">
+                            <td className="px-3 py-2 font-bold text-slate-800 dark:text-slate-200">
+                              {ing.name}
+                            </td>
+                            <td className="px-3 py-2 text-[10px] text-slate-400">
+                              {ing.category}
+                            </td>
+                            <td className="px-3 py-2 font-medium text-slate-700 dark:text-slate-300">
+                              {ing.requiredQty} {ing.measureIndex}
+                            </td>
+                            <td className="px-3 py-2 font-mono text-slate-500 dark:text-slate-400">
+                              ₹{ing.unitPrice.toFixed(2)} / {ing.measureIndex}
+                            </td>
+                            <td className="px-3 py-2 font-extrabold text-emerald-600 dark:text-emerald-400 text-right">
+                              ₹{ing.cost.toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <Pagination
             currentPage={dayPage}
