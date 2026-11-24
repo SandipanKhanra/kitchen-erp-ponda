@@ -26,6 +26,24 @@ import { MealType, Recipe, MenuPattern, Occasion } from '../../types/recipe';
 import { FifteenDayMenuPlan } from '../../types/menu';
 import { sanitizeNumericChange } from '../../utils/numberInput';
 
+export type MealSlotKey = 'breakfast' | 'lunch' | 'dinner' | 'brahmacariBreakfast' | 'brahmacariLunch';
+
+const getMealSlotTitle = (key: MealSlotKey | null) => {
+  if (!key) return '';
+  switch (key) {
+    case 'breakfast':
+      return 'General Breakfast';
+    case 'brahmacariBreakfast':
+      return 'Brahmacari Ashram Breakfast';
+    case 'lunch':
+      return 'General Lunch';
+    case 'brahmacariLunch':
+      return 'Brahmacari Ashram Lunch';
+    case 'dinner':
+      return 'Dinner';
+  }
+};
+
 export const FifteenDayMenuPlanner: React.FC = () => {
   const { currentUser, isAdmin, isSAdmin } = useAuth();
   const {
@@ -45,7 +63,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   const [approvalMessage, setApprovalMessage] = useState<string | null>(null);
 
   // Day Editing State
-  const [addDishModalMeal, setAddDishModalMeal] = useState<'breakfast' | 'lunch' | 'dinner' | null>(null);
+  const [addDishModalMeal, setAddDishModalMeal] = useState<MealSlotKey | null>(null);
   const [dishModalTab, setDishModalTab] = useState<'recipes' | 'patterns'>('recipes');
   const [dishSearch, setDishSearch] = useState('');
   const [dishOccasionFilter, setDishOccasionFilter] = useState<'all' | Occasion>('all');
@@ -56,7 +74,9 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     date: '2026-11-20',
     isEkadashi: false,
     breakfast: { recipeIds: [], headcount: 100 },
+    brahmacariBreakfast: { recipeIds: [], headcount: 20 },
     lunch: { recipeIds: [], headcount: 150 },
+    brahmacariLunch: { recipeIds: [], headcount: 20 },
     dinner: { recipeIds: [], headcount: 110 },
   };
 
@@ -71,8 +91,8 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   };
 
   // Remove a single recipe from meal slot
-  const handleRemoveRecipeFromMeal = (mealKey: 'breakfast' | 'lunch' | 'dinner', recipeId: string) => {
-    const slot = activeDay[mealKey];
+  const handleRemoveRecipeFromMeal = (mealKey: MealSlotKey, recipeId: string) => {
+    const slot = activeDay[mealKey] || { recipeIds: [], headcount: 20 };
     const updatedPlan: FifteenDayMenuPlan = {
       ...activeMenuPlan,
       days: {
@@ -81,7 +101,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
           ...activeDay,
           [mealKey]: {
             ...slot,
-            recipeIds: slot.recipeIds.filter((id) => id !== recipeId),
+            recipeIds: (slot.recipeIds || []).filter((id) => id !== recipeId),
           },
         },
       },
@@ -90,9 +110,9 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   };
 
   // Add a recipe to meal slot
-  const handleAddRecipeToMeal = (mealKey: 'breakfast' | 'lunch' | 'dinner', recipeId: string) => {
-    const slot = activeDay[mealKey];
-    if (slot.recipeIds.includes(recipeId)) return;
+  const handleAddRecipeToMeal = (mealKey: MealSlotKey, recipeId: string) => {
+    const slot = activeDay[mealKey] || { recipeIds: [], headcount: 20 };
+    if ((slot.recipeIds || []).includes(recipeId)) return;
 
     const updatedPlan: FifteenDayMenuPlan = {
       ...activeMenuPlan,
@@ -102,7 +122,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
           ...activeDay,
           [mealKey]: {
             ...slot,
-            recipeIds: [...slot.recipeIds, recipeId],
+            recipeIds: [...(slot.recipeIds || []), recipeId],
           },
         },
       },
@@ -111,9 +131,9 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   };
 
   // Apply a predefined pattern to meal slot
-  const handleApplyPatternToMeal = (mealKey: 'breakfast' | 'lunch' | 'dinner', pattern: MenuPattern) => {
-    const slot = activeDay[mealKey];
-    const combinedIds = Array.from(new Set([...slot.recipeIds, ...pattern.recipeIds]));
+  const handleApplyPatternToMeal = (mealKey: MealSlotKey, pattern: MenuPattern) => {
+    const slot = activeDay[mealKey] || { recipeIds: [], headcount: 20 };
+    const combinedIds = Array.from(new Set([...(slot.recipeIds || []), ...pattern.recipeIds]));
 
     const updatedPlan: FifteenDayMenuPlan = {
       ...activeMenuPlan,
@@ -146,6 +166,18 @@ export const FifteenDayMenuPlanner: React.FC = () => {
           breakfast: { ...sourceDay.breakfast, headcount: activeDay.breakfast.headcount },
           lunch: { ...sourceDay.lunch, headcount: activeDay.lunch.headcount },
           dinner: { ...sourceDay.dinner, headcount: activeDay.dinner.headcount },
+          brahmacariBreakfast: sourceDay.brahmacariBreakfast
+            ? {
+                ...sourceDay.brahmacariBreakfast,
+                headcount: activeDay.brahmacariBreakfast?.headcount ?? sourceDay.brahmacariBreakfast.headcount,
+              }
+            : activeDay.brahmacariBreakfast,
+          brahmacariLunch: sourceDay.brahmacariLunch
+            ? {
+                ...sourceDay.brahmacariLunch,
+                headcount: activeDay.brahmacariLunch?.headcount ?? sourceDay.brahmacariLunch.headcount,
+              }
+            : activeDay.brahmacariLunch,
         },
       },
     };
@@ -165,6 +197,12 @@ export const FifteenDayMenuPlanner: React.FC = () => {
           breakfast: { ...activeDay.breakfast, recipeIds: [] },
           lunch: { ...activeDay.lunch, recipeIds: [] },
           dinner: { ...activeDay.dinner, recipeIds: [] },
+          brahmacariBreakfast: activeDay.brahmacariBreakfast
+            ? { ...activeDay.brahmacariBreakfast, recipeIds: [] }
+            : undefined,
+          brahmacariLunch: activeDay.brahmacariLunch
+            ? { ...activeDay.brahmacariLunch, recipeIds: [] }
+            : undefined,
         },
       },
     };
@@ -439,6 +477,15 @@ export const FifteenDayMenuPlanner: React.FC = () => {
           {(['breakfast', 'lunch', 'dinner'] as const).map((mealKey) => {
             const slot = activeDay[mealKey];
             const title = mealKey.toUpperCase();
+            const ashramSlotKey =
+              mealKey === 'breakfast'
+                ? 'brahmacariBreakfast'
+                : mealKey === 'lunch'
+                ? 'brahmacariLunch'
+                : null;
+            const ashramSlot = ashramSlotKey
+              ? activeDay[ashramSlotKey] || { recipeIds: [], headcount: 20 }
+              : null;
 
             return (
               <div
@@ -449,7 +496,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                   {/* Meal Header & Pax */}
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-extrabold uppercase tracking-wider text-orange-600 dark:text-orange-400">
-                      {title}
+                      General {title}
                     </span>
                     <div className="flex items-center space-x-1.5 text-xs">
                       <Users className="w-3.5 h-3.5 text-slate-400" />
@@ -460,7 +507,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                   {/* Headcount Input */}
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
-                      Headcount for {title}
+                      Headcount for General {title}
                     </label>
                     <input
                       type="number"
@@ -551,34 +598,178 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                       )}
                     </div>
                   </div>
-                </div>
 
-                {/* Meal Slot Action Buttons: Add Dish & Apply Pattern */}
-                <div className="pt-3 border-t border-slate-200/60 dark:border-slate-700/60 space-y-2">
-                  <button
-                    onClick={() => {
-                      setAddDishModalMeal(mealKey);
-                      setDishModalTab('recipes');
-                      setDishSearch('');
-                    }}
-                    className="w-full py-2 px-3 bg-white dark:bg-slate-800 hover:bg-orange-50 dark:hover:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-dashed border-orange-300 dark:border-orange-800 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-sm"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Dish to {title}</span>
-                  </button>
-
-                  {patterns.length > 0 && (
+                  {/* Meal Slot Action Buttons: Add Dish & Apply Pattern */}
+                  <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-2">
                     <button
                       onClick={() => {
                         setAddDishModalMeal(mealKey);
-                        setDishModalTab('patterns');
+                        setDishModalTab('recipes');
                         setDishSearch('');
                       }}
-                      className="w-full py-1.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300 rounded-xl text-[11px] font-semibold transition flex items-center justify-center space-x-1"
+                      className="w-full py-2 px-3 bg-white dark:bg-slate-800 hover:bg-orange-50 dark:hover:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-dashed border-orange-300 dark:border-orange-800 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-sm"
                     >
-                      <Layers className="w-3 h-3 text-purple-500" />
-                      <span>Apply Menu Pattern</span>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Dish to General {title}</span>
                     </button>
+
+                    {patterns.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setAddDishModalMeal(mealKey);
+                          setDishModalTab('patterns');
+                          setDishSearch('');
+                        }}
+                        className="w-full py-1.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300 rounded-xl text-[11px] font-semibold transition flex items-center justify-center space-x-1"
+                      >
+                        <Layers className="w-3 h-3 text-purple-500" />
+                        <span>Apply Menu Pattern</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dedicated Brahmacari Ashram Section for Breakfast & Lunch */}
+                  {ashramSlotKey && ashramSlot && (
+                    <div className="pt-4 mt-3 border-t-2 border-dashed border-amber-300 dark:border-amber-800/80 bg-amber-50/70 dark:bg-amber-950/30 rounded-2xl p-3.5 space-y-3">
+                      {/* Ashram Header & Pax */}
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-sm">🕉️</span>
+                          <span className="text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                            Brahmacari Ashram {mealKey === 'breakfast' ? 'Breakfast' : 'Lunch'}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1 text-xs font-bold text-amber-700 dark:text-amber-400">
+                          <Users className="w-3.5 h-3.5" />
+                          <span>{ashramSlot.headcount} Monks</span>
+                        </div>
+                      </div>
+
+                      {/* Ashram Headcount Input */}
+                      <div>
+                        <label className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase">
+                          Ashram Headcount (Pax)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={ashramSlot.headcount === 0 ? '' : ashramSlot.headcount}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const { numValue } = sanitizeNumericChange(e, false);
+                            const updatedPlan = {
+                              ...activeMenuPlan,
+                              days: {
+                                ...activeMenuPlan.days,
+                                [selectedDay]: {
+                                  ...activeDay,
+                                  [ashramSlotKey]: { ...ashramSlot, headcount: numValue },
+                                },
+                              },
+                            };
+                            saveMenuPlan(updatedPlan);
+                          }}
+                          className="w-full mt-1 p-2 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-900 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
+
+                      {/* Ashram Assigned Dishes List */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase">
+                            Ashram Dishes ({ashramSlot.recipeIds.length}):
+                          </span>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          {ashramSlot.recipeIds.length === 0 ? (
+                            <div className="p-3 rounded-xl border border-dashed border-amber-200 dark:border-amber-900/60 text-center text-xs text-amber-600/70 dark:text-amber-400/70 bg-white/60 dark:bg-slate-900/40">
+                              No ashram dishes assigned.
+                            </div>
+                          ) : (
+                            ashramSlot.recipeIds.map((rId) => {
+                              const recipe = recipeMap.get(rId);
+                              const isNonEkadashiOnEkadashi =
+                                activeDay.isEkadashi && recipe?.occasion === 'Normal';
+
+                              return (
+                                <div
+                                  key={rId}
+                                  className={`p-2 rounded-xl border text-xs flex justify-between items-center transition ${
+                                    isNonEkadashiOnEkadashi
+                                      ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-300 dark:border-rose-900'
+                                      : 'bg-white dark:bg-slate-800 border-amber-200 dark:border-amber-900/60'
+                                  }`}
+                                >
+                                  <div className="min-w-0 flex-1 mr-2">
+                                    <div className="font-bold text-slate-900 dark:text-white truncate">
+                                      {recipe?.name || 'Recipe'}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 flex items-center space-x-1.5 flex-wrap">
+                                      <span
+                                        className={`font-semibold ${
+                                          recipe?.occasion === 'Ekadashi'
+                                            ? 'text-purple-600 dark:text-purple-400'
+                                            : 'text-slate-500 dark:text-slate-400'
+                                        }`}
+                                      >
+                                        {recipe?.occasion || 'Normal'}
+                                      </span>
+                                      <span>&bull;</span>
+                                      <span>{recipe?.type || 'Dish'}</span>
+                                      {isNonEkadashiOnEkadashi && (
+                                        <span className="text-rose-600 dark:text-rose-400 font-bold">
+                                          ⚠️ Non-Ekadashi Grain
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    onClick={() => handleRemoveRecipeFromMeal(ashramSlotKey, rId)}
+                                    className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition flex-shrink-0"
+                                    title="Remove dish from ashram meal"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Ashram Slot Action Buttons */}
+                      <div className="pt-2 flex gap-2">
+                        <button
+                          onClick={() => {
+                            setAddDishModalMeal(ashramSlotKey);
+                            setDishModalTab('recipes');
+                            setDishSearch('');
+                          }}
+                          className="flex-1 py-1.5 px-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 shadow-sm"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add Ashram Dish</span>
+                        </button>
+
+                        {patterns.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setAddDishModalMeal(ashramSlotKey);
+                              setDishModalTab('patterns');
+                              setDishSearch('');
+                            }}
+                            className="py-1.5 px-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-900/70 text-amber-800 dark:text-amber-200 rounded-xl text-[11px] font-semibold transition flex items-center justify-center space-x-1"
+                            title="Apply Pattern to Ashram"
+                          >
+                            <Layers className="w-3 h-3 text-amber-700 dark:text-amber-400" />
+                            <span>Pattern</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -602,7 +793,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
               <div>
                 <div className="flex items-center space-x-2">
                   <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                    Add Dishes: Day {selectedDay} ({addDishModalMeal.toUpperCase()})
+                    Add Dishes: Day {selectedDay} — {getMealSlotTitle(addDishModalMeal)}
                   </h3>
                   {activeDay.isEkadashi && (
                     <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 border border-purple-300">
@@ -690,7 +881,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                   </div>
                 ) : (
                   filteredModalRecipes.map((r) => {
-                    const isAlreadyAdded = activeDay[addDishModalMeal].recipeIds.includes(r.id);
+                    const isAlreadyAdded = (activeDay[addDishModalMeal]?.recipeIds || []).includes(r.id);
                     const isGrainOnEkadashi = activeDay.isEkadashi && r.occasion === 'Normal';
 
                     return (

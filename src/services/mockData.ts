@@ -478,10 +478,18 @@ export function buildInitial15DayMenu(centerId = 'center_ponda'): FifteenDayMenu
           recipeIds: ['rec_ekadashi_sabudana'],
           headcount: 90,
         },
+        brahmacariBreakfast: {
+          recipeIds: ['rec_ekadashi_fruits'],
+          headcount: 20,
+        },
         lunch: {
           patternId: 'pat_3',
           recipeIds: ['rec_ekadashi_sama_paneer', 'rec_ekadashi_fruits'],
           headcount: 140,
+        },
+        brahmacariLunch: {
+          recipeIds: ['rec_ekadashi_sama_paneer'],
+          headcount: 20,
         },
         dinner: {
           recipeIds: ['rec_ekadashi_fruits'],
@@ -501,10 +509,18 @@ export function buildInitial15DayMenu(centerId = 'center_ponda'): FifteenDayMenu
           recipeIds: ['rec_khichdi'],
           headcount: 100,
         },
+        brahmacariBreakfast: {
+          recipeIds: ['rec_poha'],
+          headcount: 20,
+        },
         lunch: {
           patternId: 'pat_1',
           recipeIds: ['rec_rajbhog_rice_dal', 'rec_sweet_rice'],
           headcount: 150,
+        },
+        brahmacariLunch: {
+          recipeIds: ['rec_rajbhog_rice_dal'],
+          headcount: 20,
         },
         dinner: {
           patternId: 'pat_2',

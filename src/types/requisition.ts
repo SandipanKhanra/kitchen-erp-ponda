@@ -23,10 +23,11 @@ export interface RecipeIngredientCostItem {
 export interface RecipeCostBreakdown {
   recipeId: string;
   recipeName: string;
-  mealType: 'Breakfast' | 'Lunch' | 'Dinner';
+  mealType: string;
   headcount: number;
   recipeTotalCost: number;
   costPerPerson: number;
+  isAshram?: boolean;
   items: RecipeIngredientCostItem[];
 }
 

@@ -34,18 +34,26 @@ export function calculateDayWiseAndShoppingRequirements(
     const totalDayHeadcount =
       (day.breakfast.headcount || 0) +
       (day.lunch.headcount || 0) +
-      (day.dinner.headcount || 0);
+      (day.dinner.headcount || 0) +
+      (day.brahmacariBreakfast?.headcount || 0) +
+      (day.brahmacariLunch?.headcount || 0);
 
     const recipeCostBreakdowns: RecipeCostBreakdown[] = [];
 
-    const mealSlots: { mealType: 'Breakfast' | 'Lunch' | 'Dinner'; slot: typeof day.breakfast }[] = [
+    const mealSlots: { mealType: string; slot: typeof day.breakfast; isAshram?: boolean }[] = [
       { mealType: 'Breakfast', slot: day.breakfast },
+      ...(day.brahmacariBreakfast
+        ? [{ mealType: 'Brahmacari Breakfast', slot: day.brahmacariBreakfast, isAshram: true }]
+        : []),
       { mealType: 'Lunch', slot: day.lunch },
+      ...(day.brahmacariLunch
+        ? [{ mealType: 'Brahmacari Lunch', slot: day.brahmacariLunch, isAshram: true }]
+        : []),
       { mealType: 'Dinner', slot: day.dinner },
     ];
 
     // Compute ingredient consumption and per-recipe costs for this day
-    mealSlots.forEach(({ mealType, slot }) => {
+    mealSlots.forEach(({ mealType, slot, isAshram }) => {
       const headcount = slot.headcount || 0;
       if (headcount <= 0) return;
 
@@ -106,6 +114,7 @@ export function calculateDayWiseAndShoppingRequirements(
           headcount,
           recipeTotalCost,
           costPerPerson,
+          isAshram,
           items: recipeItems,
         });
       });

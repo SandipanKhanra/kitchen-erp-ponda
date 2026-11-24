@@ -17,6 +17,8 @@ export interface DayMenuSchedule {
   breakfast: DayMealSlot;
   lunch: DayMealSlot;
   dinner: DayMealSlot;
+  brahmacariBreakfast?: DayMealSlot; // Brahmacari Ashram section for breakfast
+  brahmacariLunch?: DayMealSlot;     // Brahmacari Ashram section for lunch
   notes?: string;
 }
 

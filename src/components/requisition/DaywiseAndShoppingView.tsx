@@ -363,14 +363,16 @@ export const DaywiseAndShoppingView: React.FC = () => {
                               <div className="flex items-center space-x-2">
                                 <span
                                   className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
-                                    rec.mealType === 'Breakfast'
+                                    rec.mealType.includes('Brahmacari') || rec.isAshram
+                                      ? 'bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-200 border border-amber-300 dark:border-amber-800'
+                                      : rec.mealType === 'Breakfast'
                                       ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
                                       : rec.mealType === 'Lunch'
                                       ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'
                                       : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
                                   }`}
                                 >
-                                  {rec.mealType}
+                                  {rec.mealType.includes('Brahmacari') ? `🕉️ ${rec.mealType}` : rec.mealType}
                                 </span>
                                 <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">
                                   {rec.recipeName}
