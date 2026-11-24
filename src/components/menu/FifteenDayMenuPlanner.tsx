@@ -72,10 +72,10 @@ export const FifteenDayMenuPlanner: React.FC = () => {
               <span
                 className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
                   isApproved
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300 border-emerald-300'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
                     : isPending
-                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-amber-300'
-                    : 'bg-slate-200 text-slate-800'
+                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                    : 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600'
                 }`}
               >
                 {activeMenuPlan.status.replace('_', ' ').toUpperCase()}
@@ -127,7 +127,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
         </div>
 
         {approvalMessage && (
-          <div className="mt-3 p-2.5 bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold text-center">
+          <div className="mt-3 p-2.5 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold text-center">
             {approvalMessage}
           </div>
         )}
@@ -151,8 +151,8 @@ export const FifteenDayMenuPlanner: React.FC = () => {
       {/* 15-Day Cycle Grid Selector */}
       <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-2">
         <div className="flex justify-between items-center text-xs">
-          <span className="font-bold text-slate-500 uppercase">Select Day (1 — 15)</span>
-          <span className="text-slate-400">Fixed 3 Meals &bull; Ekadashi Auto-Guarded</span>
+          <span className="font-bold text-slate-500 dark:text-slate-400 uppercase">Select Day (1 — 15)</span>
+          <span className="text-slate-400 dark:text-slate-500">Fixed 3 Meals &bull; Ekadashi Auto-Guarded</span>
         </div>
         <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {Array.from({ length: 15 }, (_, i) => i + 1).map((dayNum) => {
@@ -232,7 +232,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
 
                 {/* Headcount Input */}
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Headcount for {title}</label>
+                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Headcount for {title}</label>
                   <input
                     type="number"
                     value={slot.headcount}
@@ -256,7 +256,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
 
                 {/* Recipes / Pattern in this slot */}
                 <div className="space-y-2">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Assigned Recipes:</span>
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Assigned Recipes:</span>
                   <div className="space-y-1.5">
                     {slot.recipeIds.map((rId) => {
                       const recipe = recipeMap.get(rId);

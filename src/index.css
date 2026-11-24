@@ -14,8 +14,8 @@ html.dark,
 html[data-theme='dark'],
 body.dark {
   color-scheme: dark;
-  background-color: #020617;
-  color: #f8fafc;
+  background-color: #020617 !important;
+  color: #f8fafc !important;
 }
 
 html:not(.dark),
@@ -27,8 +27,8 @@ html[data-theme='light'] {
 
 html.dark body,
 body.dark {
-  background-color: #020617;
-  color: #f8fafc;
+  background-color: #020617 !important;
+  color: #f8fafc !important;
 }
 
 html:not(.dark) body {
@@ -47,6 +47,15 @@ html[data-theme='dark'] select option,
 .dark select option {
   background-color: #0f172a;
   color: #f8fafc;
+}
+
+/* Form input dark fallbacks */
+html.dark input:not([class*='bg-']),
+html.dark textarea:not([class*='bg-']),
+html.dark select:not([class*='bg-']) {
+  background-color: #0f172a;
+  color: #f8fafc;
+  border-color: #334155;
 }
 
 /* =========================================================

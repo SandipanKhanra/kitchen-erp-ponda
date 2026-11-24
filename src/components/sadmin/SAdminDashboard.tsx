@@ -80,7 +80,7 @@ export const SAdminDashboard: React.FC = () => {
             className={`px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
               activeSubTab === 'requests'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             Pending Requests ({pendingRequests.length})
@@ -94,7 +94,7 @@ export const SAdminDashboard: React.FC = () => {
             className={`px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
               activeSubTab === 'centers'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             Active Centers ({availableCenters.length})
@@ -108,7 +108,7 @@ export const SAdminDashboard: React.FC = () => {
             className={`px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
               activeSubTab === 'users'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             All Devotees ({allUsers.length})
@@ -191,7 +191,7 @@ export const SAdminDashboard: React.FC = () => {
                     <div className="flex justify-end space-x-2">
                       <button
                         onClick={() => setRejectingId(null)}
-                        className="px-3 py-1 text-slate-600 font-semibold"
+                        className="px-3 py-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold"
                       >
                         Cancel
                       </button>
@@ -217,7 +217,7 @@ export const SAdminDashboard: React.FC = () => {
       {activeSubTab === 'centers' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <span className="text-xs font-semibold text-slate-500">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
               Showing {filteredCenters.length} active centers
             </span>
             <div className="relative w-full sm:w-64">
@@ -287,7 +287,7 @@ export const SAdminDashboard: React.FC = () => {
       {activeSubTab === 'users' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <span className="text-xs font-semibold text-slate-500">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
               Showing {filteredUsers.length} devotees
             </span>
             <div className="relative w-full sm:w-64">

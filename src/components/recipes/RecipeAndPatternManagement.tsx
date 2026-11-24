@@ -144,7 +144,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
               className={`px-3 py-1.5 rounded-lg transition-all ${
                 activeTab === 'recipes'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Recipes ({recipes.length})
@@ -154,7 +154,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
               className={`px-3 py-1.5 rounded-lg transition-all ${
                 activeTab === 'patterns'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Patterns ({patterns.length})

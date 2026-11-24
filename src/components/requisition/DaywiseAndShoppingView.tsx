@@ -104,7 +104,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
           <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">
             ₹{requisitionSummary.totalMenuCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
-          <span className="text-[11px] text-slate-500">Gross 15-day value</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">Gross 15-day value</span>
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -112,7 +112,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
           <div className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
             ₹{requisitionSummary.totalNetProcurementCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
-          <span className="text-[11px] text-slate-500">After deducting stock</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">After deducting stock</span>
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -121,7 +121,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
             {requisitionSummary.shoppingList.filter((i) => i.netToPurchase > 0).length} of{' '}
             {requisitionSummary.shoppingList.length}
           </div>
-          <span className="text-[11px] text-slate-500">In Shopping Sheet</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">In Shopping Sheet</span>
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -129,7 +129,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
           <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">
             15 Days
           </div>
-          <span className="text-[11px] text-slate-500">{requisitionSummary.startDate} to {requisitionSummary.endDate}</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">{requisitionSummary.startDate} to {requisitionSummary.endDate}</span>
         </div>
       </div>
 
@@ -137,7 +137,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
       {subView === 'shopping' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <span className="text-xs font-semibold text-slate-500">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
               Showing {filteredShopping.length} items
             </span>
             <div className="relative w-full sm:w-64">
@@ -190,7 +190,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
                         <td className="px-6 py-3.5 text-slate-700 dark:text-slate-300 font-medium">
                           {item.totalPeriodDemand} {item.measureIndex}
                         </td>
-                        <td className="px-6 py-3.5 text-slate-500">
+                        <td className="px-6 py-3.5 text-slate-500 dark:text-slate-400 font-medium">
                           {item.currentStock} {item.measureIndex}
                         </td>
                         <td className="px-6 py-3.5">
@@ -202,7 +202,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
                             <span className="font-bold text-emerald-600 dark:text-emerald-400">Covered in Stock</span>
                           )}
                         </td>
-                        <td className="px-6 py-3.5 font-mono text-slate-500">₹{item.currentPrice.toFixed(2)}</td>
+                        <td className="px-6 py-3.5 font-mono text-slate-500 dark:text-slate-400">₹{item.currentPrice.toFixed(2)}</td>
                         <td className="px-6 py-3.5 font-extrabold text-slate-900 dark:text-white">
                           {item.estimatedPurchaseCost > 0 ? `₹${item.estimatedPurchaseCost.toFixed(2)}` : '—'}
                         </td>

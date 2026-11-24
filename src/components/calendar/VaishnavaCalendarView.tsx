@@ -85,7 +85,7 @@ export const VaishnavaCalendarView: React.FC = () => {
               className={`px-3 py-1.5 rounded-xl transition-all ${
                 selectedType === t
                   ? 'bg-purple-600 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               {t} {t === 'All' ? `(${occasions.length})` : ''}
