@@ -25,7 +25,7 @@ export function calculateRecipeCost(
     }
 
     // Convert recipe quantity to ingredient's base unit
-    const qtyInBaseUnit = convertToBaseUnit(item.quantity, item.unit, ingredient.baseUnit);
+    const qtyInBaseUnit = convertToBaseUnit(item.quantity, item.unit as any, ingredient.baseUnit as any);
     const wastageMultiplier = 1 + (item.wastagePercent || 0) / 100;
     const effectiveQty = qtyInBaseUnit * wastageMultiplier;
     const lineCost = effectiveQty * ingredient.currentRate;
