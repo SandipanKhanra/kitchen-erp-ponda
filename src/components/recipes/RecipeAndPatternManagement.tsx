@@ -5,6 +5,7 @@ import { Plus, Trash2, Layers, Utensils, Sparkles, Check, Edit3, Search, History
 import { Recipe, MenuPattern, Occasion, MealType, RecipeType, MeasurableIndex } from '../../types/recipe';
 import { MEAL_TYPES } from '../../config/constants';
 import { Pagination } from '../common/Pagination';
+import { sanitizeNumericChange } from '../../utils/numberInput';
 
 export const RecipeAndPatternManagement: React.FC = () => {
   const { currentCenter, isAdmin, isSAdmin } = useAuth();
@@ -444,12 +445,15 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
                     <input
                       type="number"
-                      step="0.01"
-                      placeholder="Qty"
-                      value={ing.quantity}
+                      step="any"
+                      min="0"
+                      placeholder="0"
+                      value={ing.quantity === 0 ? '' : ing.quantity}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
+                        const { numValue } = sanitizeNumericChange(e, true);
                         const copy = [...ingredientsList];
-                        copy[idx].quantity = parseFloat(e.target.value) || 0;
+                        copy[idx].quantity = numValue;
                         setIngredientsList(copy);
                       }}
                       className="w-20 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white text-xs font-semibold"

@@ -3,6 +3,7 @@ import { useKitchen } from '../../context/KitchenContext';
 import { StockCategory, MeasureIndex } from '../../types/stock';
 import { Package, Plus, DollarSign, RefreshCw, CheckCircle2, TrendingUp, Search, History } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
+import { sanitizeNumericChange } from '../../utils/numberInput';
 
 export const StockManagement: React.FC = () => {
   const { stockItems, recordStockPurchase, updateStockPrice, updateStockCount, addNewStockItem, openAuditModal } = useKitchen();
@@ -265,8 +266,15 @@ export const StockManagement: React.FC = () => {
                     <label className="font-bold text-slate-700 dark:text-slate-300">New Qty Purchased</label>
                     <input
                       type="number"
-                      value={purchasedQty}
-                      onChange={(e) => setPurchasedQty(parseFloat(e.target.value) || 0)}
+                      min="0"
+                      step="any"
+                      placeholder="0"
+                      value={purchasedQty === 0 ? '' : purchasedQty}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const { numValue } = sanitizeNumericChange(e, true);
+                        setPurchasedQty(numValue);
+                      }}
                       className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
                     />
                   </div>
@@ -274,8 +282,15 @@ export const StockManagement: React.FC = () => {
                     <label className="font-bold text-slate-700 dark:text-slate-300">New Purchase Unit Rate (₹)</label>
                     <input
                       type="number"
-                      value={purchasedUnitPrice}
-                      onChange={(e) => setPurchasedUnitPrice(parseFloat(e.target.value) || 0)}
+                      min="0"
+                      step="any"
+                      placeholder="0.00"
+                      value={purchasedUnitPrice === 0 ? '' : purchasedUnitPrice}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const { numValue } = sanitizeNumericChange(e, true);
+                        setPurchasedUnitPrice(numValue);
+                      }}
                       className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
                     />
                   </div>
@@ -361,8 +376,15 @@ export const StockManagement: React.FC = () => {
                   <label className="font-bold text-slate-700 dark:text-slate-300">Unit Price (₹)</label>
                   <input
                     type="number"
-                    value={newPrice}
-                    onChange={(e) => setNewPrice(parseFloat(e.target.value) || 0)}
+                    min="0"
+                    step="any"
+                    placeholder="0.00"
+                    value={newPrice === 0 ? '' : newPrice}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const { numValue } = sanitizeNumericChange(e, true);
+                      setNewPrice(numValue);
+                    }}
                     className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
                   />
                 </div>
@@ -370,8 +392,15 @@ export const StockManagement: React.FC = () => {
                   <label className="font-bold text-slate-700 dark:text-slate-300">Opening Stock</label>
                   <input
                     type="number"
-                    value={newStock}
-                    onChange={(e) => setNewStock(parseFloat(e.target.value) || 0)}
+                    min="0"
+                    step="any"
+                    placeholder="0"
+                    value={newStock === 0 ? '' : newStock}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const { numValue } = sanitizeNumericChange(e, true);
+                      setNewStock(numValue);
+                    }}
                     className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
                   />
                 </div>

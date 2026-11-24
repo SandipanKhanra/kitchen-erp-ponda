@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { MealType, Recipe, MenuPattern, Occasion } from '../../types/recipe';
 import { FifteenDayMenuPlan } from '../../types/menu';
+import { sanitizeNumericChange } from '../../utils/numberInput';
 
 export const FifteenDayMenuPlanner: React.FC = () => {
   const { currentUser, isAdmin, isSAdmin } = useAuth();
@@ -463,16 +464,19 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                     </label>
                     <input
                       type="number"
-                      value={slot.headcount}
+                      min="0"
+                      placeholder="0"
+                      value={slot.headcount === 0 ? '' : slot.headcount}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
-                        const count = parseInt(e.target.value) || 0;
+                        const { numValue } = sanitizeNumericChange(e, false);
                         const updatedPlan = {
                           ...activeMenuPlan,
                           days: {
                             ...activeMenuPlan.days,
                             [selectedDay]: {
                               ...activeDay,
-                              [mealKey]: { ...slot, headcount: count },
+                              [mealKey]: { ...slot, headcount: numValue },
                             },
                           },
                         };
