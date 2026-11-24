@@ -49,28 +49,16 @@ service cloud.firestore {
       }
     }
 
-    // 2. Primary Root Collections: recipe, menu, ingredient (and plural variants)
-    match /recipe/{recipeId} {
-      allow read, write: if true;
-    }
+    // 2. Standardized Root Collections: recipes, menus, ingredients, patterns
     match /recipes/{recipeId} {
       allow read, write: if true;
     }
 
-    match /menu/{menuId} {
-      allow read, write: if true;
-    }
     match /menus/{menuId} {
       allow read, write: if true;
     }
 
-    match /ingredient/{ingredientId} {
-      allow read, write: if true;
-    }
     match /ingredients/{ingredientId} {
-      allow read, write: if true;
-    }
-    match /stock/{stockId} {
       allow read, write: if true;
     }
 

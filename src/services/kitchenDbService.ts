@@ -28,20 +28,21 @@ class KitchenDbService {
   }
 
   // ==========================================
-  // Stock / Ingredients (Root Collections: ingredient & ingredients, plus Center isolation)
+  // Stock / Ingredients (Standardized Root Collection: 'ingredients')
   // ==========================================
 
   /**
-   * Fetch all stock items for a specific center from root 'ingredient' / 'ingredients' collections
+   * Fetch all stock items for a specific center from root 'ingredients' collection
    */
   async fetchCenterStock(centerId: string): Promise<IngredientStockItem[]> {
     if (isFirebaseConfigured && db) {
       const firestore = db;
       try {
-        // First attempt: root 'ingredient' collection
-        let snap = await getDocs(collection(firestore, 'ingredient'));
+        // First query standardized 'ingredients' collection
+        let snap = await getDocs(collection(firestore, 'ingredients'));
         if (snap.empty) {
-          snap = await getDocs(collection(firestore, 'ingredients'));
+          // Fallback to legacy 'ingredient' or center subcollection if migration in progress
+          snap = await getDocs(collection(firestore, 'ingredient'));
         }
         if (snap.empty) {
           snap = await getDocs(collection(firestore, 'centers', centerId, 'stock'));
@@ -64,23 +65,17 @@ class KitchenDbService {
           }
         }
 
-        // If Firestore collections are empty, seed initial stock to root collections and center subcollection
+        // If Firestore collections are empty, seed initial stock to standardized 'ingredients' collection
         const initialForCenter = INITIAL_STOCK_ITEMS.map((item) => ({
           ...item,
           centerId,
         }));
 
-        Promise.all([
-          ...initialForCenter.map((item) =>
-            setDoc(doc(firestore, 'ingredient', item.id), item, { merge: true })
-          ),
-          ...initialForCenter.map((item) =>
+        Promise.all(
+          initialForCenter.map((item) =>
             setDoc(doc(firestore, 'ingredients', item.id), item, { merge: true })
-          ),
-          ...initialForCenter.map((item) =>
-            setDoc(doc(firestore, 'centers', centerId, 'stock', item.id), item, { merge: true })
-          ),
-        ]).catch((err) => console.warn('Could not seed initial ingredients to Firestore:', err));
+          )
+        ).catch((err) => console.warn('Could not seed initial ingredients to Firestore:', err));
 
         return initialForCenter;
       } catch (err) {
@@ -101,7 +96,7 @@ class KitchenDbService {
   }
 
   /**
-   * Save or update a stock item in Firestore (Root 'ingredient', 'ingredients', and Center subcollection)
+   * Save or update a stock item in Firestore (Standardized 'ingredients' collection)
    */
   async saveCenterStockItem(centerId: string, item: IngredientStockItem): Promise<void> {
     const itemWithCenter: IngredientStockItem = {
@@ -118,14 +113,10 @@ class KitchenDbService {
       localStorage.setItem(this.getLocalKey('stock', centerId), JSON.stringify(updated));
     } catch {}
 
-    // Sync to Firestore root collections and center subcollection
+    // Sync to standardized 'ingredients' collection
     if (isFirebaseConfigured && db) {
       try {
-        await Promise.all([
-          setDoc(doc(db, 'ingredient', item.id), itemWithCenter, { merge: true }),
-          setDoc(doc(db, 'ingredients', item.id), itemWithCenter, { merge: true }),
-          setDoc(doc(db, 'centers', centerId, 'stock', item.id), itemWithCenter, { merge: true }),
-        ]);
+        await setDoc(doc(db, 'ingredients', item.id), itemWithCenter, { merge: true });
       } catch (err) {
         console.warn('Failed to sync ingredient item to Firestore:', err);
       }
@@ -133,19 +124,19 @@ class KitchenDbService {
   }
 
   // ==========================================
-  // Recipes (Root Collections: recipe & recipes, plus Center isolation)
+  // Recipes (Standardized Root Collection: 'recipes')
   // ==========================================
 
   /**
-   * Fetch all recipes for a specific center from root 'recipe' / 'recipes' collections
+   * Fetch all recipes for a specific center from root 'recipes' collection
    */
   async fetchCenterRecipes(centerId: string): Promise<Recipe[]> {
     if (isFirebaseConfigured && db) {
       const firestore = db;
       try {
-        let snap = await getDocs(collection(firestore, 'recipe'));
+        let snap = await getDocs(collection(firestore, 'recipes'));
         if (snap.empty) {
-          snap = await getDocs(collection(firestore, 'recipes'));
+          snap = await getDocs(collection(firestore, 'recipe'));
         }
         if (snap.empty) {
           snap = await getDocs(collection(firestore, 'centers', centerId, 'recipes'));
@@ -167,17 +158,11 @@ class KitchenDbService {
           ).map((r) => ({ ...r, centerId }));
 
           if (missingAshram.length > 0) {
-            Promise.all([
-              ...missingAshram.map((r) =>
-                setDoc(doc(firestore, 'recipe', r.id), r, { merge: true })
-              ),
-              ...missingAshram.map((r) =>
+            Promise.all(
+              missingAshram.map((r) =>
                 setDoc(doc(firestore, 'recipes', r.id), r, { merge: true })
-              ),
-              ...missingAshram.map((r) =>
-                setDoc(doc(firestore, 'centers', centerId, 'recipes', r.id), r, { merge: true })
-              ),
-            ]).catch(() => {});
+              )
+            ).catch(() => {});
             items.push(...missingAshram);
           }
 
@@ -187,23 +172,17 @@ class KitchenDbService {
           return items;
         }
 
-        // If Firestore collection is empty, seed initial recipes to root collections and center subcollection
+        // If Firestore collection is empty, seed initial recipes to standardized 'recipes' collection
         const initialForCenter = INITIAL_RECIPES.map((r) => ({
           ...r,
           centerId,
         }));
 
-        Promise.all([
-          ...initialForCenter.map((r) =>
-            setDoc(doc(firestore, 'recipe', r.id), r, { merge: true })
-          ),
-          ...initialForCenter.map((r) =>
+        Promise.all(
+          initialForCenter.map((r) =>
             setDoc(doc(firestore, 'recipes', r.id), r, { merge: true })
-          ),
-          ...initialForCenter.map((r) =>
-            setDoc(doc(firestore, 'centers', centerId, 'recipes', r.id), r, { merge: true })
-          ),
-        ]).catch((err) => console.warn('Could not seed initial recipes to Firestore:', err));
+          )
+        ).catch((err) => console.warn('Could not seed initial recipes to Firestore:', err));
 
         return initialForCenter;
       } catch (err) {
@@ -222,7 +201,7 @@ class KitchenDbService {
   }
 
   /**
-   * Save or update a recipe in Firestore (Root 'recipe', 'recipes', and Center subcollection)
+   * Save or update a recipe in Firestore (Standardized 'recipes' collection)
    */
   async saveCenterRecipe(centerId: string, recipe: Recipe): Promise<void> {
     const recipeWithCenter: Recipe = {
@@ -239,14 +218,10 @@ class KitchenDbService {
       localStorage.setItem(this.getLocalKey('recipes', centerId), JSON.stringify(updated));
     } catch {}
 
-    // Sync to Firestore root collections and center subcollection
+    // Sync to standardized 'recipes' collection
     if (isFirebaseConfigured && db) {
       try {
-        await Promise.all([
-          setDoc(doc(db, 'recipe', recipe.id), recipeWithCenter, { merge: true }),
-          setDoc(doc(db, 'recipes', recipe.id), recipeWithCenter, { merge: true }),
-          setDoc(doc(db, 'centers', centerId, 'recipes', recipe.id), recipeWithCenter, { merge: true }),
-        ]);
+        await setDoc(doc(db, 'recipes', recipe.id), recipeWithCenter, { merge: true });
       } catch (err) {
         console.warn('Failed to sync recipe to Firestore:', err);
       }
@@ -254,7 +229,7 @@ class KitchenDbService {
   }
 
   /**
-   * Delete a recipe from Firestore
+   * Delete a recipe from Firestore (Standardized 'recipes' collection)
    */
   async deleteCenterRecipe(centerId: string, recipeId: string): Promise<void> {
     try {
@@ -265,11 +240,7 @@ class KitchenDbService {
 
     if (isFirebaseConfigured && db) {
       try {
-        await Promise.all([
-          deleteDoc(doc(db, 'recipe', recipeId)),
-          deleteDoc(doc(db, 'recipes', recipeId)),
-          deleteDoc(doc(db, 'centers', centerId, 'recipes', recipeId)),
-        ]);
+        await deleteDoc(doc(db, 'recipes', recipeId));
       } catch (err) {
         console.warn('Failed to delete recipe in Firestore:', err);
       }
@@ -314,16 +285,16 @@ class KitchenDbService {
   }
 
   // ==========================================
-  // 15-Day Menu Plans (Root Collections: menu & menus, plus Center isolation)
+  // 15-Day Menu Plans (Standardized Root Collection: 'menus')
   // ==========================================
 
   async fetchCenterMenuPlan(centerId: string): Promise<FifteenDayMenuPlan> {
     if (isFirebaseConfigured && db) {
       const firestore = db;
       try {
-        let snap = await getDocs(collection(firestore, 'menu'));
+        let snap = await getDocs(collection(firestore, 'menus'));
         if (snap.empty) {
-          snap = await getDocs(collection(firestore, 'menus'));
+          snap = await getDocs(collection(firestore, 'menu'));
         }
         if (snap.empty) {
           snap = await getDocs(collection(firestore, 'centers', centerId, 'menus'));
@@ -344,13 +315,9 @@ class KitchenDbService {
           return docData;
         }
 
-        // Seed default
+        // Seed default into standardized 'menus' collection
         const initialPlan = buildInitial15DayMenu(centerId);
-        Promise.all([
-          setDoc(doc(firestore, 'menu', initialPlan.id), initialPlan, { merge: true }),
-          setDoc(doc(firestore, 'menus', initialPlan.id), initialPlan, { merge: true }),
-          setDoc(doc(firestore, 'centers', centerId, 'menus', initialPlan.id), initialPlan, { merge: true }),
-        ]).catch(() => {});
+        setDoc(doc(firestore, 'menus', initialPlan.id), initialPlan, { merge: true }).catch(() => {});
         return initialPlan;
       } catch (err) {
         console.warn('Failed to fetch menu plan from Firestore:', err);
@@ -363,11 +330,7 @@ class KitchenDbService {
     if (isFirebaseConfigured && db) {
       try {
         const planWithCenter = { ...plan, centerId, updatedAt: new Date().toISOString() };
-        await Promise.all([
-          setDoc(doc(db, 'menu', plan.id), planWithCenter, { merge: true }),
-          setDoc(doc(db, 'menus', plan.id), planWithCenter, { merge: true }),
-          setDoc(doc(db, 'centers', centerId, 'menus', plan.id), planWithCenter, { merge: true }),
-        ]);
+        await setDoc(doc(db, 'menus', plan.id), planWithCenter, { merge: true });
       } catch (err) {
         console.warn('Failed to save menu plan in Firestore:', err);
       }
@@ -503,33 +466,19 @@ class KitchenDbService {
         await setDoc(centerDocRef, defaultCenter, { merge: true });
       }
 
-      // 2. Sync Stock Items to root 'ingredient', 'ingredients', and center subcollection
+      // 2. Sync Stock Items to standardized 'ingredients' collection
       const stockItems = await this.fetchCenterStock(centerId);
-      await Promise.all([
-        ...stockItems.map((item) =>
-          setDoc(
-            doc(firestore, 'ingredient', item.id),
-            { ...item, centerId, updatedAt: new Date().toISOString() },
-            { merge: true }
-          )
-        ),
-        ...stockItems.map((item) =>
+      await Promise.all(
+        stockItems.map((item) =>
           setDoc(
             doc(firestore, 'ingredients', item.id),
             { ...item, centerId, updatedAt: new Date().toISOString() },
             { merge: true }
           )
-        ),
-        ...stockItems.map((item) =>
-          setDoc(
-            doc(firestore, 'centers', centerId, 'stock', item.id),
-            { ...item, centerId, updatedAt: new Date().toISOString() },
-            { merge: true }
-          )
-        ),
-      ]);
+        )
+      );
 
-      // 3. Sync Recipes to root 'recipe', 'recipes', and center subcollection
+      // 3. Sync Recipes to standardized 'recipes' collection
       const recipes = await this.fetchCenterRecipes(centerId);
       const existingIds = new Set(recipes.map((r) => r.id));
       const fullRecipes = [...recipes];
@@ -538,29 +487,15 @@ class KitchenDbService {
           fullRecipes.push({ ...initRec, centerId });
         }
       }
-      await Promise.all([
-        ...fullRecipes.map((r) =>
-          setDoc(
-            doc(firestore, 'recipe', r.id),
-            { ...r, centerId, updatedAt: new Date().toISOString() },
-            { merge: true }
-          )
-        ),
-        ...fullRecipes.map((r) =>
+      await Promise.all(
+        fullRecipes.map((r) =>
           setDoc(
             doc(firestore, 'recipes', r.id),
             { ...r, centerId, updatedAt: new Date().toISOString() },
             { merge: true }
           )
-        ),
-        ...fullRecipes.map((r) =>
-          setDoc(
-            doc(firestore, 'centers', centerId, 'recipes', r.id),
-            { ...r, centerId, updatedAt: new Date().toISOString() },
-            { merge: true }
-          )
-        ),
-      ]);
+        )
+      );
 
       // 4. Sync Patterns
       const patterns = await this.fetchCenterPatterns(centerId);
@@ -574,25 +509,13 @@ class KitchenDbService {
         )
       );
 
-      // 5. Sync 15-Day Menu Plan to root 'menu', 'menus', and center subcollection
+      // 5. Sync 15-Day Menu Plan to standardized 'menus' collection
       const menuPlan = await this.fetchCenterMenuPlan(centerId);
-      await Promise.all([
-        setDoc(
-          doc(firestore, 'menu', menuPlan.id),
-          { ...menuPlan, centerId, updatedAt: new Date().toISOString() },
-          { merge: true }
-        ),
-        setDoc(
-          doc(firestore, 'menus', menuPlan.id),
-          { ...menuPlan, centerId, updatedAt: new Date().toISOString() },
-          { merge: true }
-        ),
-        setDoc(
-          doc(firestore, 'centers', centerId, 'menus', menuPlan.id),
-          { ...menuPlan, centerId, updatedAt: new Date().toISOString() },
-          { merge: true }
-        ),
-      ]);
+      await setDoc(
+        doc(firestore, 'menus', menuPlan.id),
+        { ...menuPlan, centerId, updatedAt: new Date().toISOString() },
+        { merge: true }
+      );
 
       return {
         success: true,
