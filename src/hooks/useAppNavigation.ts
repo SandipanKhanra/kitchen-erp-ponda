@@ -22,17 +22,16 @@ export const ROUTE_TO_TAB: Record<string, NavTab> = {
   '/sadmin-hq': 'sadmin_dashboard',
 };
 
-export function useAppNavigation() {
+export function useAppNavigation(isAuthenticated = false) {
   const getInitialTabFromLocation = (): NavTab => {
     const path = window.location.pathname.toLowerCase().replace(/\/$/, '') || '/';
     return ROUTE_TO_TAB[path] || 'menu_planner';
   };
 
-  const getInitialAuthMode = (): 'login' | 'signup' | null => {
+  const getInitialAuthMode = (): 'login' | 'signup' => {
     const path = window.location.pathname.toLowerCase();
-    if (path === '/login') return 'login';
     if (path === '/signup') return 'signup';
-    return null;
+    return 'login';
   };
 
   const [activeTab, setActiveTabState] = useState<NavTab>(getInitialTabFromLocation);
@@ -42,8 +41,8 @@ export function useAppNavigation() {
   }>(() => {
     const mode = getInitialAuthMode();
     return {
-      isOpen: Boolean(mode),
-      tab: mode || 'login',
+      isOpen: !isAuthenticated || window.location.pathname === '/login' || window.location.pathname === '/signup',
+      tab: mode,
     };
   });
 
@@ -63,6 +62,15 @@ export function useAppNavigation() {
     const authUrl = tab === 'signup' ? '/signup' : '/login';
     if (window.location.pathname !== authUrl) {
       window.history.pushState({ auth: tab }, '', authUrl);
+    }
+  }, []);
+
+  // Switch auth tab (between login and signup) and update URL
+  const switchAuthTab = useCallback((tab: 'login' | 'signup') => {
+    setAuthModalState({ isOpen: true, tab });
+    const authUrl = tab === 'signup' ? '/signup' : '/login';
+    if (window.location.pathname !== authUrl) {
+      window.history.replaceState({ auth: tab }, '', authUrl);
     }
   }, []);
 
@@ -94,12 +102,24 @@ export function useAppNavigation() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Ensure current location has an explicit route on first load if on root '/'
+  // Route synchronization based on authentication state
   useEffect(() => {
-    if (window.location.pathname === '/' || window.location.pathname === '') {
-      window.history.replaceState({ tab: 'menu_planner' }, '', '/menu-planner');
+    const path = window.location.pathname.toLowerCase().replace(/\/$/, '') || '/';
+    if (!isAuthenticated) {
+      // If unauthenticated, ensure URL matches auth view (/login or /signup)
+      if (path !== '/signup' && path !== '/login') {
+        window.history.replaceState({ auth: 'login' }, '', '/login');
+      }
+    } else {
+      // If authenticated and on login/signup/root, navigate to active tab route
+      if (path === '/' || path === '' || path === '/login' || path === '/signup') {
+        const targetUrl = TAB_ROUTES[activeTab] || '/menu-planner';
+        if (window.location.pathname !== targetUrl) {
+          window.history.replaceState({ tab: activeTab }, '', targetUrl);
+        }
+      }
     }
-  }, []);
+  }, [isAuthenticated, activeTab]);
 
   return {
     activeTab,
@@ -107,6 +127,7 @@ export function useAppNavigation() {
     authModalOpen: authModalState.isOpen,
     authModalTab: authModalState.tab,
     openAuth,
+    switchAuthTab,
     closeAuth,
   };
 }

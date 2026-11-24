@@ -8,15 +8,22 @@ interface AuthViewProps {
   initialTab?: 'login' | 'signup';
   onClose?: () => void;
   isModal?: boolean;
+  onTabChange?: (tab: 'login' | 'signup') => void;
 }
 
 export const AuthView: React.FC<AuthViewProps> = ({
   initialTab = 'login',
   onClose,
   isModal = false,
+  onTabChange,
 }) => {
   const { theme, toggleTheme } = useKitchen();
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>(initialTab);
+
+  const handleTabSwitch = (tab: 'login' | 'signup') => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
 
   // Sync tab whenever initialTab prop changes
   useEffect(() => {
@@ -93,7 +100,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
         <div className="flex p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl mb-5 border border-slate-200/50 dark:border-slate-700/50">
           <button
             type="button"
-            onClick={() => setActiveTab('login')}
+            onClick={() => handleTabSwitch('login')}
             className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
               activeTab === 'login'
                 ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-sm'
@@ -104,7 +111,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('signup')}
+            onClick={() => handleTabSwitch('signup')}
             className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
               activeTab === 'signup'
                 ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-sm'
@@ -118,12 +125,12 @@ export const AuthView: React.FC<AuthViewProps> = ({
         {/* Active Tab Form */}
         {activeTab === 'login' ? (
           <LoginForm
-            onSwitchToSignup={() => setActiveTab('signup')}
+            onSwitchToSignup={() => handleTabSwitch('signup')}
             onSuccess={onClose}
           />
         ) : (
           <SignupForm
-            onSwitchToLogin={() => setActiveTab('login')}
+            onSwitchToLogin={() => handleTabSwitch('login')}
             onSuccess={onClose}
           />
         )}

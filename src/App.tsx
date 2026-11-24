@@ -15,6 +15,7 @@ import { ChefHat } from 'lucide-react';
 
 function AppContent() {
   const { firebaseUser, isDemoMode, isAuthLoading } = useAuth();
+  const isAuthenticated = Boolean(firebaseUser || isDemoMode);
   const { isAuditModalOpen, auditModalCategory, closeAuditModal } = useKitchen();
   const {
     activeTab,
@@ -22,8 +23,9 @@ function AppContent() {
     authModalOpen,
     authModalTab,
     openAuth,
+    switchAuthTab,
     closeAuth,
-  } = useAppNavigation();
+  } = useAppNavigation(isAuthenticated);
 
   // Loading Splash Screen while Firebase Auth initializes
   if (isAuthLoading) {
@@ -46,7 +48,10 @@ function AppContent() {
   if (!firebaseUser && !isDemoMode) {
     return (
       <div className="min-h-screen bg-transparent text-slate-900 dark:text-slate-100 flex items-center justify-center p-3 sm:p-4 transition-colors duration-200">
-        <AuthView initialTab={authModalTab} />
+        <AuthView
+          initialTab={authModalTab}
+          onTabChange={switchAuthTab}
+        />
       </div>
     );
   }
@@ -75,6 +80,7 @@ function AppContent() {
         <AuthView
           isModal
           initialTab={authModalTab}
+          onTabChange={switchAuthTab}
           onClose={closeAuth}
         />
       )}
