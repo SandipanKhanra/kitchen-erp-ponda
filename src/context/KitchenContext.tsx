@@ -15,6 +15,7 @@ import {
 import { calculateWeightedAveragePrice } from '../core/stockEngine';
 import { calculateDayWiseAndShoppingRequirements } from '../core/daywiseRequirementCalculator';
 import { validateMenuRepetition, RepetitionViolation } from '../core/repetitionValidator';
+import { formatUserRole } from '../utils/formatters';
 
 interface KitchenContextType {
   // Theme state
@@ -460,16 +461,20 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // 15-Day Menu Plan Save (Synced with Firebase per Center)
   const saveMenuPlan = async (plan: FifteenDayMenuPlan) => {
-    // If user edited, reset status to pending_approval under Maker-Checker
+    // If edited by sadmin, the menu is immediately approved and does NOT need approval again.
+    // If edited by any other user or normal admin, reset status to pending_approval under Maker-Checker.
+    const isEditedBySAdmin = currentUser.role === 'sadmin' || isSAdmin;
+
     const updatedPlan: FifteenDayMenuPlan = {
       ...plan,
       centerId: currentCenter.id,
-      status: 'pending_approval',
+      status: isEditedBySAdmin ? 'approved' : 'pending_approval',
       createdBy: currentUser.uid,
-      createdByName: `${currentUser.name} (${currentUser.role})`,
-      createdByRole: currentUser.role === 'admin' ? 'admin' : 'user',
-      approvedBy: undefined,
-      approvedByName: undefined,
+      createdByName: `${currentUser.name} (${formatUserRole(currentUser.role)})`,
+      createdByRole: currentUser.role === 'sadmin' ? 'sadmin' : currentUser.role === 'admin' ? 'admin' : 'user',
+      approvedBy: isEditedBySAdmin ? currentUser.uid : undefined,
+      approvedByName: isEditedBySAdmin ? `${currentUser.name} (Super Admin)` : undefined,
+      approvedAt: isEditedBySAdmin ? new Date().toISOString() : undefined,
       updatedAt: new Date().toISOString(),
     };
 
@@ -490,7 +495,9 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       performedByName: currentUser.name,
       performedByRole: currentUser.role,
       details: {
-        summary: `Saved modifications to 15-day menu plan "${plan.title}". Status reset to pending_approval under Maker-Checker governance.`,
+        summary: isEditedBySAdmin
+          ? `Saved modifications to 15-day menu plan "${plan.title}". Auto-approved directly by Super Admin (no re-approval required).`
+          : `Saved modifications to 15-day menu plan "${plan.title}". Status reset to pending_approval under Maker-Checker governance.`,
       },
     });
 

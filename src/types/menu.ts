@@ -32,7 +32,7 @@ export interface FifteenDayMenuPlan {
   days: Record<number, DayMenuSchedule>;
   createdBy: string;         // uid of creator (user or admin)
   createdByName: string;
-  createdByRole: 'user' | 'admin';
+  createdByRole: 'user' | 'admin' | 'sadmin';
   approvedBy?: string;       // uid of approving admin (MUST be different from creator!)
   approvedByName?: string;
   approvedAt?: string;
