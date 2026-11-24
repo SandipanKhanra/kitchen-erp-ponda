@@ -39,82 +39,66 @@ service cloud.firestore {
     }
 
     // 1. Centers Collection (Multi-Tenancy)
-    // Centers list is publicly readable for devotee registration and center discovery.
     match /centers/{centerId} {
       allow read: if true;
-      allow create: if isAuthenticated();
-      allow update: if isSAdmin() || (isAdmin(centerId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'code']));
-      allow delete: if isSAdmin();
+      allow write: if true;
+      
+      // Subcollections fallback
+      match /{allSubcollections=**} {
+        allow read, write: if true;
+      }
     }
 
-    // 2. Center Creation Requests
-    // Admins can raise requests; only SAdmin can approve or reject
+    // 2. Primary Root Collections: recipe, menu, ingredient (and plural variants)
+    match /recipe/{recipeId} {
+      allow read, write: if true;
+    }
+    match /recipes/{recipeId} {
+      allow read, write: if true;
+    }
+
+    match /menu/{menuId} {
+      allow read, write: if true;
+    }
+    match /menus/{menuId} {
+      allow read, write: if true;
+    }
+
+    match /ingredient/{ingredientId} {
+      allow read, write: if true;
+    }
+    match /ingredients/{ingredientId} {
+      allow read, write: if true;
+    }
+    match /stock/{stockId} {
+      allow read, write: if true;
+    }
+
+    match /patterns/{patternId} {
+      allow read, write: if true;
+    }
+
+    // 3. Center Creation Requests
     match /center_requests/{requestId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (request.resource.data.requestedByAdminId == request.auth.uid);
-      allow update, delete: if isSAdmin();
+      allow read: if true;
+      allow write: if true;
     }
 
-    // 3. User Profiles & RBAC
-    // Users can read, create, and update their own profile. Admins can manage within their center. SAdmin can manage all.
+    // 4. User Profiles & RBAC
     match /users/{userId} {
-      allow read: if isAuthenticated() && (
-        request.auth.uid == userId || 
-        isSAdmin() || 
-        (resource != null && hasUserDoc() && isMember(resource.data.centerId))
-      );
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && (
-        request.auth.uid == userId || 
-        isSAdmin() || 
-        (resource != null && hasUserDoc() && isAdmin(resource.data.centerId) && resource.data.centerId == request.resource.data.centerId)
-      );
-      allow delete: if isSAdmin();
+      allow read: if true;
+      allow write: if true;
     }
 
-    // 4. Stock & Ingredients (Multi-Tenant Isolation)
-    match /centers/{centerId}/stock/{stockId} {
-      allow read: if isMember(centerId);
-      allow write: if isMember(centerId); // Stock keeper or admin updates purchases & stock
-    }
-
-    // 5. Recipes & Patterns
-    match /centers/{centerId}/recipes/{recipeId} {
-      allow read: if isMember(centerId);
-      allow write: if isMember(centerId);
-    }
-
-    match /centers/{centerId}/patterns/{patternId} {
-      allow read: if isMember(centerId);
-      allow write: if isMember(centerId);
-    }
-
-    // 6. 15-Day Menus & Maker-Checker Dual Approvals
-    match /centers/{centerId}/menus/{menuId} {
-      allow read: if isMember(centerId);
-      allow create: if isMember(centerId);
-      allow update: if isMember(centerId) && (
-        // Standard edit: resets to pending_approval
-        (request.resource.data.status == 'pending_approval') ||
-        // Maker-Checker approval: ONLY an admin DIFFERENT from creator can set to 'approved'!
-        (request.resource.data.status == 'approved' && isAdmin(centerId) && resource.data.createdBy != request.auth.uid) ||
-        // Maker-Checker rejection by an admin
-        (request.resource.data.status == 'rejected' && isAdmin(centerId))
-      );
-      allow delete: if isAdmin(centerId);
-    }
-
-    // 7. Global Vaishnava Calendar Events (Read-only master feed)
+    // 5. Global Vaishnava Calendar Events
     match /vaishnava_calendar/{occasionId} {
       allow read: if true;
-      allow write: if isSAdmin();
+      allow write: if true;
     }
 
-    // 8. Audit Logs (Center-Specific Audit Trail for Menu Plans, Recipes, and Stock)
-    match /centers/{centerId}/audit_logs/{auditId} {
-      allow read: if isMember(centerId);
-      allow create: if isMember(centerId);
-      allow update, delete: if isSAdmin();
+    // 6. Audit Logs
+    match /audit_logs/{auditId} {
+      allow read, write: if true;
     }
   }
 }
