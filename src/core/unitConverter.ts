@@ -71,3 +71,37 @@ export function convertToBaseUnit(
   // Fallback direct 1:1 if unknown
   return quantity;
 }
+
+/**
+ * Standardizes ingredient quantity rounding across recipes, day-wise calculations, and shopping lists:
+ * - Piece ('piece', 'pcs'): whole round integer (e.g. 1, 2, 5)
+ * - Kilogram ('kg', 'kilogram'): round in steps of 0.25 kg (e.g. 0.25, 0.50, 0.75, 1.00)
+ * - Litre ('litre', 'liter', 'l'): round by 500ml or 0.5 litre (e.g. 0.5, 1.0, 1.5, 2.0)
+ * - Other units (g, ml, cup, etc.): 2 decimal places
+ */
+export function roundKitchenQuantity(quantity: number, unitOrMeasure: string): number {
+  if (!quantity || isNaN(quantity) || quantity <= 0) return 0;
+  const u = (unitOrMeasure || '').toLowerCase().trim();
+
+  // Discrete pieces: whole round integers
+  if (u === 'piece' || u === 'pcs') {
+    return Math.max(1, Math.round(quantity));
+  }
+
+  // Weight in kg: round in step of 0.25kg
+  if (u === 'kg' || u === 'kilogram') {
+    const step = 0.25;
+    const rounded = Math.round(quantity / step) * step;
+    return Number(Math.max(0.25, rounded).toFixed(2));
+  }
+
+  // Volume in litre: round by 500ml or 0.5 litre
+  if (u === 'litre' || u === 'liter' || u === 'l') {
+    const step = 0.5;
+    const rounded = Math.round(quantity / step) * step;
+    return Number(Math.max(0.5, rounded).toFixed(1));
+  }
+
+  // Default standard 2 decimal places for other culinary units
+  return Math.round(quantity * 100) / 100;
+}

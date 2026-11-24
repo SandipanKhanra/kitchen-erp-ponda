@@ -24,6 +24,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
   const [occasion, setOccasion] = useState<Occasion>('Normal');
   const [mealType, setMealType] = useState<MealType>('Lunch');
   const [recipeType, setRecipeType] = useState<RecipeType>('Rice');
+  const [isAshramSpecific, setIsAshramSpecific] = useState<boolean>(false);
   const [measurableIndex, setMeasurableIndex] = useState<MeasurableIndex>('per person');
   const [baseYield, setBaseYield] = useState<number>(10);
   const [prepTime, setPrepTime] = useState<number>(15);
@@ -69,6 +70,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
       prepTimeMinutes: prepTime,
       cookTimeMinutes: cookTime,
       description,
+      isAshramSpecific: isAshramSpecific || recipeType === 'Ashram',
       ingredients: ingredientsList,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -216,7 +218,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
                 >
                   <div className="flex justify-between items-start">
                     <div>
-                      <div className="flex items-center space-x-1.5">
+                      <div className="flex items-center space-x-1.5 flex-wrap gap-1">
                         <span
                           className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
                             rec.occasion === 'Ekadashi'
@@ -227,6 +229,14 @@ export const RecipeAndPatternManagement: React.FC = () => {
                           }`}
                         >
                           {rec.occasion}
+                        </span>
+                        {(rec.type === 'Ashram' || rec.isAshramSpecific) && (
+                          <span className="text-[9px] font-black uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-200 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-800">
+                            🕉️ Ashram
+                          </span>
+                        )}
+                        <span className="text-[9px] font-bold text-slate-400 bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 rounded">
+                          {rec.type}
                         </span>
                         <span className="text-[9px] font-bold text-slate-400 bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 rounded">
                           {rec.mealType}
@@ -368,7 +378,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div>
                   <label className="font-bold text-slate-700 dark:text-slate-300">Occasion</label>
                   <select
@@ -392,6 +402,32 @@ export const RecipeAndPatternManagement: React.FC = () => {
                     <option value="Breakfast">Breakfast</option>
                     <option value="Lunch">Lunch</option>
                     <option value="Dinner">Dinner</option>
+                    <option value="Ashram Breakfast">Ashram Breakfast</option>
+                    <option value="Ashram Lunch">Ashram Lunch</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Dish Type</label>
+                  <select
+                    value={recipeType}
+                    onChange={(e) => {
+                      const val = e.target.value as RecipeType;
+                      setRecipeType(val);
+                      if (val === 'Ashram') setIsAshramSpecific(true);
+                    }}
+                    className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
+                  >
+                    <option value="Ashram">🕉️ Ashram Special</option>
+                    <option value="Rice">Rice</option>
+                    <option value="Dal">Dal</option>
+                    <option value="Curry">Curry</option>
+                    <option value="Bread">Bread / Roti</option>
+                    <option value="Snack">Snack</option>
+                    <option value="Sweet">Sweet</option>
+                    <option value="Beverage">Beverage</option>
+                    <option value="Salad">Salad</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
 
@@ -408,6 +444,19 @@ export const RecipeAndPatternManagement: React.FC = () => {
                   </select>
                 </div>
               </div>
+
+              {/* Dedicated Ashram Recipe Toggle */}
+              <label className="flex items-center space-x-2 p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isAshramSpecific || recipeType === 'Ashram'}
+                  onChange={(e) => setIsAshramSpecific(e.target.checked)}
+                  className="rounded text-amber-600 focus:ring-amber-500"
+                />
+                <span className="font-bold text-amber-900 dark:text-amber-200 text-xs">
+                  🕉️ Dedicated for Brahmacari Ashram (Weekly Rotation)
+                </span>
+              </label>
 
               {/* Dynamic Ingredients List */}
               <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-700">

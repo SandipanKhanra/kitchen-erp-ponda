@@ -1,7 +1,7 @@
 import { FifteenDayMenuPlan } from '../types/menu';
 import { Recipe } from '../types/recipe';
 import { IngredientStockItem } from '../types/stock';
-import { convertToBaseUnit } from './unitConverter';
+import { convertToBaseUnit, roundKitchenQuantity } from './unitConverter';
 import {
   DayRequirement,
   DayWiseRequirementItem,
@@ -67,10 +67,7 @@ export function calculateDayWiseAndShoppingRequirements(
 
         recipe.ingredients.forEach((item) => {
           const stockItem = stockMap.get(item.ingredientId);
-          const isPiece =
-            stockItem?.measureIndex === 'piece' ||
-            item.unit === 'piece' ||
-            item.unit === 'pcs';
+          const measure = stockItem?.measureIndex || item.unit;
 
           // Convert recipe ingredient quantity into stock item's base unit
           const normalizedQty = stockItem
@@ -78,8 +75,8 @@ export function calculateDayWiseAndShoppingRequirements(
             : item.quantity;
           const wastage = 1 + (item.wastagePercent || 0) / 100;
           const rawConsumed = normalizedQty * scaleMultiplier * wastage;
-          // For piece-based ingredients, always keep whole round pieces
-          const consumed = isPiece ? Math.max(1, Math.round(rawConsumed)) : rawConsumed;
+          // Apply standard kitchen rounding: piece = whole, kg = 0.25 step, litre = 0.5 step
+          const consumed = roundKitchenQuantity(rawConsumed, measure);
 
           const currentDayTotal = dayIngredientsMap.get(item.ingredientId) || 0;
           dayIngredientsMap.set(item.ingredientId, currentDayTotal + consumed);
@@ -88,7 +85,7 @@ export function calculateDayWiseAndShoppingRequirements(
           cumulativeDemandMap.set(item.ingredientId, currentCycleTotal + consumed);
 
           const unitPrice = stockItem?.price || 0;
-          const roundedQty = isPiece ? Math.round(consumed) : Math.round(consumed * 100) / 100;
+          const roundedQty = consumed;
           const lineCost = Math.round(roundedQty * unitPrice * 100) / 100;
           recipeTotalCost += lineCost;
 
@@ -128,8 +125,7 @@ export function calculateDayWiseAndShoppingRequirements(
       const stockItem = stockMap.get(ingId);
       if (!stockItem) return;
 
-      const isPiece = stockItem.measureIndex === 'piece';
-      const roundedQty = isPiece ? Math.round(qty) : Math.round(qty * 100) / 100;
+      const roundedQty = roundKitchenQuantity(qty, stockItem.measureIndex);
       const unitPrice = stockItem.price;
       const lineCost = Math.round(roundedQty * unitPrice * 100) / 100;
       dayCost += lineCost;
@@ -170,15 +166,11 @@ export function calculateDayWiseAndShoppingRequirements(
     const stockItem = stockMap.get(ingId);
     if (!stockItem) return;
 
-    const isPiece = stockItem.measureIndex === 'piece';
-    const roundedDemand = isPiece ? Math.round(totalDemand) : Math.round(totalDemand * 100) / 100;
-    const currentStock = isPiece ? Math.round(stockItem.currentStock) : stockItem.currentStock;
-    const netToPurchase = Math.max(
-      0,
-      isPiece
-        ? Math.round(roundedDemand - currentStock)
-        : Math.round((roundedDemand - currentStock) * 100) / 100
-    );
+    const measure = stockItem.measureIndex;
+    const roundedDemand = roundKitchenQuantity(totalDemand, measure);
+    const currentStock = roundKitchenQuantity(stockItem.currentStock, measure);
+    const rawNet = Math.max(0, roundedDemand - currentStock);
+    const netToPurchase = rawNet > 0 ? roundKitchenQuantity(rawNet, measure) : 0;
     const estimatedPurchaseCost = Math.round(netToPurchase * stockItem.price * 100) / 100;
 
     totalNetProcurementCost += estimatedPurchaseCost;

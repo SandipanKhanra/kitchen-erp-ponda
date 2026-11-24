@@ -4,56 +4,70 @@ export interface RepetitionViolation {
   dayNumber: number;
   mealType: string;
   recipeName: string;
-  type: 'same_day_duplicate' | 'consecutive_day_duplicate' | 'excessive_cycle_repetition';
+  type: 'same_day_duplicate' | 'consecutive_day_duplicate' | 'excessive_cycle_repetition' | 'ashram_rotation_violation';
   message: string;
 }
 
 /**
  * Validates the 15-day menu to guarantee that recipes do not repeat unnecessarily.
- * Ensures variety for all 3 meals (Breakfast, Lunch, Dinner).
+ * Ensures variety for General meals (Breakfast, Lunch, Dinner) and Brahmacari Ashram meals.
+ * For Ashram meals: If number of unique ashram dishes is limited (< 14), enforces weekly (7-day) rotation.
  */
 export function validateMenuRepetition(
   currentPlan: FifteenDayMenuPlan,
   recipeNameMap: Map<string, string>,
-  previousCyclePlan?: FifteenDayMenuPlan
+  previousCyclePlan?: FifteenDayMenuPlan,
+  ashramRecipeIds?: Set<string>
 ): { isValid: boolean; violations: RepetitionViolation[] } {
   const violations: RepetitionViolation[] = [];
   const cycleRecipeCounts: Record<string, number[]> = {}; // recipeId -> array of dayNumbers
+  const ashramRecipeDays: Record<string, number[]> = {}; // recipeId -> array of dayNumbers in ashram
+
+  // Count total distinct ashram recipes assigned across the 15 days
+  const assignedAshramDishIds = new Set<string>();
+  for (let d = 1; d <= 15; d++) {
+    const day = currentPlan.days[d];
+    if (!day) continue;
+    (day.brahmacariBreakfast?.recipeIds || []).forEach((id) => assignedAshramDishIds.add(id));
+    (day.brahmacariLunch?.recipeIds || []).forEach((id) => assignedAshramDishIds.add(id));
+  }
+  const isLimitedAshramPool = assignedAshramDishIds.size < 14;
+  const minAshramInterval = assignedAshramDishIds.size <= 3 ? 3 : 7; // Weekly rotation if <= 7 dishes
 
   // Check repetition across the 15 days of currentPlan
   for (let d = 1; d <= 15; d++) {
     const day = currentPlan.days[d];
     if (!day) continue;
 
-    const meals = [
+    // --- 1. General Meals Validation ---
+    const generalMeals = [
       { name: 'Breakfast', slot: day.breakfast },
       { name: 'Lunch', slot: day.lunch },
       { name: 'Dinner', slot: day.dinner },
     ];
 
-    const daySeenRecipes = new Set<string>();
+    const daySeenGeneralRecipes = new Set<string>();
 
-    meals.forEach(({ name: mealName, slot }) => {
+    generalMeals.forEach(({ name: mealName, slot }) => {
       slot.recipeIds.forEach((rId) => {
         const recipeName = recipeNameMap.get(rId) || 'Unknown Recipe';
 
-        // 1. Same-day repetition across meals (e.g. Khichdi in breakfast AND lunch)
-        if (daySeenRecipes.has(rId)) {
+        // Same-day repetition across general meals
+        if (daySeenGeneralRecipes.has(rId)) {
           violations.push({
             dayNumber: d,
             mealType: mealName,
             recipeName,
             type: 'same_day_duplicate',
-            message: `Day ${d}: "${recipeName}" is repeated multiple times on the same day.`,
+            message: `Day ${d} (${mealName}): "${recipeName}" is repeated multiple times on the same day in general meals.`,
           });
         }
-        daySeenRecipes.add(rId);
+        daySeenGeneralRecipes.add(rId);
 
-        // Track frequency across entire 15-day cycle
         if (!cycleRecipeCounts[rId]) cycleRecipeCounts[rId] = [];
         cycleRecipeCounts[rId].push(d);
 
-        // 2. Consecutive day repetition (e.g. Day 4 and Day 5 serving the same main dish)
+        // Consecutive day repetition for general meals
         if (d > 1) {
           const prevDay = currentPlan.days[d - 1];
           if (prevDay) {
@@ -75,9 +89,73 @@ export function validateMenuRepetition(
         }
       });
     });
+
+    // --- 2. Brahmacari Ashram Meals Validation & Weekly Rotation Logic ---
+    const ashramMeals = [
+      ...(day.brahmacariBreakfast ? [{ name: 'Brahmacari Breakfast', slot: day.brahmacariBreakfast }] : []),
+      ...(day.brahmacariLunch ? [{ name: 'Brahmacari Lunch', slot: day.brahmacariLunch }] : []),
+    ];
+
+    const daySeenAshramRecipes = new Set<string>();
+
+    ashramMeals.forEach(({ name: mealName, slot }) => {
+      (slot.recipeIds || []).forEach((rId) => {
+        const recipeName = recipeNameMap.get(rId) || 'Unknown Recipe';
+
+        // Same-day duplicate between ashram breakfast and ashram lunch
+        if (daySeenAshramRecipes.has(rId)) {
+          violations.push({
+            dayNumber: d,
+            mealType: mealName,
+            recipeName,
+            type: 'same_day_duplicate',
+            message: `Day ${d}: "${recipeName}" is served for both Ashram Breakfast and Lunch on the same day.`,
+          });
+        }
+        daySeenAshramRecipes.add(rId);
+
+        // Consecutive day repetition for Ashram meals
+        if (d > 1) {
+          const prevDay = currentPlan.days[d - 1];
+          if (prevDay) {
+            const prevAshram = [
+              ...(prevDay.brahmacariBreakfast?.recipeIds || []),
+              ...(prevDay.brahmacariLunch?.recipeIds || []),
+            ];
+            if (prevAshram.includes(rId)) {
+              violations.push({
+                dayNumber: d,
+                mealType: mealName,
+                recipeName,
+                type: 'consecutive_day_duplicate',
+                message: `Day ${d} & Day ${d - 1} (Ashram): "${recipeName}" is served on consecutive days in Brahmacari Ashram.`,
+              });
+            }
+          }
+        }
+
+        // Weekly rotation rule: if number of ashram dishes is limited (< 14), allow weekly cycle (repeat after minInterval)
+        if (!ashramRecipeDays[rId]) {
+          ashramRecipeDays[rId] = [];
+        } else {
+          const lastServedDay = ashramRecipeDays[rId][ashramRecipeDays[rId].length - 1];
+          const diff = d - lastServedDay;
+          if (isLimitedAshramPool && diff < minAshramInterval && diff > 1) {
+            violations.push({
+              dayNumber: d,
+              mealType: mealName,
+              recipeName,
+              type: 'ashram_rotation_violation',
+              message: `Day ${d} (Ashram): "${recipeName}" repeats too soon (${diff} days after Day ${lastServedDay}). Maintain at least a weekly (${minAshramInterval}-day) rotation for Ashram meals.`,
+            });
+          }
+        }
+        ashramRecipeDays[rId].push(d);
+      });
+    });
   }
 
-  // 3. Compare with Day 15 of previous cycle to prevent rollover back-to-back duplicate
+  // --- 3. Previous Cycle Rollover Check ---
   if (previousCyclePlan && previousCyclePlan.days[15] && currentPlan.days[1]) {
     const prevDay15Recipes = [
       ...previousCyclePlan.days[15].breakfast.recipeIds,

@@ -39,3 +39,72 @@ export function formatDateISO(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Automatically applies a weekly (7-day) rotation schedule for Brahmacari Ashram meals across 15 days.
+ * If number of dishes is less, it rotates them smoothly: Day 1-7 repeat on Day 8-14, with Day 15 continuing,
+ * while automatically mapping Ekadashi-specific recipes onto Ekadashi fasting days.
+ */
+export function generateAshramWeeklyRotation(
+  ashramRecipes: Array<{ id: string; occasion: string; mealType: string }>,
+  isEkadashiDays: Record<number, boolean>
+): Record<number, { breakfastRecipeIds: string[]; lunchRecipeIds: string[] }> {
+  const result: Record<number, { breakfastRecipeIds: string[]; lunchRecipeIds: string[] }> = {};
+
+  // Separate Normal vs Ekadashi Ashram recipes
+  const normalBreakfast = ashramRecipes.filter(
+    (r) => r.occasion === 'Normal' && (r.mealType === 'Breakfast' || r.mealType === 'Ashram Breakfast')
+  );
+  const normalLunch = ashramRecipes.filter(
+    (r) => r.occasion === 'Normal' && (r.mealType === 'Lunch' || r.mealType === 'Ashram Lunch' || r.mealType === 'Dinner')
+  );
+  const ekadashiBreakfast = ashramRecipes.filter(
+    (r) => r.occasion === 'Ekadashi' && (r.mealType === 'Breakfast' || r.mealType === 'Ashram Breakfast' || r.mealType === 'Dinner')
+  );
+  const ekadashiLunch = ashramRecipes.filter(
+    (r) => r.occasion === 'Ekadashi' && (r.mealType === 'Lunch' || r.mealType === 'Ashram Lunch')
+  );
+
+  let normalBfIndex = 0;
+  let normalLunchIndex = 0;
+  let ekaBfIndex = 0;
+  let ekaLunchIndex = 0;
+
+  for (let d = 1; d <= 15; d++) {
+    const isEkadashi = !!isEkadashiDays[d];
+
+    if (isEkadashi) {
+      const bId = ekadashiBreakfast.length > 0
+        ? ekadashiBreakfast[ekaBfIndex % ekadashiBreakfast.length].id
+        : ashramRecipes.find((r) => r.occasion === 'Ekadashi')?.id;
+      const lId = ekadashiLunch.length > 0
+        ? ekadashiLunch[ekaLunchIndex % ekadashiLunch.length].id
+        : ashramRecipes.find((r) => r.occasion === 'Ekadashi')?.id;
+
+      result[d] = {
+        breakfastRecipeIds: bId ? [bId] : [],
+        lunchRecipeIds: lId ? [lId] : [],
+      };
+      ekaBfIndex++;
+      ekaLunchIndex++;
+    } else {
+      // Rotate on weekly cycle (7 days)
+      const dayCycle = (d - 1) % 7; // 0 to 6
+      const bRecipe = normalBreakfast.length > 0
+        ? normalBreakfast[dayCycle % normalBreakfast.length]
+        : null;
+      const lRecipe = normalLunch.length > 0
+        ? normalLunch[dayCycle % normalLunch.length]
+        : null;
+
+      result[d] = {
+        breakfastRecipeIds: bRecipe ? [bRecipe.id] : [],
+        lunchRecipeIds: lRecipe ? [lRecipe.id] : [],
+      };
+      normalBfIndex++;
+      normalLunchIndex++;
+    }
+  }
+
+  return result;
+}

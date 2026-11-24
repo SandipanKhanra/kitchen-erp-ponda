@@ -15,6 +15,7 @@ import { Recipe, MenuPattern } from '../types/recipe';
 import { FifteenDayMenuPlan } from '../types/menu';
 import { AuditLogEntry, AuditCategory } from '../types/audit';
 import {
+  INITIAL_CENTERS,
   INITIAL_STOCK_ITEMS,
   INITIAL_RECIPES,
   INITIAL_MENU_PATTERNS,
@@ -130,6 +131,22 @@ class KitchenDbService {
           snap.forEach((d) => {
             items.push(d.data() as Recipe);
           });
+
+          // Check if any initial Ashram recipes are missing and backfill them to Firestore
+          const existingIds = new Set(items.map((i) => i.id));
+          const missingAshram = INITIAL_RECIPES.filter(
+            (r) => r.isAshramSpecific && !existingIds.has(r.id)
+          ).map((r) => ({ ...r, centerId }));
+
+          if (missingAshram.length > 0) {
+            Promise.all(
+              missingAshram.map((r) =>
+                setDoc(doc(firestore, 'centers', centerId, 'recipes', r.id), r)
+              )
+            ).catch(() => {});
+            items.push(...missingAshram);
+          }
+
           try {
             localStorage.setItem(this.getLocalKey('recipes', centerId), JSON.stringify(items));
           } catch {}
@@ -363,6 +380,119 @@ class KitchenDbService {
     } catch {}
 
     return [];
+  }
+
+  // ==========================================
+  // Comprehensive Entity Creation & Firestore Sync
+  // ==========================================
+
+  /**
+   * Directly creates and synchronizes all kitchen entities in Firestore:
+   * - Center document ('centers/{centerId}')
+   * - Center stock items ('centers/{centerId}/stock')
+   * - Center recipes ('centers/{centerId}/recipes' including Ashram dishes)
+   * - Center meal patterns ('centers/{centerId}/patterns')
+   * - Center 15-day menu plan ('centers/{centerId}/menus')
+   */
+  async syncAllEntitiesToFirestore(
+    centerId: string,
+    centerData?: { name?: string; code?: string }
+  ): Promise<{
+    success: boolean;
+    syncedCounts: { stock: number; recipes: number; patterns: number; menus: number };
+  }> {
+    if (!isFirebaseConfigured || !db) {
+      return {
+        success: false,
+        syncedCounts: { stock: 0, recipes: 0, patterns: 0, menus: 0 },
+      };
+    }
+
+    const firestore = db;
+
+    try {
+      // 1. Ensure Center document exists
+      const centerDocRef = doc(firestore, 'centers', centerId);
+      const centerSnap = await getDoc(centerDocRef);
+      if (!centerSnap.exists()) {
+        const defaultCenter = INITIAL_CENTERS.find((c) => c.id === centerId) || {
+          id: centerId,
+          name: centerData?.name || 'ISKCON Center',
+          code: centerData?.code || 'CTR',
+          city: 'Goa',
+          state: 'Goa',
+          country: 'India',
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        await setDoc(centerDocRef, defaultCenter, { merge: true });
+      }
+
+      // 2. Sync Stock Items
+      const stockItems = await this.fetchCenterStock(centerId);
+      await Promise.all(
+        stockItems.map((item) =>
+          setDoc(
+            doc(firestore, 'centers', centerId, 'stock', item.id),
+            { ...item, centerId, updatedAt: new Date().toISOString() },
+            { merge: true }
+          )
+        )
+      );
+
+      // 3. Sync Recipes (including Ashram recipes)
+      const recipes = await this.fetchCenterRecipes(centerId);
+      const existingIds = new Set(recipes.map((r) => r.id));
+      const fullRecipes = [...recipes];
+      for (const initRec of INITIAL_RECIPES) {
+        if (!existingIds.has(initRec.id)) {
+          fullRecipes.push({ ...initRec, centerId });
+        }
+      }
+      await Promise.all(
+        fullRecipes.map((r) =>
+          setDoc(
+            doc(firestore, 'centers', centerId, 'recipes', r.id),
+            { ...r, centerId, updatedAt: new Date().toISOString() },
+            { merge: true }
+          )
+        )
+      );
+
+      // 4. Sync Patterns
+      const patterns = await this.fetchCenterPatterns(centerId);
+      await Promise.all(
+        patterns.map((p) =>
+          setDoc(
+            doc(firestore, 'centers', centerId, 'patterns', p.id),
+            { ...p, centerId, updatedAt: new Date().toISOString() },
+            { merge: true }
+          )
+        )
+      );
+
+      // 5. Sync 15-Day Menu Plan
+      const menuPlan = await this.fetchCenterMenuPlan(centerId);
+      await setDoc(
+        doc(firestore, 'centers', centerId, 'menus', menuPlan.id),
+        { ...menuPlan, centerId, updatedAt: new Date().toISOString() },
+        { merge: true }
+      );
+
+      return {
+        success: true,
+        syncedCounts: {
+          stock: stockItems.length,
+          recipes: fullRecipes.length,
+          patterns: patterns.length,
+          menus: 1,
+        },
+      };
+    } catch (err) {
+      console.error(`Failed to sync entities to Firestore for center ${centerId}:`, err);
+      throw err;
+    }
   }
 }
 

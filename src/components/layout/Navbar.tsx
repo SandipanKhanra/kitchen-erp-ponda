@@ -50,7 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
     centerRequests,
     logout,
   } = useAuth();
-  const { theme, toggleTheme } = useKitchen();
+  const { theme, toggleTheme, isSyncing, syncAllWithFirestore } = useKitchen();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -144,6 +144,20 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
 
           {/* Desktop Right Controls: User Profile / Demo Switcher & Dark/Light Toggle */}
           <div className="hidden md:flex items-center space-x-2 sm:space-x-3">
+            {/* Live Firestore Sync Status Indicator & Trigger */}
+            <button
+              onClick={syncAllWithFirestore}
+              disabled={isSyncing}
+              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer ${
+                isSyncing
+                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900 animate-pulse'
+                  : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
+              }`}
+              title="Click to synchronize kitchen entities (stock, recipes, menu plan) with Firebase Firestore"
+            >
+              <span className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-500 animate-ping' : 'bg-emerald-500'}`} />
+              <span className="hidden xl:inline">{isSyncing ? 'Syncing...' : 'Firestore Synced'}</span>
+            </button>
             {/* If Logged in via Firebase Auth */}
             {firebaseUser ? (
               <div className="relative" ref={profileRef}>

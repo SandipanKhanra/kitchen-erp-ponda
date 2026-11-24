@@ -417,6 +417,170 @@ export const INITIAL_RECIPES: Recipe[] = [
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
+  // Dedicated Brahmacari Ashram Recipes (Weekly Rotation Cycle)
+  {
+    id: 'rec_ashram_moong_dal',
+    centerId: 'center_ponda',
+    name: 'Ashram Sattvic Yellow Moong Dal',
+    occasion: 'Normal',
+    mealType: 'Lunch',
+    type: 'Ashram',
+    measurableIndex: 'per person',
+    baseYield: 10,
+    prepTimeMinutes: 10,
+    cookTimeMinutes: 25,
+    description: 'Mild, easily digestible yellow moong dal tempered with cumin, ginger, and desi cow ghee for ashram residents.',
+    isAshramSpecific: true,
+    ingredients: [
+      { ingredientId: 'stk_4', quantity: 0.5, unit: 'kg' },
+      { ingredientId: 'stk_5', quantity: 0.05, unit: 'litre' },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'rec_ashram_steamed_rice',
+    centerId: 'center_ponda',
+    name: 'Ashram Steamed Sona Masoori Rice',
+    occasion: 'Normal',
+    mealType: 'Lunch',
+    type: 'Ashram',
+    measurableIndex: 'per person',
+    baseYield: 10,
+    prepTimeMinutes: 10,
+    cookTimeMinutes: 20,
+    description: 'Light steamed rice prepared with minimal starch, ideal for resident brahmacaris.',
+    isAshramSpecific: true,
+    ingredients: [
+      { ingredientId: 'stk_1', quantity: 0.8, unit: 'kg' },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'rec_ashram_lauki_sabji',
+    centerId: 'center_ponda',
+    name: 'Ashram Boiled Lauki & Potato Subji',
+    occasion: 'Normal',
+    mealType: 'Lunch',
+    type: 'Ashram',
+    measurableIndex: 'per person',
+    baseYield: 10,
+    prepTimeMinutes: 15,
+    cookTimeMinutes: 25,
+    description: 'Sattvic bottle gourd and potato stew cooked with turmeric and rock salt.',
+    isAshramSpecific: true,
+    ingredients: [
+      { ingredientId: 'stk_8', quantity: 0.8, unit: 'kg' },
+      { ingredientId: 'stk_5', quantity: 0.05, unit: 'litre' },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'rec_ashram_dalia',
+    centerId: 'center_ponda',
+    name: 'Ashram Morning Moong Dalia Porridge',
+    occasion: 'Normal',
+    mealType: 'Breakfast',
+    type: 'Ashram',
+    measurableIndex: 'per person',
+    baseYield: 10,
+    prepTimeMinutes: 10,
+    cookTimeMinutes: 25,
+    description: 'Wholesome breakfast dalia cooked in cow ghee with split yellow moong.',
+    isAshramSpecific: true,
+    ingredients: [
+      { ingredientId: 'stk_4', quantity: 0.3, unit: 'kg' },
+      { ingredientId: 'stk_5', quantity: 0.05, unit: 'litre' },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'rec_ashram_poha',
+    centerId: 'center_ponda',
+    name: 'Ashram Mild Flattened Rice Poha',
+    occasion: 'Normal',
+    mealType: 'Breakfast',
+    type: 'Ashram',
+    measurableIndex: 'per person',
+    baseYield: 10,
+    prepTimeMinutes: 10,
+    cookTimeMinutes: 15,
+    description: 'Light flattened rice seasoned with green chilies, turmeric, curry leaves, and potatoes.',
+    isAshramSpecific: true,
+    ingredients: [
+      { ingredientId: 'stk_1', quantity: 0.6, unit: 'kg' },
+      { ingredientId: 'stk_8', quantity: 0.4, unit: 'kg' },
+      { ingredientId: 'stk_5', quantity: 0.05, unit: 'litre' },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'rec_ashram_fruit_bowl',
+    centerId: 'center_ponda',
+    name: 'Ashram Fresh Banana & Apple Bowl',
+    occasion: 'Normal',
+    mealType: 'Breakfast',
+    type: 'Ashram',
+    measurableIndex: 'per person',
+    baseYield: 10,
+    prepTimeMinutes: 10,
+    cookTimeMinutes: 0,
+    description: 'Fresh seasonal fruit offering for ashram brahmacaris before morning sadhana.',
+    isAshramSpecific: true,
+    ingredients: [
+      { ingredientId: 'stk_10', quantity: 15, unit: 'piece' },
+      { ingredientId: 'stk_11', quantity: 1.0, unit: 'kg' },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'rec_ashram_ekadashi_sabudana',
+    centerId: 'center_ponda',
+    name: 'Ashram Ekadashi Mild Sabudana Porridge',
+    occasion: 'Ekadashi',
+    mealType: 'Breakfast',
+    type: 'Ashram',
+    measurableIndex: 'per person',
+    baseYield: 10,
+    prepTimeMinutes: 10,
+    cookTimeMinutes: 20,
+    description: 'Grain-free morning sabudana porridge cooked in pure milk for ashram brahmacaris on Ekadashi.',
+    isAshramSpecific: true,
+    ingredients: [
+      { ingredientId: 'stk_3', quantity: 0.7, unit: 'kg' },
+      { ingredientId: 'stk_7', quantity: 1.5, unit: 'litre' },
+      { ingredientId: 'stk_12', quantity: 0.02, unit: 'kg' },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'rec_ashram_ekadashi_sama',
+    centerId: 'center_ponda',
+    name: 'Ashram Ekadashi Sama Rice & Boiled Potatoes',
+    occasion: 'Ekadashi',
+    mealType: 'Lunch',
+    type: 'Ashram',
+    measurableIndex: 'per person',
+    baseYield: 10,
+    prepTimeMinutes: 15,
+    cookTimeMinutes: 25,
+    description: 'Simple barnyard millet with boiled potatoes and Sendha rock salt for ashram lunch.',
+    isAshramSpecific: true,
+    ingredients: [
+      { ingredientId: 'stk_2', quantity: 0.7, unit: 'kg' },
+      { ingredientId: 'stk_8', quantity: 0.6, unit: 'kg' },
+      { ingredientId: 'stk_5', quantity: 0.05, unit: 'litre' },
+      { ingredientId: 'stk_12', quantity: 0.03, unit: 'kg' },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
 ];
 
 export const INITIAL_MENU_PATTERNS: MenuPattern[] = [
@@ -479,7 +643,7 @@ export function buildInitial15DayMenu(centerId = 'center_ponda'): FifteenDayMenu
           headcount: 90,
         },
         brahmacariBreakfast: {
-          recipeIds: ['rec_ekadashi_fruits'],
+          recipeIds: ['rec_ashram_ekadashi_sabudana'],
           headcount: 20,
         },
         lunch: {
@@ -488,7 +652,7 @@ export function buildInitial15DayMenu(centerId = 'center_ponda'): FifteenDayMenu
           headcount: 140,
         },
         brahmacariLunch: {
-          recipeIds: ['rec_ekadashi_sama_paneer'],
+          recipeIds: ['rec_ashram_ekadashi_sama'],
           headcount: 20,
         },
         dinner: {
@@ -498,7 +662,14 @@ export function buildInitial15DayMenu(centerId = 'center_ponda'): FifteenDayMenu
         notes: 'Grain-fasting observed strictly. No rice, wheat, dal, or beans.',
       };
     } else {
-      // Normal rotation menu with alternating dishes
+      // Normal rotation menu with alternating dishes on 7-day weekly cycle for Ashram
+      const ashramBfRotation = ['rec_ashram_dalia', 'rec_ashram_poha', 'rec_ashram_fruit_bowl'];
+      const ashramLunchRotation = [
+        ['rec_ashram_moong_dal', 'rec_ashram_steamed_rice'],
+        ['rec_ashram_lauki_sabji', 'rec_ashram_steamed_rice'],
+      ];
+      const weeklyDayIndex = (d - 1) % 7;
+
       days[d] = {
         dayNumber: d,
         date: dateStr,
@@ -510,7 +681,7 @@ export function buildInitial15DayMenu(centerId = 'center_ponda'): FifteenDayMenu
           headcount: 100,
         },
         brahmacariBreakfast: {
-          recipeIds: ['rec_poha'],
+          recipeIds: [ashramBfRotation[weeklyDayIndex % ashramBfRotation.length]],
           headcount: 20,
         },
         lunch: {
@@ -519,7 +690,7 @@ export function buildInitial15DayMenu(centerId = 'center_ponda'): FifteenDayMenu
           headcount: 150,
         },
         brahmacariLunch: {
-          recipeIds: ['rec_rajbhog_rice_dal'],
+          recipeIds: ashramLunchRotation[weeklyDayIndex % ashramLunchRotation.length],
           headcount: 20,
         },
         dinner: {

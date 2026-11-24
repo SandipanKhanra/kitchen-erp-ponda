@@ -270,7 +270,7 @@ export const StockManagement: React.FC = () => {
                     <input
                       type="number"
                       min="0"
-                      step={isPurchasePiece ? '1' : 'any'}
+                      step={isPurchasePiece ? '1' : selectedPurchaseStockItem?.measureIndex === 'kg' ? '0.25' : selectedPurchaseStockItem?.measureIndex === 'litre' ? '0.5' : 'any'}
                       placeholder="0"
                       value={purchasedQty === 0 ? '' : purchasedQty}
                       onFocus={(e) => e.target.select()}
@@ -402,7 +402,7 @@ export const StockManagement: React.FC = () => {
                   <input
                     type="number"
                     min="0"
-                    step={newMeasureIndex === 'piece' ? '1' : 'any'}
+                    step={newMeasureIndex === 'piece' ? '1' : newMeasureIndex === 'kg' ? '0.25' : newMeasureIndex === 'litre' ? '0.5' : 'any'}
                     placeholder="0"
                     value={newStock === 0 ? '' : newStock}
                     onFocus={(e) => e.target.select()}

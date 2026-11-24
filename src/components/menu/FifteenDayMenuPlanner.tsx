@@ -25,6 +25,7 @@ import {
 import { MealType, Recipe, MenuPattern, Occasion } from '../../types/recipe';
 import { FifteenDayMenuPlan } from '../../types/menu';
 import { sanitizeNumericChange } from '../../utils/numberInput';
+import { generateAshramWeeklyRotation } from '../../core/rotationEngine';
 
 export type MealSlotKey = 'breakfast' | 'lunch' | 'dinner' | 'brahmacariBreakfast' | 'brahmacariLunch';
 
@@ -66,7 +67,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   const [addDishModalMeal, setAddDishModalMeal] = useState<MealSlotKey | null>(null);
   const [dishModalTab, setDishModalTab] = useState<'recipes' | 'patterns'>('recipes');
   const [dishSearch, setDishSearch] = useState('');
-  const [dishOccasionFilter, setDishOccasionFilter] = useState<'all' | Occasion>('all');
+  const [dishOccasionFilter, setDishOccasionFilter] = useState<'all' | 'Ashram' | Occasion>('all');
   const [isCopyDropdownOpen, setIsCopyDropdownOpen] = useState(false);
 
   const activeDay = activeMenuPlan.days[selectedDay] || {
@@ -226,10 +227,65 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     saveMenuPlan(updatedPlan);
   };
 
+  // Automatically apply 7-day weekly rotation for Brahmacari Ashram meals
+  const handleAutoRotateAshram = () => {
+    const ashramRecipes = recipes.filter((r) => r.type === 'Ashram' || r.isAshramSpecific);
+    if (ashramRecipes.length === 0) {
+      alert('No Ashram recipes found. Please add Ashram recipes in the Recipes & Patterns tab first.');
+      return;
+    }
+
+    if (!window.confirm('Apply a 7-day weekly rotation for Brahmacari Ashram meals across all 15 days?')) {
+      return;
+    }
+
+    const isEkadashiMap: Record<number, boolean> = {};
+    for (let d = 1; d <= 15; d++) {
+      isEkadashiMap[d] = !!activeMenuPlan.days[d]?.isEkadashi;
+    }
+
+    const rotation = generateAshramWeeklyRotation(ashramRecipes, isEkadashiMap);
+    const updatedDays = { ...activeMenuPlan.days };
+
+    for (let d = 1; d <= 15; d++) {
+      const existing = updatedDays[d] || {
+        dayNumber: d,
+        date: '2026-11-20',
+        isEkadashi: false,
+        breakfast: { recipeIds: [], headcount: 100 },
+        lunch: { recipeIds: [], headcount: 150 },
+        dinner: { recipeIds: [], headcount: 110 },
+      };
+
+      updatedDays[d] = {
+        ...existing,
+        brahmacariBreakfast: {
+          recipeIds: rotation[d]?.breakfastRecipeIds || [],
+          headcount: existing.brahmacariBreakfast?.headcount ?? 20,
+        },
+        brahmacariLunch: {
+          recipeIds: rotation[d]?.lunchRecipeIds || [],
+          headcount: existing.brahmacariLunch?.headcount ?? 20,
+        },
+      };
+    }
+
+    const updatedPlan: FifteenDayMenuPlan = {
+      ...activeMenuPlan,
+      days: updatedDays,
+    };
+
+    saveMenuPlan(updatedPlan);
+    setApprovalMessage('Applied 7-day weekly rotation for Brahmacari Ashram meals across all 15 days!');
+    setTimeout(() => setApprovalMessage(null), 4000);
+  };
+
   // Filter recipes for Add Dish dialog
   const filteredModalRecipes = useMemo(() => {
     return recipes.filter((r) => {
-      if (dishOccasionFilter !== 'all' && r.occasion !== dishOccasionFilter) {
+      if (dishOccasionFilter === 'Ashram') {
+        if (r.type !== 'Ashram' && !r.isAshramSpecific) return false;
+      } else if (dishOccasionFilter !== 'all' && r.occasion !== dishOccasionFilter) {
         return false;
       }
       if (dishSearch.trim()) {
@@ -459,6 +515,16 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Auto-Rotate Ashram Menu (Weekly Cycle) */}
+            <button
+              onClick={handleAutoRotateAshram}
+              className="flex items-center space-x-1 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-800 dark:text-amber-200 rounded-xl text-xs font-bold transition border border-amber-300 dark:border-amber-800 shadow-sm"
+              title="Apply 7-day weekly rotation for Brahmacari Ashram meals across all 15 days"
+            >
+              <span>🕉️</span>
+              <span>Rotate Ashram (Weekly)</span>
+            </button>
 
             {/* Clear Day Dishes */}
             <button
@@ -746,6 +812,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                           onClick={() => {
                             setAddDishModalMeal(ashramSlotKey);
                             setDishModalTab('recipes');
+                            setDishOccasionFilter('Ashram');
                             setDishSearch('');
                           }}
                           className="flex-1 py-1.5 px-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 shadow-sm"
@@ -856,7 +923,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
             {/* Occasion Filter Chips (only for recipes tab) */}
             {dishModalTab === 'recipes' && (
               <div className="flex flex-wrap gap-1.5 text-xs">
-                {(['all', 'Normal', 'Ekadashi', 'Fasting'] as const).map((occ) => (
+                {(['all', 'Ashram', 'Normal', 'Ekadashi', 'Fasting'] as const).map((occ) => (
                   <button
                     key={occ}
                     onClick={() => setDishOccasionFilter(occ)}
@@ -866,7 +933,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                     }`}
                   >
-                    {occ === 'all' ? 'All Occasions' : occ}
+                    {occ === 'all' ? 'All Occasions' : occ === 'Ashram' ? '🕉️ Ashram Specials' : occ}
                   </button>
                 ))}
               </div>
@@ -894,6 +961,11 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                             <span className="font-extrabold text-slate-900 dark:text-white text-xs truncate">
                               {r.name}
                             </span>
+                            {(r.type === 'Ashram' || r.isAshramSpecific) && (
+                              <span className="text-[9px] font-black uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-200 px-1.5 py-0.2 rounded border border-amber-300 dark:border-amber-800">
+                                🕉️ Ashram
+                              </span>
+                            )}
                             <span
                               className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
                                 r.occasion === 'Ekadashi'

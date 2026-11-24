@@ -1,4 +1,5 @@
 import { Recipe } from '../types/recipe';
+import { roundKitchenQuantity } from './unitConverter';
 
 export interface ScaledIngredientQuantity {
   ingredientId: string;
@@ -9,6 +10,7 @@ export interface ScaledIngredientQuantity {
 /**
  * Scales recipe ingredient quantities according to actual target headcount.
  * Formulas are pattern-based: (item.quantity / baseYield) * targetHeadcount
+ * Automatically enforces kitchen rounding: piece = whole, kg = 0.25 step, litre = 0.5 step.
  */
 export function scaleRecipeForHeadcount(
   recipe: Recipe,
@@ -21,11 +23,10 @@ export function scaleRecipeForHeadcount(
   const multiplier = targetHeadcount / recipe.baseYield;
 
   return recipe.ingredients.map((item) => {
-    const isPiece = item.unit === 'piece' || item.unit === 'pcs';
     const rawQty = item.quantity * multiplier;
     return {
       ingredientId: item.ingredientId,
-      quantity: isPiece ? Math.max(1, Math.round(rawQty)) : Math.round(rawQty * 1000) / 1000,
+      quantity: roundKitchenQuantity(rawQty, item.unit),
       unit: item.unit,
     };
   });

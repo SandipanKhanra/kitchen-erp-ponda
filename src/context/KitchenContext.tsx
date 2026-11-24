@@ -58,6 +58,7 @@ interface KitchenContextType {
   closeAuditModal: () => void;
   refreshAuditLogs: () => Promise<void>;
   isSyncing: boolean;
+  syncAllWithFirestore: () => Promise<void>;
 }
 
 const KitchenContext = createContext<KitchenContextType | null>(null);
@@ -163,6 +164,11 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setPatterns(centerPatterns);
           setActiveMenuPlan(centerPlan);
           setAuditLogs(centerLogs);
+
+          // Asynchronously ensure all entities and center document are created in Firestore
+          kitchenDbService
+            .syncAllEntitiesToFirestore(currentCenter.id, currentCenter)
+            .catch((e) => console.warn('Background entity Firestore sync notice:', e));
         }
       } catch (err) {
         console.warn(`Error syncing data for center ${currentCenter.id}:`, err);
@@ -584,10 +590,35 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     () => new Map(recipes.map((r) => [r.id, r.name])),
     [recipes]
   );
-  const repetitionCheck = useMemo(
-    () => validateMenuRepetition(activeMenuPlan, recipeNameMap),
-    [activeMenuPlan, recipeNameMap]
+  const ashramRecipeIds = useMemo(
+    () => new Set(recipes.filter((r) => r.type === 'Ashram' || r.isAshramSpecific).map((r) => r.id)),
+    [recipes]
   );
+  const repetitionCheck = useMemo(
+    () => validateMenuRepetition(activeMenuPlan, recipeNameMap, undefined, ashramRecipeIds),
+    [activeMenuPlan, recipeNameMap, ashramRecipeIds]
+  );
+
+  const syncAllWithFirestore = async () => {
+    setIsSyncing(true);
+    try {
+      await kitchenDbService.syncAllEntitiesToFirestore(currentCenter.id, currentCenter);
+      const [centerStock, centerRecipes, centerPatterns, centerPlan] = await Promise.all([
+        kitchenDbService.fetchCenterStock(currentCenter.id),
+        kitchenDbService.fetchCenterRecipes(currentCenter.id),
+        kitchenDbService.fetchCenterPatterns(currentCenter.id),
+        kitchenDbService.fetchCenterMenuPlan(currentCenter.id),
+      ]);
+      setStockItems(centerStock);
+      setRecipes(centerRecipes);
+      setPatterns(centerPatterns);
+      setActiveMenuPlan(centerPlan);
+    } catch (err) {
+      console.warn('Manual sync with Firestore error:', err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Requisition & Day-wise calculations
   const requisitionSummary = useMemo(
@@ -627,6 +658,7 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
         closeAuditModal,
         refreshAuditLogs,
         isSyncing,
+        syncAllWithFirestore,
       }}
     >
       {children}
