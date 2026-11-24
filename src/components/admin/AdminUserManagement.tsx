@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Building2, Search } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
+import { formatUserRole } from '../../utils/formatters';
 
 export const AdminUserManagement: React.FC = () => {
-  const { currentCenter, centerUsers, currentUser, assignUserRole, raiseCenterRequest } = useAuth();
+  const { currentCenter, centerUsers, currentUser, assignUserRole, raiseCenterRequest, isSAdmin } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -72,14 +73,16 @@ export const AdminUserManagement: React.FC = () => {
           </p>
         </div>
 
-        {/* Feature c: Admin can only raise request to add a new center */}
-        <button
-          onClick={() => setIsRequestModalOpen(true)}
-          className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-md shadow-orange-500/20 text-xs transition-all"
-        >
-          <Building2 className="w-4 h-4" />
-          <span>Request New Center (SAdmin Approval)</span>
-        </button>
+        {/* Feature c: Admin can only raise request to add a new center (Do not show for sadmin) */}
+        {!isSAdmin && (
+          <button
+            onClick={() => setIsRequestModalOpen(true)}
+            className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-md shadow-orange-500/20 text-xs transition-all"
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Request New Center (SAdmin Approval)</span>
+          </button>
+        )}
       </div>
 
       {/* Feature d: Admin can only assign new admin from the existing users of a center */}
@@ -144,19 +147,25 @@ export const AdminUserManagement: React.FC = () => {
                       <td className="px-6 py-3.5">
                         <span
                           className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
-                            u.role === 'admin'
+                            u.role === 'sadmin'
+                              ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                              : u.role === 'admin'
                               ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'
                               : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
                           }`}
                         >
-                          {u.role.toUpperCase()}
+                          {formatUserRole(u.role)}
                         </span>
                       </td>
                       <td className="px-6 py-3.5 text-emerald-600 dark:text-emerald-400 font-semibold">
                         Isolated to {currentCenter.code}
                       </td>
                       <td className="px-6 py-3.5 text-right">
-                        {u.role === 'admin' ? (
+                        {u.role === 'sadmin' ? (
+                          <span className="text-slate-400 font-bold text-xs" title="Super Admin role cannot be modified">
+                            —
+                          </span>
+                        ) : u.role === 'admin' ? (
                           <button
                             onClick={() => assignUserRole(u.uid, 'user')}
                             disabled={isSelf}

@@ -26,6 +26,7 @@ import { MealType, Recipe, MenuPattern, Occasion } from '../../types/recipe';
 import { FifteenDayMenuPlan } from '../../types/menu';
 import { sanitizeNumericChange } from '../../utils/numberInput';
 import { generateAshramWeeklyRotation } from '../../core/rotationEngine';
+import { formatDateDDMMYYYY } from '../../utils/formatters';
 
 export type MealSlotKey = 'breakfast' | 'lunch' | 'dinner' | 'brahmacariBreakfast' | 'brahmacariLunch';
 
@@ -453,7 +454,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                 DAY {selectedDay}
               </span>
               <h3 className="font-extrabold text-slate-900 dark:text-white text-lg">
-                Date: {activeDay.date}
+                Date: {formatDateDDMMYYYY(activeDay.date)}
               </h3>
               {activeDay.isEkadashi && (
                 <span className="bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-xs font-black px-2.5 py-1 rounded-full border border-purple-300 dark:border-purple-800">

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { VAISHNAVA_OCCASIONS } from '../../core/vaishnavaCalendar';
 import { AlertCircle, CheckCircle, Search } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
+import { formatDateDDMMYYYY } from '../../utils/formatters';
 
 export const VaishnavaCalendarView: React.FC = () => {
   const occasions = Object.values(VAISHNAVA_OCCASIONS);
@@ -18,7 +19,8 @@ export const VaishnavaCalendarView: React.FC = () => {
       !searchQuery.trim() ||
       occ.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       occ.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      occ.date.includes(searchQuery);
+      occ.date.includes(searchQuery) ||
+      formatDateDDMMYYYY(occ.date).includes(searchQuery);
     return matchType && matchSearch;
   });
 
@@ -125,7 +127,7 @@ export const VaishnavaCalendarView: React.FC = () => {
                   <h3 className="font-extrabold text-slate-900 dark:text-white text-base mt-1.5">{occ.name}</h3>
                 </div>
                 <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-lg flex-shrink-0">
-                  {occ.date}
+                  {formatDateDDMMYYYY(occ.date)}
                 </span>
               </div>
 

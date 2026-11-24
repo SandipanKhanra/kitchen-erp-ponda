@@ -13,6 +13,8 @@ import {
   doc,
   getDoc,
   setDoc,
+  updateDoc,
+  deleteDoc,
   collection,
   getDocs,
 } from 'firebase/firestore';
@@ -205,6 +207,33 @@ export class AuthService {
     } catch (err) {
       console.warn('Could not fetch centers from Firestore, falling back to initial data:', err);
       return INITIAL_CENTERS;
+    }
+  }
+
+  /**
+   * Update center status (e.g. active <-> inactive) in Firestore
+   */
+  async updateCenterStatus(centerId: string, status: Center['status']): Promise<void> {
+    if (!isFirebaseConfigured || !db) return;
+    try {
+      await updateDoc(doc(db, 'centers', centerId), {
+        status,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn('Failed to update center status in Firestore:', err);
+    }
+  }
+
+  /**
+   * Delete center from Firestore
+   */
+  async deleteCenter(centerId: string): Promise<void> {
+    if (!isFirebaseConfigured || !db) return;
+    try {
+      await deleteDoc(doc(db, 'centers', centerId));
+    } catch (err) {
+      console.warn('Failed to delete center in Firestore:', err);
     }
   }
 

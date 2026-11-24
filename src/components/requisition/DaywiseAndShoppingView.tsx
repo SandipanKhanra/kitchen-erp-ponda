@@ -15,6 +15,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
+import { formatDateDDMMYYYY } from '../../utils/formatters';
 
 export const DaywiseAndShoppingView: React.FC = () => {
   const { requisitionSummary } = useKitchen();
@@ -174,7 +175,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
             15 Days
           </div>
           <span className="text-[11px] text-slate-500 dark:text-slate-400">
-            {requisitionSummary.startDate} to {requisitionSummary.endDate}
+            {formatDateDDMMYYYY(requisitionSummary.startDate)} to {formatDateDDMMYYYY(requisitionSummary.endDate)}
           </span>
         </div>
       </div>
@@ -293,7 +294,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
                         DAY {day.dayNumber}
                       </span>
                       <span className="font-extrabold text-slate-900 dark:text-white text-base">
-                        {day.date}
+                        {formatDateDDMMYYYY(day.date)}
                       </span>
                       {day.isEkadashi && (
                         <span className="bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-purple-300">

@@ -1,4 +1,4 @@
-export type CenterStatus = 'active' | 'approved' | 'pending_approval' | 'rejected';
+export type CenterStatus = 'active' | 'inactive' | 'approved' | 'pending_approval' | 'rejected';
 
 export interface Center {
   id: string;

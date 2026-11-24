@@ -20,6 +20,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
+import { formatTimestampDDMMYYYY, formatUserRole } from '../../utils/formatters';
 
 interface AuditHistoryModalProps {
   initialCategory?: AuditCategory;
@@ -158,18 +159,7 @@ export const AuditHistoryModal: React.FC<AuditHistoryModalProps> = ({
   };
 
   const formatTimestamp = (isoString: string) => {
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return isoString;
-    }
+    return formatTimestampDDMMYYYY(isoString);
   };
 
   return (
@@ -343,7 +333,7 @@ export const AuditHistoryModal: React.FC<AuditHistoryModalProps> = ({
                               : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
                           }`}
                         >
-                          {log.performedByRole}
+                          {formatUserRole(log.performedByRole)}
                         </span>
                         <span className="text-slate-400">&bull;</span>
                         <span

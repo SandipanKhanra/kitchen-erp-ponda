@@ -458,7 +458,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
                             : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
                         }`}
                       >
-                        {currentUser.role}
+                        {currentUser.role === 'sadmin' ? 'Super Admin' : currentUser.role === 'admin' ? 'Admin' : 'Devotee'}
                       </span>
                       <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
                         &bull; {currentCenter?.name}

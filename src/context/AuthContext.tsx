@@ -11,6 +11,7 @@ interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   currentCenter: Center;
   availableCenters: Center[];
+  allCenters: Center[];
   centerUsers: UserProfile[];
   allUsers: UserProfile[];
   centerRequests: CenterCreationRequest[];
@@ -34,6 +35,9 @@ interface AuthContextType {
   raiseCenterRequest: (data: { name: string; code: string; city: string; state: string; country: string }) => Promise<void>;
   approveCenterRequest: (requestId: string) => Promise<void>;
   rejectCenterRequest: (requestId: string, reason?: string) => Promise<void>;
+  // Center Management (Feature e & SAdmin controls)
+  toggleCenterStatus: (centerId: string) => Promise<void>;
+  deleteCenter: (centerId: string) => Promise<void>;
   // User Management Workflow (Feature d & 1)
   assignUserRole: (uid: string, newRole: 'admin' | 'user') => Promise<void>;
   removeUserFromCenter: (uid: string) => Promise<void>;
@@ -266,10 +270,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  // Center Status Toggle & Deletion (SAdmin controls)
+  const toggleCenterStatus = async (centerId: string) => {
+    if (!isSAdmin) {
+      alert('Only Super Admin can activate or deactivate centers.');
+      return;
+    }
+    const center = centers.find((c) => c.id === centerId);
+    if (!center) return;
+    const newStatus = center.status === 'active' ? 'inactive' : 'active';
+
+    setCenters((prev) =>
+      prev.map((c) => (c.id === centerId ? { ...c, status: newStatus } : c))
+    );
+    await authService.updateCenterStatus(centerId, newStatus);
+  };
+
+  const deleteCenter = async (centerId: string) => {
+    if (!isSAdmin) {
+      alert('Only Super Admin can delete centers.');
+      return;
+    }
+    setCenters((prev) => prev.filter((c) => c.id !== centerId));
+    if (currentCenter.id === centerId) {
+      const remaining = centers.filter((c) => c.id !== centerId);
+      if (remaining.length > 0) {
+        setCurrentCenter(remaining[0]);
+      }
+    }
+    await authService.deleteCenter(centerId);
+  };
+
   // Feature d & 1: Admin can only assign new admin from the existing users of their center
   const assignUserRole = async (uid: string, newRole: 'admin' | 'user') => {
     const targetUser = users.find((u) => u.uid === uid);
     if (!targetUser) return;
+
+    if (targetUser.role === 'sadmin') {
+      alert('Unauthorized: Super Admin role is protected and cannot be changed.');
+      return;
+    }
 
     if (!isSAdmin && targetUser.centerId !== currentCenter.id) {
       alert('Unauthorized: You can only manage users within your own center.');
@@ -294,6 +334,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         firebaseUser,
         currentCenter,
         availableCenters: centers.filter((c) => c.status === 'active'),
+        allCenters: centers,
         centerUsers,
         allUsers: users,
         centerRequests,
@@ -314,6 +355,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         raiseCenterRequest,
         approveCenterRequest,
         rejectCenterRequest,
+        toggleCenterStatus,
+        deleteCenter,
         assignUserRole,
         removeUserFromCenter,
       }}
