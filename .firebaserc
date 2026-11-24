@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "iskcon-ponda-kitchen-erp",
+    "ponda-erp": "iskcon-ponda-kitchen-erp"
+  },
+  "targets": {},
+  "etags": {}
+}

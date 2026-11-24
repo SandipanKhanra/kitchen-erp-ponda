@@ -7,19 +7,26 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    function hasUserDoc() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
     function isSAdmin() {
-      return isAuthenticated() && (request.auth.token.role == 'sadmin' || getUserData().role == 'sadmin');
+      return isAuthenticated() && (
+        request.auth.token.role == 'sadmin' || 
+        (hasUserDoc() && getUserData().role == 'sadmin')
+      );
     }
     
     function isAdmin(centerId) {
       return isAuthenticated() && (
         isSAdmin() || 
-        ((request.auth.token.role == 'admin' || getUserData().role == 'admin') && 
-         (request.auth.token.centerId == centerId || getUserData().centerId == centerId))
+        (request.auth.token.role == 'admin' && request.auth.token.centerId == centerId) ||
+        (hasUserDoc() && getUserData().role == 'admin' && getUserData().centerId == centerId)
       );
     }
     
@@ -27,16 +34,17 @@ service cloud.firestore {
       return isAuthenticated() && (
         isSAdmin() || 
         request.auth.token.centerId == centerId || 
-        getUserData().centerId == centerId
+        (hasUserDoc() && getUserData().centerId == centerId)
       );
     }
 
     // 1. Centers Collection (Multi-Tenancy)
-    // Only SAdmin can create/delete centers. Admins can read active centers.
+    // Centers list is publicly readable for devotee registration and center discovery.
     match /centers/{centerId} {
-      allow read: if isAuthenticated();
-      allow create, delete: if isSAdmin();
+      allow read: if true;
+      allow create: if isAuthenticated();
       allow update: if isSAdmin() || (isAdmin(centerId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'code']));
+      allow delete: if isSAdmin();
     }
 
     // 2. Center Creation Requests
@@ -48,11 +56,19 @@ service cloud.firestore {
     }
 
     // 3. User Profiles & RBAC
-    // Default role 'user'. Admins can assign roles within their center. SAdmin can manage all.
+    // Users can read, create, and update their own profile. Admins can manage within their center. SAdmin can manage all.
     match /users/{userId} {
-      allow read: if isAuthenticated() && (isSAdmin() || isMember(resource.data.centerId));
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        isSAdmin() || 
+        (resource != null && hasUserDoc() && isMember(resource.data.centerId))
+      );
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isSAdmin() || (isAdmin(resource.data.centerId) && resource.data.centerId == request.resource.data.centerId);
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        isSAdmin() || 
+        (resource != null && hasUserDoc() && isAdmin(resource.data.centerId) && resource.data.centerId == request.resource.data.centerId)
+      );
       allow delete: if isSAdmin();
     }
 

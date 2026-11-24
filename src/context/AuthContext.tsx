@@ -1,10 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { User as FirebaseUser } from 'firebase/auth';
 import { UserProfile, UserRole } from '../types/user';
 import { Center, CenterCreationRequest } from '../types/center';
 import { INITIAL_USERS, INITIAL_CENTERS, INITIAL_CENTER_REQUESTS } from '../services/mockData';
+import { authService, SignUpParams } from '../services/authService';
+import { isFirebaseConfigured } from '../config/firebase';
 
 interface AuthContextType {
   currentUser: UserProfile;
+  firebaseUser: FirebaseUser | null;
   currentCenter: Center;
   availableCenters: Center[];
   centerUsers: UserProfile[];
@@ -13,6 +17,17 @@ interface AuthContextType {
   isSAdmin: boolean;
   isAdmin: boolean;
   isUser: boolean;
+  isDemoMode: boolean;
+  isAuthLoading: boolean;
+  isFirebaseConfigured: boolean;
+  // Auth actions
+  login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (centerId?: string, centerName?: string) => Promise<void>;
+  signUp: (params: SignUpParams) => Promise<void>;
+  logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  setDemoMode: (enabled: boolean) => void;
+  // Demo Switcher
   switchDemoUser: (target: 'sadmin' | 'admin1' | 'admin2' | 'user') => void;
   switchCenter: (centerId: string) => void;
   // Center Creation Request Workflow (Feature c)
@@ -31,23 +46,135 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [centers, setCenters] = useState<Center[]>(INITIAL_CENTERS);
   const [centerRequests, setCenterRequests] = useState<CenterCreationRequest[]>(INITIAL_CENTER_REQUESTS);
 
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(isFirebaseConfigured);
+  const [isDemoMode, setIsDemoModeState] = useState<boolean>(() => {
+    if (!isFirebaseConfigured) return true;
+    return localStorage.getItem('kitchen_demo_mode') === 'true';
+  });
+
   // Default demo user: Krishna Chaitanya Dasa (Admin 1 of Ponda)
   const [currentUser, setCurrentUser] = useState<UserProfile>(INITIAL_USERS[1]);
   const [currentCenter, setCurrentCenter] = useState<Center>(INITIAL_CENTERS[0]);
 
+  const setDemoMode = (enabled: boolean) => {
+    setIsDemoModeState(enabled);
+    localStorage.setItem('kitchen_demo_mode', enabled ? 'true' : 'false');
+    if (enabled && !firebaseUser) {
+      setCurrentUser(users[1]); // Default to Admin 1
+    }
+  };
+
+  // Sync centers and listen to Firebase Auth on mount
+  useEffect(() => {
+    if (!isFirebaseConfigured) {
+      setIsAuthLoading(false);
+      return;
+    }
+
+    // Load centers from Firestore
+    authService.getCenters().then((fetchedCenters) => {
+      if (fetchedCenters && fetchedCenters.length > 0) {
+        setCenters(fetchedCenters);
+      }
+    });
+
+    // Listen to Firebase Auth state
+    const unsubscribe = authService.onAuthStateChange((fbUser, profile) => {
+      setIsAuthLoading(false);
+      if (fbUser && profile) {
+        setFirebaseUser(fbUser);
+        setCurrentUser(profile);
+        setIsDemoModeState(false);
+        localStorage.setItem('kitchen_demo_mode', 'false');
+
+        // Add to allUsers if not exists
+        setUsers((prev) => {
+          const exists = prev.some((u) => u.uid === profile.uid);
+          return exists ? prev.map((u) => (u.uid === profile.uid ? profile : u)) : [profile, ...prev];
+        });
+      } else {
+        setFirebaseUser(null);
+        // If not in demo mode and no user, we leave currentUser as placeholder but firebaseUser as null
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   // Sync current center when user changes
   useEffect(() => {
     if (currentUser.role === 'sadmin') {
-      // Sadmin has access to currentCenter or all
+      // SAdmin can access all centers, keep current selection or default to first
+      if (!currentCenter && centers.length > 0) {
+        setCurrentCenter(centers[0]);
+      }
     } else {
       const userCenter = centers.find((c) => c.id === currentUser.centerId) || centers[0];
-      setCurrentCenter(userCenter);
+      if (userCenter) {
+        setCurrentCenter(userCenter);
+      }
     }
   }, [currentUser, centers]);
 
   const isSAdmin = currentUser.role === 'sadmin';
   const isAdmin = currentUser.role === 'admin';
   const isUser = currentUser.role === 'user';
+
+  // Real Firebase Auth Actions
+  const login = async (email: string, password: string) => {
+    setIsAuthLoading(true);
+    try {
+      const profile = await authService.signIn(email, password);
+      setCurrentUser(profile);
+      setIsDemoModeState(false);
+      localStorage.setItem('kitchen_demo_mode', 'false');
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const loginWithGoogle = async (centerId?: string, centerName?: string) => {
+    setIsAuthLoading(true);
+    try {
+      const profile = await authService.signInWithGoogle(centerId, centerName);
+      setCurrentUser(profile);
+      setIsDemoModeState(false);
+      localStorage.setItem('kitchen_demo_mode', 'false');
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const signUp = async (params: SignUpParams) => {
+    setIsAuthLoading(true);
+    try {
+      const profile = await authService.signUp(params);
+      setCurrentUser(profile);
+      setIsDemoModeState(false);
+      localStorage.setItem('kitchen_demo_mode', 'false');
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    setIsAuthLoading(true);
+    try {
+      await authService.signOut();
+      setFirebaseUser(null);
+      setIsDemoModeState(false);
+      localStorage.removeItem('kitchen_demo_mode');
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    await authService.resetPassword(email);
+  };
 
   // Demo Switcher for fast live testing of RBAC and Maker-Checker
   const switchDemoUser = (target: 'sadmin' | 'admin1' | 'admin2' | 'user') => {
@@ -164,6 +291,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         currentUser,
+        firebaseUser,
         currentCenter,
         availableCenters: centers.filter((c) => c.status === 'active'),
         centerUsers,
@@ -172,6 +300,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isSAdmin,
         isAdmin,
         isUser,
+        isDemoMode,
+        isAuthLoading,
+        isFirebaseConfigured,
+        login,
+        loginWithGoogle,
+        signUp,
+        logout,
+        resetPassword,
+        setDemoMode,
         switchDemoUser,
         switchCenter,
         raiseCenterRequest,

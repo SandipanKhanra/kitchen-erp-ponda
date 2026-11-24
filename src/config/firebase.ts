@@ -28,12 +28,12 @@ if (isFirebaseConfigured) {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     db = getFirestore(app);
     auth = getAuth(app);
-    console.info('[KitchenOps] Connected to Firebase Firestore successfully.');
+    console.info('[Ponda Kitchen ERP] Connected to Firebase Firestore successfully.');
   } catch (error) {
-    console.warn('[KitchenOps] Firebase initialization failed, running in local memory mode:', error);
+    console.warn('[Ponda Kitchen ERP] Firebase initialization failed, running in local memory mode:', error);
   }
 } else {
-  console.info('[KitchenOps] Firebase credentials not set in .env. Running seamlessly in Local Mock / In-Memory Mode.');
+  console.info('[Ponda Kitchen ERP] Firebase credentials not set in .env. Running seamlessly in Local Mock / In-Memory Mode.');
 }
 
 export { app, db, auth };
