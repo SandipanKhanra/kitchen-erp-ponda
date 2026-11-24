@@ -57,28 +57,29 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Dark / Light Theme
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('kitchen_theme');
-    return saved === 'dark' ? 'dark' : 'light';
+    try {
+      const saved = localStorage.getItem('kitchen_theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
   });
 
   const toggleTheme = () => {
-    setTheme((prev) => {
-      const next = prev === 'light' ? 'dark' : 'light';
-      localStorage.setItem('kitchen_theme', next);
-      if (next === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-      return next;
-    });
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    const isDark = theme === 'dark';
+    document.documentElement.classList.toggle('dark', isDark);
+    if (document.body) {
+      document.body.classList.toggle('dark', isDark);
+    }
+    try {
+      localStorage.setItem('kitchen_theme', theme);
+    } catch (e) {
+      console.warn('Failed to save theme in localStorage', e);
     }
   }, [theme]);
 
