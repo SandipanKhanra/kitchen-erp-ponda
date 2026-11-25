@@ -53,11 +53,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
     if (code === 'auth/popup-blocked') {
       return 'Popup was blocked by your browser. Please allow popups for this site to sign in with Google.';
     }
-    if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
-      return 'Invalid email or password. Please double-check your credentials.';
+    if (code === 'auth/user-not-found') {
+      return 'This email is not registered yet. Please register a new account first.';
+    }
+    if (code === 'auth/wrong-password') {
+      return 'Incorrect password. Please try again or reset your password.';
+    }
+    if (code === 'auth/invalid-credential') {
+      return 'Incorrect password or this email is not registered yet. Please double-check your password, click "Continue with Google" if you used Google, or register a new account.';
     }
     if (code === 'auth/too-many-requests') {
-      return 'Access temporarily blocked due to many failed attempts. Try again later or reset password.';
+      return 'Access temporarily blocked due to too many failed attempts. Please try again later or reset your password.';
     }
     if (code === 'auth/invalid-email') {
       return 'Please enter a valid email address.';
@@ -143,7 +149,31 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
       {error && (
         <div className="mb-4 p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-xl flex items-start space-x-2.5 text-rose-700 dark:text-rose-300 text-xs">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <span>{error}</span>
+          <div className="flex-1 space-y-1.5">
+            <span>{error}</span>
+            {(error.toLowerCase().includes('not registered') || error.toLowerCase().includes('incorrect password')) && (
+              <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetEmail(email);
+                    setShowResetModal(true);
+                    setError(null);
+                  }}
+                  className="font-bold underline text-rose-700 dark:text-rose-300 hover:text-rose-900"
+                >
+                  Reset Password
+                </button>
+                <button
+                  type="button"
+                  onClick={onSwitchToSignup}
+                  className="font-bold underline text-orange-600 dark:text-orange-400 hover:text-orange-700"
+                >
+                  Register New Account &rarr;
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
