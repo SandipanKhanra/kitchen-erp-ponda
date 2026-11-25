@@ -39,7 +39,10 @@ interface KitchenContextType {
   deletePattern: (id: string) => Promise<void>;
   // 15-Day Menu & Maker-Checker Workflow
   activeMenuPlan: FifteenDayMenuPlan;
-  saveMenuPlan: (plan: FifteenDayMenuPlan) => Promise<void>;
+  saveMenuPlan: (
+    plan: FifteenDayMenuPlan,
+    options?: { recordAudit?: boolean; auditSummary?: string }
+  ) => Promise<void>;
   approveMenuPlan: (planId: string) => Promise<{ success: boolean; error?: string }>;
   rejectMenuPlan: (planId: string, reason: string) => Promise<void>;
   canApproveActiveMenu: boolean;
@@ -466,8 +469,11 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setPatterns((prev) => prev.filter((p) => p.id !== id));
   };
 
-  // 15-Day Menu Plan Save (Synced with Firebase per Center)
-  const saveMenuPlan = async (plan: FifteenDayMenuPlan) => {
+  // 15-Day Menu Plan Save (Only persists to Firestore & records Audit Trail when recordAudit is true)
+  const saveMenuPlan = async (
+    plan: FifteenDayMenuPlan,
+    options?: { recordAudit?: boolean; auditSummary?: string }
+  ) => {
     // If edited by sadmin, the menu is immediately approved and does NOT need approval again.
     // If edited by any other user or normal admin, reset status to pending_approval under Maker-Checker.
     const isEditedBySAdmin = currentUser.role === 'sadmin' || isSAdmin;
@@ -487,28 +493,31 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setActiveMenuPlan(updatedPlan);
 
-    // Sync to Firestore
-    await kitchenDbService.saveCenterMenuPlan(currentCenter.id, updatedPlan);
+    // Only sync to Firestore and record Audit Trail when explicitly requested (e.g. clicking "Update")
+    if (options?.recordAudit) {
+      await kitchenDbService.saveCenterMenuPlan(currentCenter.id, updatedPlan);
 
-    // Audit Log
-    const log = await kitchenDbService.logAuditAction({
-      centerId: currentCenter.id,
-      centerName: currentCenter.name,
-      category: 'menu_planner',
-      actionType: 'MENU_PLAN_SAVE',
-      entityId: plan.id,
-      entityName: plan.title,
-      performedByUid: currentUser.uid,
-      performedByName: currentUser.name,
-      performedByRole: currentUser.role,
-      details: {
-        summary: isEditedBySAdmin
-          ? `Saved modifications to 15-day menu plan "${plan.title}". Auto-approved directly by Super Admin (no re-approval required).`
-          : `Saved modifications to 15-day menu plan "${plan.title}". Status reset to pending_approval under Maker-Checker governance.`,
-      },
-    });
+      const log = await kitchenDbService.logAuditAction({
+        centerId: currentCenter.id,
+        centerName: currentCenter.name,
+        category: 'menu_planner',
+        actionType: 'MENU_PLAN_SAVE',
+        entityId: plan.id,
+        entityName: plan.title,
+        performedByUid: currentUser.uid,
+        performedByName: currentUser.name,
+        performedByRole: currentUser.role,
+        details: {
+          summary:
+            options.auditSummary ||
+            (isEditedBySAdmin
+              ? `Updated 15-day menu plan "${plan.title}". Auto-approved directly by Super Admin (no re-approval required).`
+              : `Updated 15-day menu plan "${plan.title}". Status set to pending_approval under Maker-Checker governance.`),
+        },
+      });
 
-    setAuditLogs((prev) => [log, ...prev]);
+      setAuditLogs((prev) => [log, ...prev]);
+    }
   };
 
   // Maker-Checker Dual-Approval Rule

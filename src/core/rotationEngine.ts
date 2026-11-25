@@ -1,4 +1,5 @@
 import { FifteenDayMenuPlan, DayMenuSchedule } from '../types/menu';
+import { Recipe } from '../types/recipe';
 import { getVaishnavaOccasionForDate, isEkadashiOrFastingDate } from './vaishnavaCalendar';
 
 /**
@@ -160,5 +161,132 @@ export function createEmpty15DayMenu(centerId: string): FifteenDayMenuPlan {
     createdByRole: 'user',
     createdAt: now,
     updatedAt: now,
+  };
+}
+
+/**
+ * Given a startDate (YYYY-MM-DD) and available recipes, calculates all 15 days (2-week cycle),
+ * detects Ekadashi / Vaishnava fasting dates automatically, and auto-fills non-repeating
+ * Breakfast, Lunch, Dinner, and Brahmacari Ashram weekly-rotated meals.
+ */
+export function generateFull15DayMenuFromStartDate(
+  startDateStr: string,
+  recipes: Recipe[],
+  existingPlan: FifteenDayMenuPlan
+): FifteenDayMenuPlan {
+  const [y, m, d] = startDateStr.split('-').map(Number);
+  const start = y && m && d ? new Date(y, m - 1, d) : new Date();
+  const normalizedStart = formatDateISO(start);
+
+  const ashramRecipes = recipes.filter((r) => r.type === 'Ashram' || r.isAshramSpecific);
+  const generalRecipes = recipes.filter((r) => r.type !== 'Ashram' && !r.isAshramSpecific);
+  const pool = generalRecipes.length > 0 ? generalRecipes : recipes;
+
+  const ekadashiPool = pool.filter((r) => r.occasion === 'Ekadashi' || r.occasion === 'Fasting');
+  const normalPool = pool.filter((r) => r.occasion !== 'Ekadashi' && r.occasion !== 'Fasting');
+
+  const normalBf = normalPool.filter((r) => r.mealType === 'Breakfast');
+  const normalLunch = normalPool.filter((r) => r.mealType === 'Lunch' || r.mealType === 'Special Feast');
+  const normalDinner = normalPool.filter((r) => r.mealType === 'Dinner' || r.mealType === 'High Tea / Snacks');
+
+  const ekaBf = ekadashiPool.filter((r) => r.mealType === 'Breakfast' || r.mealType === 'Lunch');
+  const ekaLunch = ekadashiPool.filter((r) => r.mealType === 'Lunch' || r.mealType === 'Special Feast');
+  const ekaDinner = ekadashiPool.filter((r) => r.mealType === 'Dinner' || r.mealType === 'Breakfast');
+
+  const days: Record<number, DayMenuSchedule> = {};
+  const isEkadashiMap: Record<number, boolean> = {};
+
+  for (let i = 0; i < 15; i++) {
+    const dayNum = i + 1;
+    const current = new Date(start);
+    current.setDate(start.getDate() + i);
+    const dateStr = formatDateISO(current);
+    const occasion = getVaishnavaOccasionForDate(dateStr);
+    const isEkadashi = occasion?.type === 'Ekadashi';
+    const isFasting = isEkadashiOrFastingDate(dateStr);
+    isEkadashiMap[dayNum] = isEkadashi || isFasting;
+  }
+
+  const ashramRotation = generateAshramWeeklyRotation(ashramRecipes, isEkadashiMap);
+
+  let normBfIdx = 0;
+  let normLunchIdx = 0;
+  let normDinnerIdx = 0;
+  let ekaIdx = 0;
+
+  for (let i = 0; i < 15; i++) {
+    const dayNum = i + 1;
+    const current = new Date(start);
+    current.setDate(start.getDate() + i);
+    const dateStr = formatDateISO(current);
+    const occasion = getVaishnavaOccasionForDate(dateStr);
+    const isEkadashi = occasion?.type === 'Ekadashi';
+    const isFasting = isEkadashiOrFastingDate(dateStr);
+    const existingDay = existingPlan.days[dayNum];
+
+    let bfIds: string[] = [];
+    let lunchIds: string[] = [];
+    let dinnerIds: string[] = [];
+
+    if (isEkadashi || isFasting) {
+      const bfList = ekaBf.length > 0 ? ekaBf : ekadashiPool;
+      const lList = ekaLunch.length > 0 ? ekaLunch : ekadashiPool;
+      const dList = ekaDinner.length > 0 ? ekaDinner : ekadashiPool;
+
+      if (bfList.length > 0) bfIds = [bfList[ekaIdx % bfList.length].id];
+      if (lList.length > 0) lunchIds = [lList[ekaIdx % lList.length].id];
+      if (dList.length > 0) dinnerIds = [dList[(ekaIdx + 1) % dList.length].id];
+      ekaIdx++;
+    } else {
+      const bfList = normalBf.length > 0 ? normalBf : normalPool;
+      const lList = normalLunch.length > 0 ? normalLunch : normalPool;
+      const dList = normalDinner.length > 0 ? normalDinner : normalPool;
+
+      if (bfList.length > 0) bfIds = [bfList[normBfIdx % bfList.length].id];
+      if (lList.length > 0) lunchIds = [lList[normLunchIdx % lList.length].id];
+      if (dList.length > 0) dinnerIds = [dList[normDinnerIdx % dList.length].id];
+
+      normBfIdx++;
+      normLunchIdx++;
+      normDinnerIdx++;
+    }
+
+    days[dayNum] = {
+      dayNumber: dayNum,
+      date: dateStr,
+      isEkadashi,
+      isFasting,
+      occasionTitle: occasion?.name,
+      breakfast: {
+        recipeIds: bfIds,
+        headcount: existingDay?.breakfast?.headcount || 100,
+      },
+      lunch: {
+        recipeIds: lunchIds,
+        headcount: existingDay?.lunch?.headcount || 150,
+      },
+      dinner: {
+        recipeIds: dinnerIds,
+        headcount: existingDay?.dinner?.headcount || 110,
+      },
+      brahmacariBreakfast: {
+        recipeIds: ashramRotation[dayNum]?.breakfastRecipeIds || [],
+        headcount: existingDay?.brahmacariBreakfast?.headcount ?? 20,
+      },
+      brahmacariLunch: {
+        recipeIds: ashramRotation[dayNum]?.lunchRecipeIds || [],
+        headcount: existingDay?.brahmacariLunch?.headcount ?? 20,
+      },
+    };
+  }
+
+  const endDate = days[15].date;
+
+  return {
+    ...existingPlan,
+    startDate: normalizedStart,
+    endDate,
+    days,
+    updatedAt: new Date().toISOString(),
   };
 }

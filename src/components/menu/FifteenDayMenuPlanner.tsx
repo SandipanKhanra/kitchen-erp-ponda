@@ -21,11 +21,12 @@ import {
   Search,
   RotateCcw,
   ChevronDown,
+  Save,
 } from 'lucide-react';
 import { MealType, Recipe, MenuPattern, Occasion } from '../../types/recipe';
 import { FifteenDayMenuPlan } from '../../types/menu';
 import { sanitizeNumericChange } from '../../utils/numberInput';
-import { generateAshramWeeklyRotation, formatDateISO } from '../../core/rotationEngine';
+import { generateAshramWeeklyRotation, generateFull15DayMenuFromStartDate, formatDateISO } from '../../core/rotationEngine';
 import { formatDateDDMMYYYY } from '../../utils/formatters';
 
 export type MealSlotKey = 'breakfast' | 'lunch' | 'dinner' | 'brahmacariBreakfast' | 'brahmacariLunch';
@@ -63,6 +64,8 @@ export const FifteenDayMenuPlanner: React.FC = () => {
 
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const [approvalMessage, setApprovalMessage] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
 
   // Day Editing State
   const [addDishModalMeal, setAddDishModalMeal] = useState<MealSlotKey | null>(null);
@@ -80,6 +83,34 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     lunch: { recipeIds: [], headcount: 150 },
     brahmacariLunch: { recipeIds: [], headcount: 20 },
     dinner: { recipeIds: [], headcount: 110 },
+  };
+
+  const applyMenuDraft = (updatedPlan: FifteenDayMenuPlan) => {
+    saveMenuPlan(updatedPlan, { recordAudit: false });
+    setHasUnsavedChanges(true);
+  };
+
+  const handleStartDateChange = (newStartDate: string) => {
+    if (!newStartDate) return;
+    const generated = generateFull15DayMenuFromStartDate(newStartDate, recipes, activeMenuPlan);
+    saveMenuPlan(generated, { recordAudit: false });
+    setHasUnsavedChanges(true);
+    setApprovalMessage(
+      `Calculated 2-week cycle (${formatDateDDMMYYYY(generated.startDate)} to ${formatDateDDMMYYYY(generated.endDate)}) and auto-filled menus! Click "Update" to save & record in audit trail.`
+    );
+    setTimeout(() => setApprovalMessage(null), 5000);
+  };
+
+  const handleCommitUpdate = async () => {
+    setIsUpdating(true);
+    try {
+      await saveMenuPlan(activeMenuPlan, { recordAudit: true });
+      setHasUnsavedChanges(false);
+      setApprovalMessage('15-Day Menu Plan updated & recorded in Audit Trail!');
+      setTimeout(() => setApprovalMessage(null), 4000);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleApprove = async () => {
@@ -108,7 +139,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
         },
       },
     };
-    saveMenuPlan(updatedPlan);
+    applyMenuDraft(updatedPlan);
   };
 
   // Add a recipe to meal slot
@@ -129,7 +160,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
         },
       },
     };
-    saveMenuPlan(updatedPlan);
+    applyMenuDraft(updatedPlan);
   };
 
   // Apply a predefined pattern to meal slot
@@ -150,7 +181,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
         },
       },
     };
-    saveMenuPlan(updatedPlan);
+    applyMenuDraft(updatedPlan);
     setAddDishModalMeal(null);
   };
 
@@ -183,7 +214,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
         },
       },
     };
-    saveMenuPlan(updatedPlan);
+    applyMenuDraft(updatedPlan);
     setIsCopyDropdownOpen(false);
   };
 
@@ -208,7 +239,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
         },
       },
     };
-    saveMenuPlan(updatedPlan);
+    applyMenuDraft(updatedPlan);
   };
 
   // Toggle Ekadashi flag for this day
@@ -225,7 +256,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
         },
       },
     };
-    saveMenuPlan(updatedPlan);
+    applyMenuDraft(updatedPlan);
   };
 
   // Automatically apply 7-day weekly rotation for Brahmacari Ashram meals
@@ -276,8 +307,9 @@ export const FifteenDayMenuPlanner: React.FC = () => {
       days: updatedDays,
     };
 
-    saveMenuPlan(updatedPlan);
-    setApprovalMessage('Applied 7-day weekly rotation for Brahmacari Ashram meals across all 15 days!');
+    applyMenuDraft(updatedPlan);
+    setHasUnsavedChanges(true);
+    setApprovalMessage('Applied 7-day weekly rotation for Brahmacari Ashram meals across all 15 days! Click "Update" to save.');
     setTimeout(() => setApprovalMessage(null), 4000);
   };
 
@@ -352,7 +384,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
             </div>
             <div className="text-xs text-slate-600 dark:text-slate-300 mt-1 flex flex-wrap gap-2 items-center">
               <span>
-                Created by: <strong>{activeMenuPlan.createdByName}</strong>
+                Created by: <strong>{activeMenuPlan.createdByName || 'Pending Update'}</strong>
               </span>
               {activeMenuPlan.approvedByName && (
                 <span>
@@ -360,10 +392,54 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                 </span>
               )}
             </div>
+
+            {/* Start Date Selector -> Auto-Calculates 2 Weeks & Fills Menus */}
+            <div className="mt-3 flex flex-wrap items-center gap-2.5 text-xs">
+              <div className="flex items-center space-x-2 bg-white/80 dark:bg-slate-900/70 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                <CalendarIcon className="w-3.5 h-3.5 text-orange-500" />
+                <label htmlFor="cycle-start-date" className="font-bold text-slate-600 dark:text-slate-300">
+                  Start Date:
+                </label>
+                <input
+                  id="cycle-start-date"
+                  type="date"
+                  value={activeMenuPlan.startDate}
+                  onChange={(e) => handleStartDateChange(e.target.value)}
+                  className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                />
+              </div>
+              <span className="text-slate-500 dark:text-slate-400 font-semibold">
+                2-Week Span: <strong className="text-slate-800 dark:text-slate-200">{formatDateDDMMYYYY(activeMenuPlan.startDate)}</strong> to{' '}
+                <strong className="text-slate-800 dark:text-slate-200">{formatDateDDMMYYYY(activeMenuPlan.endDate)}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => handleStartDateChange(activeMenuPlan.startDate || formatDateISO(new Date()))}
+                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-orange-100 hover:bg-orange-200 dark:bg-orange-950/60 dark:hover:bg-orange-900/60 text-orange-700 dark:text-orange-300 font-bold border border-orange-200 dark:border-orange-800 transition"
+                title="Recalculate 2 weeks from start date and auto-fill menus"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Auto-Fill 2 Weeks</span>
+              </button>
+            </div>
           </div>
 
           {/* Maker-Checker Action Buttons & Audit Trail */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
+            <button
+              onClick={handleCommitUpdate}
+              disabled={isUpdating}
+              className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl font-bold transition shadow-md ${
+                hasUnsavedChanges
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-orange-500/25 ring-2 ring-orange-300 dark:ring-orange-700'
+                  : 'bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white shadow-slate-900/15'
+              } disabled:opacity-60`}
+              title="Save changes to Firestore and record in Audit Trail"
+            >
+              <Save className="w-4 h-4" />
+              <span>{isUpdating ? 'Updating...' : hasUnsavedChanges ? 'Update*' : 'Update'}</span>
+            </button>
+
             <button
               onClick={() => openAuditModal('menu_planner')}
               className="flex items-center space-x-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3.5 py-2 rounded-xl font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"
@@ -617,7 +693,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                             },
                           },
                         };
-                        saveMenuPlan(updatedPlan);
+                        applyMenuDraft(updatedPlan);
                       }}
                       className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                     />
@@ -758,7 +834,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                                 },
                               },
                             };
-                            saveMenuPlan(updatedPlan);
+                            applyMenuDraft(updatedPlan);
                           }}
                           className="w-full mt-1 p-2 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-900 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                         />
