@@ -1,6 +1,5 @@
 import {
   computeEkadashiDatesForYear,
-  computeFestivalsForYear,
   getDailyPanchang,
 } from 'panchang-ts';
 import { Center } from '../types/center';
@@ -65,10 +64,6 @@ export function resolveCenterLocation(center?: Partial<Center> | null): CenterLo
   return DEFAULT_CENTER_LOCATION;
 }
 
-/**
- * Formats an ISO-like local timestamp string (e.g. "2026-11-20T06:38:22.946+05:30")
- * into clean 12-hour time ("06:38 AM").
- */
 function formatLocalTime(localIso?: string | null): string {
   if (!localIso) return '';
   const match = localIso.match(/T(\d{2}):(\d{2})/);
@@ -128,26 +123,219 @@ const EKADASHI_BY_MASA_PAKSHA: Record<string, string> = {
   'Phalguna_Krishna': 'Vijaya Ekadashi',
 };
 
-const VAISHNAVA_FESTIVAL_KEYWORDS = [
-  'janmashtami',
-  'gaura',
-  'radhashtami',
-  'rama navami',
-  'narasimha',
-  'nrsimha',
-  'balarama',
-  'govardhana',
-  'vasanta panchami',
-  'shivaratri',
-  'ratha yatra',
-  'akhanda',
-  'varaha',
-  'vamana',
-];
+interface IskconSpecialDayRule {
+  name: string;
+  type: 'Fasting' | 'Festival';
+  fastingRule: VaishnavaOccasion['fastingRule'];
+  description: string;
+}
 
 /**
- * Computes all Ekadashi & major Vaishnava Fasting/Festival dates for a full year
- * using exact astronomical sunrise, sunset, tithi, and Parana windows for the Center's location.
+ * Curated ISKCON Vaishnava Occasions & Acarya Appearance/Disappearance Days
+ * keyed by `${PurnimantaMasa}_${Paksha}_${TithiNumber}`.
+ * Strictly excludes non-ISKCON monthly vrats (such as Masik Shivaratri, Sankashti, Pradosha).
+ */
+const ISKCON_SPECIAL_DAYS: Record<string, IskconSpecialDayRule> = {
+  // Chaitra (Vishnu)
+  'Chaitra_Shukla_5': {
+    name: 'Sri Ramanujacharya Appearance',
+    type: 'Festival',
+    fastingRule: 'Feast',
+    description: 'Appearance day of Sri Ramanujacharya, principal acarya of the Sri Sampradaya.',
+  },
+  'Chaitra_Shukla_9': {
+    name: 'Sri Rama Navami (Appearance of Lord Ramachandra)',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Sunset',
+    description: 'Appearance day of Lord Sri Ramachandra. Fast until sunset, followed by Anukalpa/feast.',
+  },
+
+  // Vaishakha (Madhusudana)
+  'Vaishakha_Shukla_9': {
+    name: 'Sita Navami (Appearance of Srimati Sita Devi)',
+    type: 'Festival',
+    fastingRule: 'Feast',
+    description: 'Appearance day of Srimati Sita Devi, eternal consort of Lord Ramachandra.',
+  },
+  'Vaishakha_Shukla_14': {
+    name: 'Nrsimha Chaturdashi (Appearance of Lord Nrsimhadeva)',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Sunset',
+    description: 'Appearance day of Lord Nrsimhadeva. Fast until dusk/sunset, then break fast with Ekadashi-style prasadam.',
+  },
+
+  // Jyeshtha (Trivikrama)
+  'Jyeshtha_Shukla_15': {
+    name: 'Snana Yatra of Lord Jagannatha',
+    type: 'Festival',
+    fastingRule: 'Feast',
+    description: 'Grand bathing ceremony of Lord Jagannatha, Baladeva, and Subhadra Devi.',
+  },
+
+  // Ashadha (Vamana)
+  'Ashadha_Shukla_2': {
+    name: 'Sri Jagannatha Ratha Yatra',
+    type: 'Festival',
+    fastingRule: 'Feast',
+    description: 'Chariot festival of Lord Jagannatha, Baladeva, and Subhadra Devi.',
+  },
+  'Ashadha_Shukla_15': {
+    name: 'Guru Purnima & Srila Sanatana Goswami Disappearance',
+    type: 'Festival',
+    fastingRule: 'Feast',
+    description: 'Vyasa Puja / Guru Purnima and disappearance day of Srila Sanatana Goswami.',
+  },
+  'Ashadha_Krishna_15': {
+    name: 'Srila Bhaktivinoda Thakura Disappearance',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Noon',
+    description: 'Disappearance day of Srila Bhaktivinoda Thakura. Fast until noon, followed by feast.',
+  },
+
+  // Shravana (Sridhara)
+  'Shravana_Shukla_12': {
+    name: 'Srila Rupa Goswami Disappearance',
+    type: 'Festival',
+    fastingRule: 'Feast',
+    description: 'Disappearance day of Srila Rupa Goswami, leader of the Six Goswamis of Vrindavan.',
+  },
+  'Shravana_Shukla_15': {
+    name: 'Balarama Purnima (Appearance of Lord Balarama)',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Noon',
+    description: 'Appearance day of Lord Balarama. Fast until noon, followed by feast.',
+  },
+
+  // Bhadrapada (Hrsikesa)
+  'Bhadrapada_Krishna_8': {
+    name: 'Sri Krishna Janmashtami (Appearance of Lord Krishna)',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Moonrise',
+    description: 'Supreme appearance day of Lord Sri Krishna. Fast until midnight, followed by Ekadashi-style prasadam.',
+  },
+  'Bhadrapada_Krishna_9': {
+    name: 'Nandotsava & Srila Prabhupada Appearance Day',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Noon',
+    description: 'Vyasa Puja — Appearance day of His Divine Grace A.C. Bhaktivedanta Swami Prabhupada (Founder-Acarya of ISKCON). Fast until noon.',
+  },
+  'Bhadrapada_Shukla_8': {
+    name: 'Radhashtami (Appearance of Srimati Radharani)',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Noon',
+    description: 'Appearance day of Srimati Radharani. Fast until noon, followed by grand feast.',
+  },
+  'Bhadrapada_Shukla_12': {
+    name: 'Vamana Dvadashi (Appearance of Lord Vamanadeva)',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Noon',
+    description: 'Appearance day of Lord Vamanadeva and Srila Jiva Goswami Appearance.',
+  },
+  'Bhadrapada_Shukla_13': {
+    name: 'Srila Bhaktivinoda Thakura Appearance',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Noon',
+    description: 'Appearance day of Srila Bhaktivinoda Thakura. Fast until noon.',
+  },
+
+  // Ashwin / Ashvina (Padmanabha)
+  'Ashwin_Shukla_10': {
+    name: 'Vijayadashami & Srila Madhvacarya Appearance',
+    type: 'Festival',
+    fastingRule: 'Feast',
+    description: 'Victory of Lord Ramachandra and appearance day of Srila Madhvacarya.',
+  },
+  'Ashvina_Shukla_10': {
+    name: 'Vijayadashami & Srila Madhvacarya Appearance',
+    type: 'Festival',
+    fastingRule: 'Feast',
+    description: 'Victory of Lord Ramachandra and appearance day of Srila Madhvacarya.',
+  },
+  'Ashwin_Shukla_12': {
+    name: 'Srila Raghunatha Dasa & Krishnadasa Kaviraja Goswami Disappearance',
+    type: 'Festival',
+    fastingRule: 'Feast',
+    description: 'Disappearance day of Srila Raghunatha Dasa Goswami, Srila Raghunatha Bhatta Goswami, and Srila Krishnadasa Kaviraja Goswami.',
+  },
+  'Ashvina_Shukla_12': {
+    name: 'Srila Raghunatha Dasa & Krishnadasa Kaviraja Goswami Disappearance',
+    type: 'Festival',
+    fastingRule: 'Feast',
+    description: 'Disappearance day of Srila Raghunatha Dasa Goswami, Srila Raghunatha Bhatta Goswami, and Srila Krishnadasa Kaviraja Goswami.',
+  },
+
+  // Kartika (Damodara)
+  'Kartika_Krishna_5': {
+    name: 'Srila Narottama Dasa Thakura Disappearance',
+    type: 'Festival',
+    fastingRule: 'Feast',
+    description: 'Disappearance day of Srila Narottama Dasa Thakura.',
+  },
+  'Kartika_Shukla_1': {
+    name: 'Govardhana Puja (Annakuta Festival)',
+    type: 'Festival',
+    fastingRule: 'Feast',
+    description: 'Worship of Govardhana Hill and grand Annakuta feast.',
+  },
+  'Kartika_Shukla_4': {
+    name: 'Srila Prabhupada Disappearance Day',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Noon',
+    description: 'Disappearance day of His Divine Grace A.C. Bhaktivedanta Swami Prabhupada. Fast until noon, followed by feast.',
+  },
+
+  // Pausha (Narayana)
+  'Pausha_Krishna_4': {
+    name: 'Srila Bhaktisiddhanta Sarasvati Thakura Disappearance',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Noon',
+    description: 'Disappearance day of Srila Bhaktisiddhanta Sarasvati Thakura Prabhupada. Fast until noon.',
+  },
+  'Pausha_Shukla_3': {
+    name: 'Srila Jiva Goswami Disappearance',
+    type: 'Festival',
+    fastingRule: 'Feast',
+    description: 'Disappearance day of Srila Jiva Goswami.',
+  },
+
+  // Magha (Madhava)
+  'Magha_Krishna_5': {
+    name: 'Srila Bhaktisiddhanta Sarasvati Thakura Appearance',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Noon',
+    description: 'Appearance day of Srila Bhaktisiddhanta Sarasvati Thakura Prabhupada. Fast until noon.',
+  },
+  'Magha_Shukla_7': {
+    name: 'Sri Advaita Acharya Appearance',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Noon',
+    description: 'Appearance day of Sri Advaita Acharya. Fast until noon, followed by feast.',
+  },
+  'Magha_Shukla_12': {
+    name: 'Varaha Dvadashi (Appearance of Lord Varahadeva)',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Noon',
+    description: 'Appearance day of Lord Varahadeva. Fast until noon, followed by feast.',
+  },
+  'Magha_Shukla_13': {
+    name: 'Nityananda Trayodashi (Appearance of Lord Nityananda)',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Noon',
+    description: 'Appearance day of Lord Nityananda Prabhu. Fast until noon, followed by grand feast.',
+  },
+
+  // Phalguna (Govinda)
+  'Phalguna_Shukla_15': {
+    name: 'Gaura Purnima (Appearance of Sri Chaitanya Mahaprabhu)',
+    type: 'Fasting',
+    fastingRule: 'Full Fast until Moonrise',
+    description: 'Grand appearance day of Sri Chaitanya Mahaprabhu. Fast until moonrise, followed by Anukalpa feast.',
+  },
+};
+
+/**
+ * Computes all Ekadashis, Vaishnava Acaryas Appearance/Disappearance days,
+ * and Main ISKCON Vaishnava Occasions for a full year at the Center's exact location.
  */
 export function computeVaishnavaYearCalendar(
   year: number,
@@ -163,19 +351,20 @@ export function computeVaishnavaYearCalendar(
 
     for (const dateObj of ekadashiDates) {
       const dateStr = toISODateString(dateObj);
-      // Sample around 06:00 local-ish UTC to inspect daily panchang for this civil date
       const noonSample = new Date(`${dateStr}T06:00:00Z`);
       const daily = getDailyPanchang(noonSample, geo, opts);
 
       const sunriseLocal = formatLocalTime(daily?.sun?.riseLocal);
-      const chandramasa = daily?.calendar?.chandramasa?.purnimantaName || daily?.calendar?.chandramasa?.name || '';
+      const chandramasa =
+        daily?.calendar?.chandramasa?.purnimantaName ||
+        daily?.calendar?.chandramasa?.name ||
+        '';
       const activeTithi =
         daily?.angas?.tithis?.find((t: any) => t.number === 11) ||
         daily?.angas?.tithis?.find((t: any) => t.isActiveAtSunrise) ||
         daily?.angas?.tithis?.[0];
       const paksha = activeTithi?.paksha || '';
 
-      // Determine Ekadashi name from festival list or Masa+Paksha lookup
       const festEkadashi = daily?.festivals?.find(
         (f: any) => f.key === 'ekadashi' || f.key === 'smarta_ekadashi'
       );
@@ -185,7 +374,7 @@ export function computeVaishnavaYearCalendar(
           ? festEkadashi.description
           : lookupName) || `${paksha} Ekadashi (${chandramasa})`;
 
-      // Calculate Parana (break-fast) window on Dvadashi (next day)
+      // Parana (break-fast) window on Dvadashi (next day)
       const nextDay = new Date(noonSample.getTime() + 24 * 60 * 60 * 1000);
       const nextDaily = getDailyPanchang(nextDay, geo, opts);
       const nextSunriseLocal = nextDaily?.sun?.riseLocal;
@@ -195,10 +384,9 @@ export function computeVaishnavaYearCalendar(
       if (nextSunriseLocal) {
         const startStr = formatLocalTime(nextSunriseLocal);
         const dayDurationMins = nextDaily?.sun?.dayDurationMinutes || 720;
-        const maxParanaMins = Math.round(dayDurationMins / 3); // 1/3rd of daylight
+        const maxParanaMins = Math.round(dayDurationMins / 3);
         let endStr = addMinutesToLocalTime(nextSunriseLocal, maxParanaMins);
 
-        // If Dvadashi ends earlier than 1/3rd daylight, Parana ends at Dvadashi end
         if (dvadashiTithi?.endTime && nextDaily?.sun?.rise) {
           const dvadashiEndMs = new Date(dvadashiTithi.endTime).getTime();
           const riseMs = new Date(nextDaily.sun.rise).getTime();
@@ -226,44 +414,48 @@ export function computeVaishnavaYearCalendar(
       });
     }
 
-    // 2. Compute major Vaishnava festivals for the year
-    const festivals = computeFestivalsForYear(year, geo, opts);
-    for (const item of festivals) {
-      const fName = item.festival?.name || '';
-      const fLower = fName.toLowerCase();
-      const isVaishnava = VAISHNAVA_FESTIVAL_KEYWORDS.some((kw) => fLower.includes(kw));
-      if (!isVaishnava) continue;
+    // 2. Scan year's daily sunrise tithis for ISKCON Main Occasions & Acarya Appearance/Disappearance Days
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    const totalDays = isLeap ? 366 : 365;
 
-      const d = new Date(item.date);
-      // Adjust to local civil date in target timezone using Intl
-      const localDateStr = d.toLocaleDateString('en-CA', { timeZone: location.timezone });
-      if (occasionsMap.has(localDateStr)) continue;
+    for (let i = 0; i < totalDays; i++) {
+      const d = new Date(Date.UTC(year, 0, 1 + i, 6, 0, 0));
+      const dateStr = toISODateString(d);
+      if (occasionsMap.has(dateStr)) continue; // Ekadashi takes precedence on the date
 
-      const isFast =
-        fLower.includes('janmashtami') ||
-        fLower.includes('gaura') ||
-        fLower.includes('narasimha') ||
-        fLower.includes('nrsimha') ||
-        fLower.includes('navami') ||
-        fLower.includes('shivaratri') ||
-        fLower.includes('radhashtami');
+      const daily = getDailyPanchang(d, geo, opts);
+      if (!daily) continue;
 
-      occasionsMap.set(localDateStr, {
-        date: localDateStr,
-        name: fName,
-        type: isFast ? 'Fasting' : 'Festival',
-        fastingRule: fLower.includes('gaura')
-          ? 'Full Fast until Moonrise'
-          : fLower.includes('janmashtami')
-          ? 'Full Fast until Midnight' as any
-          : isFast
-          ? 'Full Fast until Noon'
-          : 'Feast',
+      const masa =
+        daily.calendar?.chandramasa?.purnimantaName ||
+        daily.calendar?.chandramasa?.name ||
+        '';
+      const sunriseTithi =
+        daily.angas?.tithis?.find((t: any) => t.isActiveAtSunrise) ||
+        daily.angas?.tithis?.[0];
+
+      if (!masa || !sunriseTithi) continue;
+
+      const key = `${masa}_${sunriseTithi.paksha}_${sunriseTithi.number}`;
+      const rule = ISKCON_SPECIAL_DAYS[key];
+      if (!rule) continue;
+
+      const sunriseLocal = formatLocalTime(daily.sun?.riseLocal);
+      const isFast = rule.type === 'Fasting';
+
+      occasionsMap.set(dateStr, {
+        date: dateStr,
+        name: rule.name,
+        type: rule.type,
+        fastingRule: rule.fastingRule,
         prohibitedItems: isFast ? ['Grains during fasting hours'] : [],
         allowedSubstitutes: isFast
           ? ['Anukalpa Prasadam (Fruits, Milk, Sabudana, Sama Rice) followed by Feast']
           : ['Full Raja-Bhoga Feast Prasadam'],
-        description: item.festival?.description || `Vaishnava Festival (${fName}) for ${location.label || location.timezone}.`,
+        description: rule.description,
+        sunriseLocal,
+        masa,
+        paksha: sunriseTithi.paksha,
         source: 'gaurabda-engine',
       });
     }
@@ -276,7 +468,7 @@ export function computeVaishnavaYearCalendar(
 
 /**
  * Parses an iCalendar (.ics) file exported from GCAL or vaisnavacalendar.info
- * into structured VaishnavaOccasion records.
+ * into structured VaishnavaOccasion records, filtering out Masik Shivaratri & non-ISKCON events.
  */
 export function parseVaishnavaICS(icsContent: string): VaishnavaOccasion[] {
   const results: VaishnavaOccasion[] = [];
@@ -295,6 +487,11 @@ export function parseVaishnavaICS(icsContent: string): VaishnavaOccasion[] {
     const desc = descMatch ? descMatch[1].replace(/\\n/g, ' ').replace(/\\,/g, ',').trim() : '';
     const lower = `${name} ${desc}`.toLowerCase();
 
+    // Explicitly exclude Masik Shivaratri / Pradosha / Sankashti
+    if (lower.includes('masik shivaratri') || lower.includes('masa shivaratri') || lower.includes('pradosha') || lower.includes('sankashti')) {
+      continue;
+    }
+
     const isEkadashi = lower.includes('ekadasi') || lower.includes('ekadashi');
     const isFasting =
       !isEkadashi &&
@@ -305,8 +502,7 @@ export function parseVaishnavaICS(icsContent: string): VaishnavaOccasion[] {
         lower.includes('nrsimha') ||
         lower.includes('rama navami'));
 
-    // Only keep Ekadashi / Fasting / major Vaishnava festivals
-    if (!isEkadashi && !isFasting && !lower.includes('appearance') && !lower.includes('feast')) {
+    if (!isEkadashi && !isFasting && !lower.includes('appearance') && !lower.includes('disappearance') && !lower.includes('feast')) {
       continue;
     }
 
