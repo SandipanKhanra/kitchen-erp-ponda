@@ -27,7 +27,7 @@ interface AuthContextType {
   clearSessionExpiredNotice: () => void;
   // Auth actions
   login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: (centerId?: string, centerName?: string) => Promise<void>;
+  loginWithGoogle: (centerId?: string, centerName?: string, mode?: 'login' | 'signup') => Promise<void>;
   signUp: (params: SignUpParams) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -172,11 +172,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginWithGoogle = async (centerId?: string, centerName?: string) => {
+  const loginWithGoogle = async (centerId?: string, centerName?: string, mode: 'login' | 'signup' = 'login') => {
     setIsAuthLoading(true);
     setSessionExpiredNotice(null);
     try {
-      const profile = await authService.signInWithGoogle(centerId, centerName);
+      const profile = await authService.signInWithGoogle(centerId, centerName, mode);
       setCurrentUser(profile);
       setIsDemoModeState(false);
       localStorage.setItem('kitchen_demo_mode', 'false');

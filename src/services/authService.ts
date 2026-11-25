@@ -285,7 +285,11 @@ export class AuthService {
    *   unifies into the same user profile without creating a duplicate.
    * - If brand new Google user, marks `needsCenterSelection: true` so they can choose their center.
    */
-  async signInWithGoogle(selectedCenterId?: string, selectedCenterName?: string): Promise<UserProfile> {
+  async signInWithGoogle(
+    selectedCenterId?: string,
+    selectedCenterName?: string,
+    mode: 'login' | 'signup' = 'login'
+  ): Promise<UserProfile> {
     if (!isFirebaseConfigured || !auth || !db) {
       throw new Error('Firebase credentials are not configured.');
     }
@@ -300,11 +304,13 @@ export class AuthService {
       const now = new Date().toISOString();
 
       let profile: UserProfile | null = null;
+      let alreadyExists = false;
       const userDocRef = doc(db, 'users', user.uid);
 
       try {
         const userSnap = await getDoc(userDocRef);
         if (userSnap.exists()) {
+          alreadyExists = true;
           const existing = userSnap.data() as UserProfile;
           const providers = Array.from(new Set([...(existing.authProviders || []), 'google.com']));
           if (!existing.emailLower || !existing.authProviders?.includes('google.com')) {
@@ -329,6 +335,7 @@ export class AuthService {
         // Check if a profile with this exact email already exists (e.g., created via Email/Password)
         const existingByEmail = await this.findUserByEmail(normalizedEmail);
         if (existingByEmail) {
+          alreadyExists = true;
           profile = {
             ...existingByEmail,
             uid: user.uid,
@@ -344,34 +351,44 @@ export class AuthService {
           } catch (e) {
             console.warn('Could not persist unified Google user profile to Firestore:', e);
           }
-        } else {
-          // Brand new Google user -> prompt center selection if not sadmin and no center explicitly chosen
-          const isSAdminEmail = Boolean(
-            normalizedEmail && (normalizedEmail.includes('sadmin') || normalizedEmail === 'sadmin@iskcon.org')
-          );
-          const role: UserRole = isSAdminEmail ? 'sadmin' : 'user';
-          const requiresCenterPick = role !== 'sadmin' && !selectedCenterId;
+        }
+      }
 
-          profile = {
-            uid: user.uid,
-            name: user.displayName || user.email?.split('@')[0] || 'Devotee',
-            email: user.email || '',
-            emailLower: normalizedEmail,
-            role,
-            centerId: role === 'sadmin' ? 'all' : (selectedCenterId || 'center_ponda'),
-            centerName: role === 'sadmin' ? 'Global Administration' : (selectedCenterName || 'ISKCON Ponda Center'),
-            avatarUrl: user.photoURL || undefined,
-            authProviders: ['google.com'],
-            needsCenterSelection: requiresCenterPick,
-            createdAt: now,
-            updatedAt: now,
-          };
+      // If user clicked "Register with Google" on Sign Up tab, but this Gmail is already registered:
+      if (alreadyExists && profile && mode === 'signup') {
+        await firebaseSignOut(auth);
+        throw new Error(
+          `This Gmail (${user.email || normalizedEmail}) is already registered${profile.centerName ? ` under ${profile.centerName}` : ''}. Please switch to "Devotee Sign In" and use "Continue with Google" instead.`
+        );
+      }
 
-          try {
-            await setDoc(userDocRef, profile, { merge: true });
-          } catch (e) {
-            console.warn('Could not persist Google user profile to Firestore:', e);
-          }
+      if (!profile) {
+        // Brand new Google user -> prompt center selection if not sadmin and no center explicitly chosen
+        const isSAdminEmail = Boolean(
+          normalizedEmail && (normalizedEmail.includes('sadmin') || normalizedEmail === 'sadmin@iskcon.org')
+        );
+        const role: UserRole = isSAdminEmail ? 'sadmin' : 'user';
+        const requiresCenterPick = role !== 'sadmin' && !selectedCenterId;
+
+        profile = {
+          uid: user.uid,
+          name: user.displayName || user.email?.split('@')[0] || 'Devotee',
+          email: user.email || '',
+          emailLower: normalizedEmail,
+          role,
+          centerId: role === 'sadmin' ? 'all' : (selectedCenterId || 'center_ponda'),
+          centerName: role === 'sadmin' ? 'Global Administration' : (selectedCenterName || 'ISKCON Ponda Center'),
+          avatarUrl: user.photoURL || undefined,
+          authProviders: ['google.com'],
+          needsCenterSelection: requiresCenterPick,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        try {
+          await setDoc(userDocRef, profile, { merge: true });
+        } catch (e) {
+          console.warn('Could not persist Google user profile to Firestore:', e);
         }
       }
 

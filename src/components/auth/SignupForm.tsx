@@ -108,8 +108,9 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSucce
     setError(null);
     setLoading(true);
     try {
-      // Do not pre-assign a center so new Google users are redirected to choose their center
-      await loginWithGoogle();
+      // Pass mode='signup' so duplicate registrations show an appropriate message;
+      // new users are redirected to choose their center.
+      await loginWithGoogle(undefined, undefined, 'signup');
       onSuccess?.();
     } catch (err: any) {
       if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
@@ -125,7 +126,20 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSucce
       {error && (
         <div className="mb-4 p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-xl flex items-start space-x-2.5 text-rose-700 dark:text-rose-300 text-xs">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <span>{error}</span>
+          <div className="flex-1 space-y-1.5">
+            <span>{error}</span>
+            {(error.toLowerCase().includes('already registered') || error.toLowerCase().includes('already exists')) && (
+              <div>
+                <button
+                  type="button"
+                  onClick={onSwitchToLogin}
+                  className="font-bold underline text-orange-600 dark:text-orange-400 hover:text-orange-700"
+                >
+                  Switch to Devotee Sign In &rarr;
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
