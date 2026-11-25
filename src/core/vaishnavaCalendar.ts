@@ -4,6 +4,7 @@ import {
   computeVaishnavaYearCalendar,
   DEFAULT_CENTER_LOCATION,
 } from './gaurabdaCalendarEngine';
+import { getChowpattyCalendarForYear } from './iskconChowpattyCalendar';
 
 // Cache keyed by `${year}_${lat.toFixed(2)}_${lon.toFixed(2)}_${timezone}`
 const yearCalendarCache = new Map<string, Record<string, VaishnavaOccasion>>();
@@ -34,9 +35,13 @@ export function getVaishnavaCalendarForYear(
   let record = yearCalendarCache.get(cacheKey);
 
   if (!record) {
-    const computed = computeVaishnavaYearCalendar(year, location);
+    const chowpattyEvents = getChowpattyCalendarForYear(year);
+    const baseEvents =
+      chowpattyEvents.length > 0
+        ? chowpattyEvents
+        : computeVaishnavaYearCalendar(year, location);
     record = {};
-    for (const occ of computed) {
+    for (const occ of baseEvents) {
       record[occ.date] = occ;
     }
     yearCalendarCache.set(cacheKey, record);
