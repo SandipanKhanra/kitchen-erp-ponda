@@ -3,6 +3,8 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
+  sendEmailVerification,
+  deleteUser,
   updateProfile,
   onAuthStateChanged,
   GoogleAuthProvider,
@@ -180,6 +182,7 @@ export class AuthService {
       // 3. Check if an account with the same email already exists in Firestore (e.g. from Google Sign-In)
       const existingByEmail = await this.findUserByEmail(normalizedEmail);
       const now = new Date().toISOString();
+      const verificationExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
       let finalProfile: UserProfile;
       if (existingByEmail) {
@@ -194,11 +197,14 @@ export class AuthService {
           centerName: existingByEmail.centerName || (role === 'sadmin' ? 'Global Administration' : centerName),
           authProviders: Array.from(new Set([...(existingByEmail.authProviders || []), 'password'])),
           needsCenterSelection: false,
+          emailVerified: false,
+          registrationStatus: 'pending_verification',
+          verificationExpiresAt,
           updatedAt: now,
         };
         await setDoc(doc(db, 'users', user.uid), finalProfile, { merge: true });
       } else {
-        // 4. Create new User Profile document in Firestore
+        // 4. Create new User Profile document in Firestore (pending email verification)
         finalProfile = {
           uid: user.uid,
           name: name.trim(),
@@ -209,13 +215,30 @@ export class AuthService {
           centerName: role === 'sadmin' ? 'Global Administration' : centerName,
           authProviders: ['password'],
           needsCenterSelection: false,
+          emailVerified: false,
+          registrationStatus: 'pending_verification',
+          verificationExpiresAt,
           createdAt: now,
           updatedAt: now,
         };
         await setDoc(doc(db, 'users', user.uid), finalProfile);
       }
 
-      // Sign out immediately so user is redirected to Login page to sign in
+      // 5. Send verification email (15-minute validity) redirecting back to Login
+      try {
+        await sendEmailVerification(user, {
+          url: `${window.location.origin}/?verified=1`,
+          handleCodeInApp: false,
+        });
+      } catch (verifyErr: any) {
+        if (verifyErr?.code === 'auth/unauthorized-continue-uri') {
+          await sendEmailVerification(user);
+        } else {
+          throw verifyErr;
+        }
+      }
+
+      // Sign out immediately so user cannot enter app until email is verified
       await firebaseSignOut(auth);
       return finalProfile;
     } finally {
@@ -226,7 +249,7 @@ export class AuthService {
   /**
    * Sign in existing user with Firebase Auth and retrieve profile from Firestore
    */
-  async signIn(email: string, password: string): Promise<UserProfile> {
+  async signIn(email: string, password: string): Promise<{ firebaseUser: FirebaseUser; profile: UserProfile }> {
     if (!isFirebaseConfigured || !auth || !db) {
       throw new Error('Firebase credentials are not configured.');
     }
@@ -259,6 +282,47 @@ export class AuthService {
         await setDoc(userDocRef, profile);
       }
 
+      // Enforce email verification + 15-minute validity for pending registrations
+      if (profile.registrationStatus === 'pending_verification') {
+        const isExpired = profile.verificationExpiresAt
+          ? Date.now() > Date.parse(profile.verificationExpiresAt)
+          : false;
+
+        if (isExpired) {
+          try {
+            await deleteDoc(userDocRef);
+          } catch {}
+          try {
+            await deleteUser(user);
+          } catch {
+            await firebaseSignOut(auth);
+          }
+          throw new Error(
+            'Your 15-minute email verification link has expired and your pending registration was cancelled. Please register again.'
+          );
+        }
+
+        if (!user.emailVerified) {
+          await firebaseSignOut(auth);
+          throw new Error(
+            'Please verify your email first by clicking the verification link sent to your inbox (valid for 15 minutes).'
+          );
+        }
+
+        // Verified within 15 minutes -> complete registration!
+        profile = {
+          ...profile,
+          emailVerified: true,
+          registrationStatus: 'active',
+          updatedAt: new Date().toISOString(),
+        };
+        await setDoc(
+          userDocRef,
+          { emailVerified: true, registrationStatus: 'active', updatedAt: profile.updatedAt },
+          { merge: true }
+        );
+      }
+
       // Enforce 2-device limit & 30-min session
       try {
         await sessionService.createSession(profile.uid, profile.email);
@@ -267,7 +331,7 @@ export class AuthService {
         throw sessionErr;
       }
 
-      return profile;
+      return { firebaseUser: user, profile };
     } finally {
       this.isAuthenticating = false;
     }
@@ -283,7 +347,7 @@ export class AuthService {
     selectedCenterId?: string,
     selectedCenterName?: string,
     mode: 'login' | 'signup' = 'login'
-  ): Promise<UserProfile> {
+  ): Promise<{ firebaseUser: FirebaseUser; profile: UserProfile }> {
     if (!isFirebaseConfigured || !auth || !db) {
       throw new Error('Firebase credentials are not configured.');
     }
@@ -394,7 +458,7 @@ export class AuthService {
         throw sessionErr;
       }
 
-      return profile;
+      return { firebaseUser: user, profile };
     } finally {
       this.isAuthenticating = false;
     }
@@ -562,7 +626,13 @@ export class AuthService {
       try {
         const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
         if (snap.exists()) {
-          callback(firebaseUser, snap.data() as UserProfile);
+          const profileData = snap.data() as UserProfile;
+          if (profileData.registrationStatus === 'pending_verification' && !firebaseUser.emailVerified) {
+            if (auth) await firebaseSignOut(auth);
+            callback(null, null);
+            return;
+          }
+          callback(firebaseUser, profileData);
         } else {
           // Before generating a new profile, check if a profile with the same email already exists
           const normalizedEmail = (firebaseUser.email || '').trim().toLowerCase();

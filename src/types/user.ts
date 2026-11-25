@@ -11,6 +11,9 @@ export interface UserProfile {
   avatarUrl?: string;
   authProviders?: string[];
   needsCenterSelection?: boolean;
+  emailVerified?: boolean;
+  registrationStatus?: 'pending_verification' | 'active';
+  verificationExpiresAt?: string;
   createdAt: string;
   updatedAt: string;
 }

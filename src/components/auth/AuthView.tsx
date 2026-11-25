@@ -3,6 +3,7 @@ import { LoginForm } from './LoginForm';
 import { SignupForm } from './SignupForm';
 import { ChefHat, X, Sun, Moon } from 'lucide-react';
 import { useKitchen } from '../../context/KitchenContext';
+import { useToast } from '../../context/ToastContext';
 
 interface AuthViewProps {
   initialTab?: 'login' | 'signup';
@@ -18,7 +19,19 @@ export const AuthView: React.FC<AuthViewProps> = ({
   onTabChange,
 }) => {
   const { theme, toggleTheme } = useKitchen();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>(initialTab);
+
+  // Detect email verification redirect (?verified=1) and switch to Login
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('verified') === '1') {
+      setActiveTab('login');
+      onTabChange?.('login');
+      showToast('Email verified! Your registration is complete. Please sign in.', 'success');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   const handleTabSwitch = (tab: 'login' | 'signup') => {
     setActiveTab(tab);

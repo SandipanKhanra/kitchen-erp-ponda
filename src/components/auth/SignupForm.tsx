@@ -97,10 +97,13 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSucce
         centerName: selectedCenter.name,
         passcode: passcode.trim(),
       });
-      showToast('Registration successful! Redirecting you to Sign In...', 'success');
+      showToast(
+        'Verification email sent! Please click the link in your inbox within 15 minutes to complete registration.',
+        'success'
+      );
       setTimeout(() => {
         onSwitchToLogin();
-      }, 1800);
+      }, 2200);
     } catch (err: any) {
       showToast(formatErrorMessage(err), 'error');
     } finally {

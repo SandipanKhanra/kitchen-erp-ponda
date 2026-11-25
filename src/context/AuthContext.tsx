@@ -164,13 +164,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Real Firebase Auth Actions (do NOT toggle global isAuthLoading so forms don't unmount & lose error state)
   const login = async (email: string, password: string) => {
     setSessionExpiredNotice(null);
-    const profile = await authService.signIn(email, password);
+    const { firebaseUser: fbUser, profile } = await authService.signIn(email, password);
+    setFirebaseUser(fbUser);
     setCurrentUser(profile);
   };
 
   const loginWithGoogle = async (centerId?: string, centerName?: string, mode: 'login' | 'signup' = 'login') => {
     setSessionExpiredNotice(null);
-    const profile = await authService.signInWithGoogle(centerId, centerName, mode);
+    const { firebaseUser: fbUser, profile } = await authService.signInWithGoogle(centerId, centerName, mode);
+    setFirebaseUser(fbUser);
     setCurrentUser(profile);
   };
 
