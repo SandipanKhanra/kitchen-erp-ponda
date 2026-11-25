@@ -37,7 +37,6 @@ export const VaishnavaCalendarView: React.FC = () => {
   const [pageSize, setPageSize] = useState<number>(6);
   const [syncVersion, setSyncVersion] = useState<number>(0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load any previously synced occasions from Firestore for this center
@@ -83,13 +82,12 @@ export const VaishnavaCalendarView: React.FC = () => {
 
   const handleSyncToFirestore = async () => {
     setIsSyncing(true);
-    setSyncMessage(null);
     try {
       await calendarRepository.syncCenterCalendarOccasions(currentCenter.id || 'default', occasions);
-      const msg = `Synced ${occasions.length} location-based Vaishnava occasions (${selectedYear}) for ${centerLocation.label || currentCenter.city} to Firestore!`;
-      setSyncMessage(msg);
-      showToast(msg, 'success');
-      setTimeout(() => setSyncMessage(null), 5000);
+      showToast(
+        `Synced ${occasions.length} location-based Vaishnava occasions (${selectedYear}) for ${centerLocation.label || currentCenter.city} to Firestore!`,
+        'success'
+      );
     } finally {
       setIsSyncing(false);
     }
@@ -108,10 +106,7 @@ export const VaishnavaCalendarView: React.FC = () => {
       registerSyncedOccasions(parsed);
       setSyncVersion((v) => v + 1);
       await calendarRepository.syncCenterCalendarOccasions(currentCenter.id || 'default', parsed);
-      const msg = `Imported & synced ${parsed.length} events from ${file.name}!`;
-      setSyncMessage(msg);
-      showToast(msg, 'success');
-      setTimeout(() => setSyncMessage(null), 5000);
+      showToast(`Imported & synced ${parsed.length} events from ${file.name}!`, 'success');
     } catch {
       showToast('Failed to read .ics file.', 'error');
     } finally {
@@ -188,12 +183,6 @@ export const VaishnavaCalendarView: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {syncMessage && (
-        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-xs font-bold text-emerald-800 dark:text-emerald-300 text-center">
-          {syncMessage}
-        </div>
-      )}
 
       {/* Guidelines Box */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">

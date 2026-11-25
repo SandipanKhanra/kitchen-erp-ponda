@@ -19,7 +19,6 @@ export const AdminUserManagement: React.FC = () => {
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [country, setCountry] = useState('India');
-  const [requestSent, setRequestSent] = useState(false);
 
   const filteredUsers = centerUsers.filter(
     (u) =>
@@ -49,14 +48,10 @@ export const AdminUserManagement: React.FC = () => {
     });
 
     showToast(`Center request for "${centerName}" submitted for Super Admin approval!`, 'success');
-    setRequestSent(true);
-    setTimeout(() => {
-      setRequestSent(false);
-      setIsRequestModalOpen(false);
-      setCenterName('');
-      setCenterCode('');
-      setCity('');
-    }, 2000);
+    setIsRequestModalOpen(false);
+    setCenterName('');
+    setCenterCode('');
+    setCity('');
   };
 
   return (
@@ -218,14 +213,9 @@ export const AdminUserManagement: React.FC = () => {
               As an Admin, your request will be forwarded to the <strong>Super Admin</strong>. Once approved, the center will be created and open for user registration.
             </p>
 
-            {requestSent ? (
-              <div className="p-4 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded-xl text-center font-bold text-xs">
-                Request successfully submitted to SAdmin!
-              </div>
-            ) : (
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Center Name</label>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300">Center Name</label>
                   <input
                     type="text"
                     placeholder="e.g. ISKCON Bangalore Center"
@@ -280,9 +270,8 @@ export const AdminUserManagement: React.FC = () => {
                   >
                     Submit Request to SAdmin
                   </button>
-                </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}

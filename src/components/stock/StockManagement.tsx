@@ -19,7 +19,6 @@ export const StockManagement: React.FC = () => {
   const [selectedItemForPurchase, setSelectedItemForPurchase] = useState<string>(stockItems[0]?.id || '');
   const [purchasedQty, setPurchasedQty] = useState<number>(10);
   const [purchasedUnitPrice, setPurchasedUnitPrice] = useState<number>(0);
-  const [purchaseSuccess, setPurchaseSuccess] = useState(false);
 
   const selectedPurchaseStockItem = stockItems.find((s) => s.id === selectedItemForPurchase);
   const isPurchasePiece = selectedPurchaseStockItem?.measureIndex === 'piece';
@@ -69,11 +68,7 @@ export const StockManagement: React.FC = () => {
     });
 
     showToast('Stock purchase recorded & weighted average price updated!', 'success');
-    setPurchaseSuccess(true);
-    setTimeout(() => {
-      setPurchaseSuccess(false);
-      setIsPurchaseModalOpen(false);
-    }, 2000);
+    setIsPurchaseModalOpen(false);
   };
 
   const handleAddNewItem = async () => {
@@ -246,14 +241,9 @@ export const StockManagement: React.FC = () => {
               When new stock arrives, enter the purchase quantity and bill rate. The system automatically recalculates the <strong>weighted average price</strong>.
             </p>
 
-            {purchaseSuccess ? (
-              <div className="p-4 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded-xl text-center font-bold text-xs">
-                Stock updated & weighted price adjusted successfully!
-              </div>
-            ) : (
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Select Ingredient</label>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300">Select Ingredient</label>
                   <select
                     value={selectedItemForPurchase}
                     onChange={(e) => setSelectedItemForPurchase(e.target.value)}
@@ -315,9 +305,8 @@ export const StockManagement: React.FC = () => {
                   >
                     Apply & Recalculate Price
                   </button>
-                </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}

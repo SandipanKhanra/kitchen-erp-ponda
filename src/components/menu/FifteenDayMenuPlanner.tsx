@@ -67,7 +67,6 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   } = useKitchen();
 
   const [selectedDay, setSelectedDay] = useState<number>(1);
-  const [approvalMessage, setApprovalMessage] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
 
@@ -100,10 +99,10 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     const generated = generateFull15DayMenuFromStartDate(newStartDate, recipes, activeMenuPlan, centerLocation);
     saveMenuPlan(generated, { recordAudit: false });
     setHasUnsavedChanges(true);
-    const msg = `Calculated 2-week cycle (${formatDateDDMMYYYY(generated.startDate)} to ${formatDateDDMMYYYY(generated.endDate)}) and auto-filled menus! Click "Update" to save.`;
-    setApprovalMessage(msg);
-    showToast(msg, 'info');
-    setTimeout(() => setApprovalMessage(null), 5000);
+    showToast(
+      `Calculated 2-week cycle (${formatDateDDMMYYYY(generated.startDate)} to ${formatDateDDMMYYYY(generated.endDate)}) and auto-filled menus! Click "Update" to save.`,
+      'info'
+    );
   };
 
   const handleCommitUpdate = async () => {
@@ -111,10 +110,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     try {
       await saveMenuPlan(activeMenuPlan, { recordAudit: true });
       setHasUnsavedChanges(false);
-      const msg = '15-Day Menu Plan updated & recorded in Audit Trail!';
-      setApprovalMessage(msg);
-      showToast(msg, 'success');
-      setTimeout(() => setApprovalMessage(null), 4000);
+      showToast('15-Day Menu Plan updated & recorded in Audit Trail!', 'success');
     } finally {
       setIsUpdating(false);
     }
@@ -123,10 +119,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   const handleApprove = async () => {
     const res = await approveMenuPlan(activeMenuPlan.id);
     if (res.success) {
-      const msg = '15-Day Menu Plan successfully approved by Admin!';
-      setApprovalMessage(msg);
-      showToast(msg, 'success');
-      setTimeout(() => setApprovalMessage(null), 4000);
+      showToast('15-Day Menu Plan successfully approved by Admin!', 'success');
     } else {
       showToast(res.error || 'Could not approve menu plan.', 'error');
     }
@@ -318,8 +311,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
 
     applyMenuDraft(updatedPlan);
     setHasUnsavedChanges(true);
-    setApprovalMessage('Applied 7-day weekly rotation for Brahmacari Ashram meals across all 15 days! Click "Update" to save.');
-    setTimeout(() => setApprovalMessage(null), 4000);
+    showToast('Applied 7-day weekly rotation for Brahmacari Ashram meals! Click "Update" to save.', 'info');
   };
 
   // Filter recipes for Add Dish dialog
@@ -485,12 +477,6 @@ export const FifteenDayMenuPlanner: React.FC = () => {
             )}
           </div>
         </div>
-
-        {approvalMessage && (
-          <div className="mt-3 p-2.5 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold text-center">
-            {approvalMessage}
-          </div>
-        )}
       </div>
 
       {/* Repetition Validator Alert */}

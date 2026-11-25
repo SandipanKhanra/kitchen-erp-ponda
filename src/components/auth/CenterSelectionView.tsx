@@ -15,7 +15,6 @@ export const CenterSelectionView: React.FC = () => {
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const filteredCenters = availableCenters.filter(
     (c) =>
@@ -27,11 +26,10 @@ export const CenterSelectionView: React.FC = () => {
 
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
 
     const chosen = availableCenters.find((c) => c.id === selectedCenterId);
     if (!chosen) {
-      setError('Please select a kitchen center to continue.');
+      showToast('Please select a kitchen center to continue.', 'warning');
       return;
     }
 
@@ -41,7 +39,6 @@ export const CenterSelectionView: React.FC = () => {
       showToast(`Welcome to ${chosen.name}!`, 'success');
     } catch (err: any) {
       const msg = err?.message || 'Failed to save your center selection. Please try again.';
-      setError(msg);
       showToast(msg, 'error');
     } finally {
       setSubmitting(false);
@@ -103,12 +100,6 @@ export const CenterSelectionView: React.FC = () => {
             Select the ISKCON center you serve in to personalize your stock, recipes, and 15-day menu planner.
           </p>
         </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-xl text-rose-700 dark:text-rose-300 text-xs font-medium">
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleConfirm} className="space-y-4">
           {availableCenters.length > 4 && (

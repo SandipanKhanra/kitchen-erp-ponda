@@ -44,7 +44,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
@@ -75,11 +74,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     if (!email.trim() || !password) {
-      const msg = 'Please provide both email and password.';
-      setError(msg);
-      showToast(msg, 'error');
+      showToast('Please provide both email and password.', 'error');
       return;
     }
 
@@ -88,25 +84,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
       await login(email, password);
       onSuccess?.();
     } catch (err: any) {
-      const msg = formatErrorMessage(err);
-      setError(msg);
-      showToast(msg, 'error');
+      showToast(formatErrorMessage(err), 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    setError(null);
     setLoading(true);
     try {
       await loginWithGoogle();
       onSuccess?.();
     } catch (err: any) {
       if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
-        const msg = formatErrorMessage(err);
-        setError(msg);
-        showToast(msg, 'error');
+        showToast(formatErrorMessage(err), 'error');
       }
     } finally {
       setLoading(false);
@@ -115,11 +106,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     if (!resetEmail.trim()) {
-      const msg = 'Please enter your email to receive a password reset link.';
-      setError(msg);
-      showToast(msg, 'error');
+      showToast('Please enter your email to receive a password reset link.', 'error');
       return;
     }
 
@@ -133,9 +121,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
         setResetSent(false);
       }, 3000);
     } catch (err: any) {
-      const msg = formatErrorMessage(err);
-      setError(msg);
-      showToast(msg, 'error');
+      showToast(formatErrorMessage(err), 'error');
     } finally {
       setLoading(false);
     }
@@ -156,37 +142,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
           >
             Dismiss
           </button>
-        </div>
-      )}
-
-      {error && (
-        <div className="mb-4 p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-xl flex items-start space-x-2.5 text-rose-700 dark:text-rose-300 text-xs">
-          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 space-y-1.5">
-            <span>{error}</span>
-            {(error.toLowerCase().includes('not registered') || error.toLowerCase().includes('incorrect password')) && (
-              <div className="flex flex-wrap items-center gap-3 pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setResetEmail(email);
-                    setShowResetModal(true);
-                    setError(null);
-                  }}
-                  className="font-bold underline text-rose-700 dark:text-rose-300 hover:text-rose-900"
-                >
-                  Reset Password
-                </button>
-                <button
-                  type="button"
-                  onClick={onSwitchToSignup}
-                  className="font-bold underline text-orange-600 dark:text-orange-400 hover:text-orange-700"
-                >
-                  Register New Account &rarr;
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       )}
 
@@ -252,7 +207,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
               type="button"
               onClick={() => {
                 setShowResetModal(false);
-                setError(null);
               }}
               className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
             >
@@ -296,7 +250,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
                 onClick={() => {
                   setResetEmail(email);
                   setShowResetModal(true);
-                  setError(null);
                 }}
                 className="text-[11px] font-semibold text-orange-600 dark:text-orange-400 hover:underline"
               >

@@ -42,8 +42,6 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSucce
   const [centerId, setCenterId] = useState(availableCenters[0]?.id || 'center_ponda');
   const [passcode, setPasscode] = useState('');
   const [showPasscodeField, setShowPasscodeField] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const formatErrorMessage = (err: any): string => {
@@ -65,28 +63,27 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSucce
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
 
     if (!name.trim()) {
-      setError('Please provide your full or initiated name.');
+      showToast('Please provide your full or initiated name.', 'warning');
       return;
     }
     if (!email.trim()) {
-      setError('Please provide an email address.');
+      showToast('Please provide an email address.', 'warning');
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      showToast('Password must be at least 6 characters.', 'warning');
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      showToast('Passwords do not match.', 'warning');
       return;
     }
 
     const selectedCenter = availableCenters.find((c) => c.id === centerId) || availableCenters[0];
     if (!selectedCenter) {
-      setError('Please select an active Center.');
+      showToast('Please select an active Center.', 'warning');
       return;
     }
 
@@ -100,34 +97,25 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSucce
         centerName: selectedCenter.name,
         passcode: passcode.trim(),
       });
-      const msg = 'Registration successful! Redirecting you to Sign In...';
-      setSuccessMessage(msg);
-      showToast(msg, 'success');
+      showToast('Registration successful! Redirecting you to Sign In...', 'success');
       setTimeout(() => {
         onSwitchToLogin();
       }, 1800);
     } catch (err: any) {
-      const msg = formatErrorMessage(err);
-      setError(msg);
-      showToast(msg, 'error');
+      showToast(formatErrorMessage(err), 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignup = async () => {
-    setError(null);
     setLoading(true);
     try {
-      // Pass mode='signup' so duplicate registrations show an appropriate message;
-      // new users are redirected to choose their center.
       await loginWithGoogle(undefined, undefined, 'signup');
       onSuccess?.();
     } catch (err: any) {
       if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
-        const msg = formatErrorMessage(err);
-        setError(msg);
-        showToast(msg, 'error');
+        showToast(formatErrorMessage(err), 'error');
       }
     } finally {
       setLoading(false);
@@ -136,33 +124,6 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSucce
 
   return (
     <div className="w-full">
-      {successMessage && (
-        <div className="mb-4 p-3.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center space-x-2.5 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
-          <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-
-      {error && (
-        <div className="mb-4 p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-xl flex items-start space-x-2.5 text-rose-700 dark:text-rose-300 text-xs">
-          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 space-y-1.5">
-            <span>{error}</span>
-            {(error.toLowerCase().includes('already registered') || error.toLowerCase().includes('already exists')) && (
-              <div>
-                <button
-                  type="button"
-                  onClick={onSwitchToLogin}
-                  className="font-bold underline text-orange-600 dark:text-orange-400 hover:text-orange-700"
-                >
-                  Switch to Devotee Sign In &rarr;
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Google Sign Up */}
       <button
         type="button"
