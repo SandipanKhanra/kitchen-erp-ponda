@@ -2,7 +2,6 @@ import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../../config/firebase';
 import { IngredientStockItem } from '../../types/stock';
 import { IStockRepository } from '../../types/repositories';
-import { INITIAL_STOCK_ITEMS } from '../mockData';
 import { SafeStorage } from '../../utils/safeStorage';
 
 export class StockRepository implements IStockRepository {
@@ -11,6 +10,8 @@ export class StockRepository implements IStockRepository {
   }
 
   async fetchCenterStock(centerId: string): Promise<IngredientStockItem[]> {
+    if (!centerId) return [];
+
     if (isFirebaseConfigured && db) {
       try {
         let snap = await getDocs(collection(db, 'ingredients'));
@@ -27,37 +28,20 @@ export class StockRepository implements IStockRepository {
             }
           });
 
-          if (items.length > 0) {
-            SafeStorage.setItem(this.getLocalKey(centerId), items);
-            return items;
-          }
+          SafeStorage.setItem(this.getLocalKey(centerId), items);
+          return items;
         }
-
-        // Seed initial stock to Firestore if empty
-        const initialForCenter = INITIAL_STOCK_ITEMS.map((item) => ({
-          ...item,
-          centerId,
-        }));
-
-        Promise.all(
-          initialForCenter.map((item) =>
-            setDoc(doc(db!, 'ingredients', item.id), item, { merge: true })
-          )
-        ).catch((err) => console.warn('[StockRepository] Could not seed ingredients:', err));
-
-        return initialForCenter;
+        return [];
       } catch (err) {
         console.warn(`[StockRepository] Firestore read failed for center ${centerId}, falling back to cache:`, err);
       }
     }
 
-    const cached = SafeStorage.getItem<IngredientStockItem[] | null>(this.getLocalKey(centerId), null);
-    if (cached) return cached;
-
-    return INITIAL_STOCK_ITEMS.map((i) => ({ ...i, centerId }));
+    return SafeStorage.getItem<IngredientStockItem[]>(this.getLocalKey(centerId), []);
   }
 
   async saveCenterStockItem(centerId: string, item: IngredientStockItem): Promise<void> {
+    if (!centerId) return;
     const itemWithCenter: IngredientStockItem = {
       ...item,
       centerId,

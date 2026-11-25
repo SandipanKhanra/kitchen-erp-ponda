@@ -1,3 +1,6 @@
+import { FifteenDayMenuPlan, DayMenuSchedule } from '../types/menu';
+import { getVaishnavaOccasionForDate, isEkadashiOrFastingDate } from './vaishnavaCalendar';
+
 /**
  * 15-Day Menu Rotation Engine
  * Accurately determines which day of the 15-day cycle applies to any calendar date.
@@ -107,4 +110,55 @@ export function generateAshramWeeklyRotation(
   }
 
   return result;
+}
+
+/**
+ * Creates a clean, empty 15-Day Menu Plan structure starting from today's date
+ * for a center when no existing plan is stored in Firestore yet.
+ */
+export function createEmpty15DayMenu(centerId: string): FifteenDayMenuPlan {
+  const days: Record<number, DayMenuSchedule> = {};
+  const start = new Date();
+  const startDate = formatDateISO(start);
+
+  for (let i = 0; i < 15; i++) {
+    const dayNum = i + 1;
+    const current = new Date(start);
+    current.setDate(start.getDate() + i);
+    const dateStr = formatDateISO(current);
+    const occasion = getVaishnavaOccasionForDate(dateStr);
+    const isEkadashi = occasion?.type === 'Ekadashi';
+    const isFasting = isEkadashiOrFastingDate(dateStr);
+
+    days[dayNum] = {
+      dayNumber: dayNum,
+      date: dateStr,
+      isEkadashi,
+      isFasting,
+      occasionTitle: occasion?.name,
+      breakfast: { recipeIds: [], headcount: 0 },
+      lunch: { recipeIds: [], headcount: 0 },
+      dinner: { recipeIds: [], headcount: 0 },
+      brahmacariBreakfast: { recipeIds: [], headcount: 0 },
+      brahmacariLunch: { recipeIds: [], headcount: 0 },
+    };
+  }
+
+  const endDate = days[15].date;
+  const now = new Date().toISOString();
+
+  return {
+    id: `plan_${centerId}_cycle_1`,
+    centerId,
+    title: '15-Day Vaishnava Kitchen Cycle',
+    startDate,
+    endDate,
+    status: 'draft',
+    days,
+    createdBy: '',
+    createdByName: '',
+    createdByRole: 'user',
+    createdAt: now,
+    updatedAt: now,
+  };
 }

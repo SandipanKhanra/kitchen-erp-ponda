@@ -25,7 +25,7 @@ import {
 import { MealType, Recipe, MenuPattern, Occasion } from '../../types/recipe';
 import { FifteenDayMenuPlan } from '../../types/menu';
 import { sanitizeNumericChange } from '../../utils/numberInput';
-import { generateAshramWeeklyRotation } from '../../core/rotationEngine';
+import { generateAshramWeeklyRotation, formatDateISO } from '../../core/rotationEngine';
 import { formatDateDDMMYYYY } from '../../utils/formatters';
 
 export type MealSlotKey = 'breakfast' | 'lunch' | 'dinner' | 'brahmacariBreakfast' | 'brahmacariLunch';
@@ -73,7 +73,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
 
   const activeDay = activeMenuPlan.days[selectedDay] || {
     dayNumber: selectedDay,
-    date: '2026-11-20',
+    date: formatDateISO(new Date()),
     isEkadashi: false,
     breakfast: { recipeIds: [], headcount: 100 },
     brahmacariBreakfast: { recipeIds: [], headcount: 20 },
@@ -251,7 +251,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     for (let d = 1; d <= 15; d++) {
       const existing = updatedDays[d] || {
         dayNumber: d,
-        date: '2026-11-20',
+        date: formatDateISO(new Date()),
         isEkadashi: false,
         breakfast: { recipeIds: [], headcount: 100 },
         lunch: { recipeIds: [], headcount: 150 },

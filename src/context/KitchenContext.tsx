@@ -6,12 +6,7 @@ import { FifteenDayMenuPlan } from '../types/menu';
 import { PeriodRequirementSummary } from '../types/requisition';
 import { AuditLogEntry, AuditCategory } from '../types/audit';
 import { kitchenDbService } from '../services/kitchenDbService';
-import {
-  INITIAL_STOCK_ITEMS,
-  INITIAL_RECIPES,
-  INITIAL_MENU_PATTERNS,
-  buildInitial15DayMenu,
-} from '../services/mockData';
+import { createEmpty15DayMenu } from '../core/rotationEngine';
 import { calculateWeightedAveragePrice } from '../core/stockEngine';
 import { calculateDayWiseAndShoppingRequirements } from '../core/daywiseRequirementCalculator';
 import { validateMenuRepetition, RepetitionViolation } from '../core/repetitionValidator';
@@ -116,25 +111,19 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [theme]);
 
   // Center-scoped Stock (Synced with Firebase)
-  const [stockItems, setStockItems] = useState<IngredientStockItem[]>(() =>
-    INITIAL_STOCK_ITEMS.map((s) => ({ ...s, centerId: currentCenter.id }))
-  );
+  const [stockItems, setStockItems] = useState<IngredientStockItem[]>([]);
   const stockMap = useMemo(() => new Map(stockItems.map((s) => [s.id, s])), [stockItems]);
 
   // Center-scoped Recipes (Synced with Firebase)
-  const [recipes, setRecipes] = useState<Recipe[]>(() =>
-    INITIAL_RECIPES.map((r) => ({ ...r, centerId: currentCenter.id }))
-  );
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const recipeMap = useMemo(() => new Map(recipes.map((r) => [r.id, r])), [recipes]);
 
   // Center-scoped Patterns
-  const [patterns, setPatterns] = useState<MenuPattern[]>(() =>
-    INITIAL_MENU_PATTERNS.map((p) => ({ ...p, centerId: currentCenter.id }))
-  );
+  const [patterns, setPatterns] = useState<MenuPattern[]>([]);
 
   // 15-Day Menu Plan with Maker-Checker
   const [activeMenuPlan, setActiveMenuPlan] = useState<FifteenDayMenuPlan>(() =>
-    buildInitial15DayMenu(currentCenter.id)
+    createEmpty15DayMenu(currentCenter.id || 'default')
   );
 
   // Audit Logs (Center-Specific)
@@ -145,6 +134,7 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Load center-specific data from Firestore and local cache whenever center switches
   useEffect(() => {
+    if (!currentCenter.id) return;
     let isMounted = true;
 
     const loadCenterData = async () => {

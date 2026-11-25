@@ -18,7 +18,6 @@ import { RecipeRepository } from './repositories/RecipeRepository';
 import { PatternRepository } from './repositories/PatternRepository';
 import { MenuRepository } from './repositories/MenuRepository';
 import { AuditRepository } from './repositories/AuditRepository';
-import { INITIAL_RECIPES } from './mockData';
 
 /**
  * Unified Kitchen Database Service Facade.
@@ -122,15 +121,8 @@ export class KitchenDbService implements IKitchenDbService {
 
       // 3. Sync Recipes to 'recipes'
       const recipes = await this.fetchCenterRecipes(centerId);
-      const existingIds = new Set(recipes.map((r) => r.id));
-      const fullRecipes = [...recipes];
-      for (const initRec of INITIAL_RECIPES) {
-        if (!existingIds.has(initRec.id)) {
-          fullRecipes.push({ ...initRec, centerId });
-        }
-      }
       await Promise.all(
-        fullRecipes.map((r) =>
+        recipes.map((r) =>
           setDoc(
             doc(db!, 'recipes', r.id),
             { ...r, centerId, updatedAt: new Date().toISOString() },
@@ -163,7 +155,7 @@ export class KitchenDbService implements IKitchenDbService {
         success: true,
         syncedCounts: {
           stock: stockItems.length,
-          recipes: fullRecipes.length,
+          recipes: recipes.length,
           patterns: patterns.length,
           menus: 1,
         },

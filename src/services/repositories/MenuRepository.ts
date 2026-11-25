@@ -2,7 +2,7 @@ import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../../config/firebase';
 import { FifteenDayMenuPlan } from '../../types/menu';
 import { IMenuRepository } from '../../types/repositories';
-import { buildInitial15DayMenu } from '../mockData';
+import { createEmpty15DayMenu } from '../../core/rotationEngine';
 import { SafeStorage } from '../../utils/safeStorage';
 
 export class MenuRepository implements IMenuRepository {
@@ -11,6 +11,8 @@ export class MenuRepository implements IMenuRepository {
   }
 
   async fetchCenterMenuPlan(centerId: string): Promise<FifteenDayMenuPlan> {
+    if (!centerId) return createEmpty15DayMenu('default');
+
     if (isFirebaseConfigured && db) {
       try {
         let snap = await getDocs(collection(db, 'menus'));
@@ -26,17 +28,11 @@ export class MenuRepository implements IMenuRepository {
               docData = data;
             }
           });
-          if (!docData) {
-            docData = snap.docs[0].data() as FifteenDayMenuPlan;
+          if (docData) {
+            SafeStorage.setItem(this.getLocalKey(centerId), docData);
+            return docData;
           }
-          SafeStorage.setItem(this.getLocalKey(centerId), docData);
-          return docData;
         }
-
-        const initialPlan = buildInitial15DayMenu(centerId);
-        setDoc(doc(db, 'menus', initialPlan.id), initialPlan, { merge: true }).catch(() => {});
-        SafeStorage.setItem(this.getLocalKey(centerId), initialPlan);
-        return initialPlan;
       } catch (err) {
         console.warn('[MenuRepository] Failed to fetch menu plan from Firestore:', err);
       }
@@ -45,10 +41,11 @@ export class MenuRepository implements IMenuRepository {
     const cached = SafeStorage.getItem<FifteenDayMenuPlan | null>(this.getLocalKey(centerId), null);
     if (cached) return cached;
 
-    return buildInitial15DayMenu(centerId);
+    return createEmpty15DayMenu(centerId);
   }
 
   async saveCenterMenuPlan(centerId: string, plan: FifteenDayMenuPlan): Promise<void> {
+    if (!centerId) return;
     const planWithCenter: FifteenDayMenuPlan = {
       ...plan,
       centerId,

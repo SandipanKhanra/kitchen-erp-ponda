@@ -22,8 +22,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '../config/firebase';
 import { UserProfile, UserRole } from '../types/user';
-import { Center } from '../types/center';
-import { INITIAL_CENTERS } from './mockData';
+import { Center, CenterCreationRequest } from '../types/center';
 import { sessionService } from './sessionService';
 
 export interface SignUpParams {
@@ -427,24 +426,72 @@ export class AuthService {
   }
 
   /**
-   * Fetch active centers from Firestore, seeding initial centers if empty
+   * Fetch centers from Firestore
    */
   async getCenters(): Promise<Center[]> {
     if (!isFirebaseConfigured || !db) {
-      return INITIAL_CENTERS;
+      return [];
     }
 
     try {
       const snap = await getDocs(collection(db, 'centers'));
-      if (snap.empty) {
-        // Seed initial centers to Firestore for instant usability
-        await this.seedInitialCenters();
-        return INITIAL_CENTERS;
-      }
       return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Center));
     } catch (err) {
-      console.warn('Could not fetch centers from Firestore, falling back to initial data:', err);
-      return INITIAL_CENTERS;
+      console.warn('Could not fetch centers from Firestore:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Create a new center in Firestore
+   */
+  async createCenter(center: Center): Promise<void> {
+    if (!isFirebaseConfigured || !db) return;
+    try {
+      await setDoc(doc(db, 'centers', center.id), center);
+    } catch (err) {
+      console.warn('Failed to create center in Firestore:', err);
+    }
+  }
+
+  /**
+   * Fetch center creation requests from Firestore
+   */
+  async getCenterRequests(): Promise<CenterCreationRequest[]> {
+    if (!isFirebaseConfigured || !db) return [];
+    try {
+      const snap = await getDocs(collection(db, 'center_requests'));
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() } as CenterCreationRequest));
+    } catch (err) {
+      console.warn('Could not fetch center requests from Firestore:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Save or update a center creation request in Firestore
+   */
+  async saveCenterRequest(req: CenterCreationRequest): Promise<void> {
+    if (!isFirebaseConfigured || !db) return;
+    try {
+      await setDoc(doc(db, 'center_requests', req.id), req, { merge: true });
+    } catch (err) {
+      console.warn('Failed to save center request in Firestore:', err);
+    }
+  }
+
+  /**
+   * Persist user role update in Firestore
+   */
+  async updateUserRoleInDb(uid: string, role: UserRole): Promise<void> {
+    if (!isFirebaseConfigured || !db) return;
+    try {
+      await updateDoc(doc(db, 'users', uid), {
+        role,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn('Failed to update user role in Firestore:', err);
     }
   }
 
@@ -472,20 +519,6 @@ export class AuthService {
       await deleteDoc(doc(db, 'centers', centerId));
     } catch (err) {
       console.warn('Failed to delete center in Firestore:', err);
-    }
-  }
-
-  /**
-   * Seed initial centers into Firestore
-   */
-  private async seedInitialCenters(): Promise<void> {
-    if (!db) return;
-    try {
-      for (const center of INITIAL_CENTERS) {
-        await setDoc(doc(db, 'centers', center.id), center);
-      }
-    } catch (e) {
-      console.warn('Failed to seed centers to Firestore:', e);
     }
   }
 

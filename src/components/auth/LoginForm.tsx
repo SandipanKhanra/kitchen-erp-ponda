@@ -33,7 +33,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
     login,
     loginWithGoogle,
     resetPassword,
-    setDemoMode,
     isAuthLoading,
     sessionExpiredNotice,
     clearSessionExpiredNotice,
@@ -337,20 +336,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
                 <ArrowRight className="w-3 h-3" />
               </button>
             </p>
-          </div>
-
-          {/* Quick Demo Mode Launcher */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                setDemoMode(true);
-                onSuccess?.();
-              }}
-              className="w-full py-2.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 border border-slate-200 dark:border-slate-700 transition"
-            >
-              <span>⚡ Explore with Demo Accounts (Maker-Checker Sandbox)</span>
-            </button>
           </div>
         </form>
       )}

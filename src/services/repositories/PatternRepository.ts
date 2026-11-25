@@ -2,7 +2,6 @@ import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../../config/firebase';
 import { MenuPattern } from '../../types/recipe';
 import { IPatternRepository } from '../../types/repositories';
-import { INITIAL_MENU_PATTERNS } from '../mockData';
 import { SafeStorage } from '../../utils/safeStorage';
 
 export class PatternRepository implements IPatternRepository {
@@ -11,6 +10,8 @@ export class PatternRepository implements IPatternRepository {
   }
 
   async fetchCenterPatterns(centerId: string): Promise<MenuPattern[]> {
+    if (!centerId) return [];
+
     if (isFirebaseConfigured && db) {
       try {
         let snap = await getDocs(collection(db, 'patterns'));
@@ -26,29 +27,20 @@ export class PatternRepository implements IPatternRepository {
               items.push(data);
             }
           });
-          if (items.length > 0) {
-            SafeStorage.setItem(this.getLocalKey(centerId), items);
-            return items;
-          }
+          SafeStorage.setItem(this.getLocalKey(centerId), items);
+          return items;
         }
-
-        const initial = INITIAL_MENU_PATTERNS.map((p) => ({ ...p, centerId }));
-        Promise.all(
-          initial.map((p) => setDoc(doc(db!, 'patterns', p.id), p, { merge: true }))
-        ).catch(() => {});
-        return initial;
+        return [];
       } catch (err) {
         console.warn('[PatternRepository] Failed to read patterns from Firestore:', err);
       }
     }
 
-    const cached = SafeStorage.getItem<MenuPattern[] | null>(this.getLocalKey(centerId), null);
-    if (cached) return cached;
-
-    return INITIAL_MENU_PATTERNS.map((p) => ({ ...p, centerId }));
+    return SafeStorage.getItem<MenuPattern[]>(this.getLocalKey(centerId), []);
   }
 
   async saveCenterPattern(centerId: string, pattern: MenuPattern): Promise<void> {
+    if (!centerId) return;
     const pat: MenuPattern = { ...pattern, centerId, updatedAt: new Date().toISOString() };
     const current = await this.fetchCenterPatterns(centerId);
     const idx = current.findIndex((p) => p.id === pattern.id);

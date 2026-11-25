@@ -15,8 +15,8 @@ import { useAppNavigation } from './hooks/useAppNavigation';
 import { ChefHat } from 'lucide-react';
 
 function AppContent() {
-  const { firebaseUser, currentUser, isSAdmin, isDemoMode, isAuthLoading } = useAuth();
-  const isAuthenticated = Boolean(firebaseUser || isDemoMode);
+  const { firebaseUser, currentUser, isSAdmin, isAuthLoading } = useAuth();
+  const isAuthenticated = Boolean(firebaseUser);
   const needsCenterSelection = Boolean(firebaseUser && currentUser.needsCenterSelection && !isSAdmin);
   const { isAuditModalOpen, auditModalCategory, closeAuditModal } = useKitchen();
   const {
@@ -46,8 +46,8 @@ function AppContent() {
     );
   }
 
-  // If not signed in and not in demo mode: Show Auth View directly as clean centered page
-  if (!firebaseUser && !isDemoMode) {
+  // If not signed in: Show Auth View directly as clean centered page
+  if (!firebaseUser) {
     return (
       <div className="min-h-screen bg-transparent text-slate-900 dark:text-slate-100 flex items-center justify-center p-3 sm:p-4 transition-colors duration-200">
         <AuthView

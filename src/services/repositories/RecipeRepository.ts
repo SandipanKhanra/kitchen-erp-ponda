@@ -2,7 +2,6 @@ import { collection, doc, getDocs, setDoc, deleteDoc } from 'firebase/firestore'
 import { db, isFirebaseConfigured } from '../../config/firebase';
 import { Recipe } from '../../types/recipe';
 import { IRecipeRepository } from '../../types/repositories';
-import { INITIAL_RECIPES } from '../mockData';
 import { SafeStorage } from '../../utils/safeStorage';
 
 export class RecipeRepository implements IRecipeRepository {
@@ -11,6 +10,8 @@ export class RecipeRepository implements IRecipeRepository {
   }
 
   async fetchCenterRecipes(centerId: string): Promise<Recipe[]> {
+    if (!centerId) return [];
+
     if (isFirebaseConfigured && db) {
       try {
         let snap = await getDocs(collection(db, 'recipes'));
@@ -27,45 +28,20 @@ export class RecipeRepository implements IRecipeRepository {
             }
           });
 
-          // Backfill missing Ashram recipes if any
-          const existingIds = new Set(items.map((i) => i.id));
-          const missingAshram = INITIAL_RECIPES.filter(
-            (r) => r.isAshramSpecific && !existingIds.has(r.id)
-          ).map((r) => ({ ...r, centerId }));
-
-          if (missingAshram.length > 0) {
-            Promise.all(
-              missingAshram.map((r) =>
-                setDoc(doc(db!, 'recipes', r.id), r, { merge: true })
-              )
-            ).catch(() => {});
-            items.push(...missingAshram);
-          }
-
           SafeStorage.setItem(this.getLocalKey(centerId), items);
           return items;
         }
-
-        const initialForCenter = INITIAL_RECIPES.map((r) => ({ ...r, centerId }));
-        Promise.all(
-          initialForCenter.map((r) =>
-            setDoc(doc(db!, 'recipes', r.id), r, { merge: true })
-          )
-        ).catch((err) => console.warn('[RecipeRepository] Could not seed recipes:', err));
-
-        return initialForCenter;
+        return [];
       } catch (err) {
         console.warn(`[RecipeRepository] Firestore read failed for center ${centerId}, falling back to cache:`, err);
       }
     }
 
-    const cached = SafeStorage.getItem<Recipe[] | null>(this.getLocalKey(centerId), null);
-    if (cached) return cached;
-
-    return INITIAL_RECIPES.map((r) => ({ ...r, centerId }));
+    return SafeStorage.getItem<Recipe[]>(this.getLocalKey(centerId), []);
   }
 
   async saveCenterRecipe(centerId: string, recipe: Recipe): Promise<void> {
+    if (!centerId) return;
     const recipeWithCenter: Recipe = {
       ...recipe,
       centerId,
@@ -90,6 +66,7 @@ export class RecipeRepository implements IRecipeRepository {
   }
 
   async deleteCenterRecipe(centerId: string, recipeId: string): Promise<void> {
+    if (!centerId) return;
     const current = await this.fetchCenterRecipes(centerId);
     const updated = current.filter((r) => r.id !== recipeId);
     SafeStorage.setItem(this.getLocalKey(centerId), updated);
