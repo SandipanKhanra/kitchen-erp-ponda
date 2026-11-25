@@ -441,15 +441,23 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                 onClick={() => setSelectedDay(dayNum)}
                 className={`flex-1 min-w-[52px] sm:min-w-[60px] py-2.5 rounded-xl font-black text-xs transition-all flex flex-col items-center relative ${
                   isSelected
-                    ? 'bg-gradient-to-tr from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25 scale-105'
+                    ? isEkadashi
+                      ? 'bg-gradient-to-tr from-purple-600 to-fuchsia-600 text-white shadow-md shadow-purple-500/30 scale-105 ring-2 ring-purple-300 dark:ring-purple-700'
+                      : 'bg-gradient-to-tr from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25 scale-105'
                     : isEkadashi
-                    ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800'
+                    ? 'bg-purple-50 dark:bg-purple-950/50 text-purple-800 dark:text-purple-200 border border-purple-300 dark:border-purple-700'
                     : 'bg-slate-50 dark:bg-slate-900/60 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                 }`}
               >
-                <span className="text-[10px] font-bold opacity-75">D{dayNum}</span>
+                <span className={`text-[10px] font-bold ${isSelected ? 'opacity-95' : 'opacity-75'}`}>D{dayNum}</span>
                 {isEkadashi && (
-                  <span className="text-[8px] font-black uppercase text-amber-500 mt-0.5">
+                  <span
+                    className={`text-[8px] font-black uppercase mt-0.5 px-1 rounded ${
+                      isSelected
+                        ? 'bg-white/20 text-white'
+                        : 'text-purple-700 dark:text-purple-300'
+                    }`}
+                  >
                     Ekadashi
                   </span>
                 )}
