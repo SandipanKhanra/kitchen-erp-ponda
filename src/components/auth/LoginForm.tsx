@@ -29,7 +29,15 @@ interface LoginFormProps {
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSuccess }) => {
-  const { login, loginWithGoogle, resetPassword, setDemoMode, isAuthLoading } = useAuth();
+  const {
+    login,
+    loginWithGoogle,
+    resetPassword,
+    setDemoMode,
+    isAuthLoading,
+    sessionExpiredNotice,
+    clearSessionExpiredNotice,
+  } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -116,6 +124,22 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
 
   return (
     <div className="w-full">
+      {sessionExpiredNotice && (
+        <div className="mb-4 p-3.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl flex items-start justify-between space-x-2.5 text-amber-800 dark:text-amber-300 text-xs">
+          <div className="flex items-start space-x-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
+            <span>{sessionExpiredNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={clearSessionExpiredNotice}
+            className="text-[10px] font-bold underline ml-2"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {error && (
         <div className="mb-4 p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-xl flex items-start space-x-2.5 text-rose-700 dark:text-rose-300 text-xs">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />

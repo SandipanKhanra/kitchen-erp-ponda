@@ -126,5 +126,19 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if false;
     }
+
+    // ==========================================
+    // 7. Session Management (Max 2 Devices, 30-Min TTL)
+    // ==========================================
+    match /user_sessions/{sessionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.uid == request.auth.uid || isSAdmin());
+      allow delete: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid ||
+        (request.auth.token.email != null && resource.data.emailLower == request.auth.token.email.lower()) ||
+        isSAdmin()
+      );
+    }
   }
 }

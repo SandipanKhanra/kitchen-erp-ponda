@@ -49,6 +49,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
     switchCenter,
     centerRequests,
     logout,
+    sessionMinutesLeft,
   } = useAuth();
   const { theme, toggleTheme, isSyncing, syncAllWithFirestore } = useKitchen();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -273,6 +274,14 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
                       <div className="font-bold text-slate-800 dark:text-white text-xs truncate">
                         {currentCenter?.name || 'Ponda Center'}
                       </div>
+                      {sessionMinutesLeft !== null && (
+                        <div className="pt-1.5 mt-1.5 border-t border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 dark:text-slate-400">Session Timeout:</span>
+                          <span className="font-bold text-amber-600 dark:text-amber-400">
+                            {sessionMinutesLeft} min left (max 2 devices)
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Sign Out Button */}

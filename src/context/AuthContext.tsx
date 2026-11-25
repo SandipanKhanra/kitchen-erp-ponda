@@ -4,6 +4,7 @@ import { UserProfile, UserRole } from '../types/user';
 import { Center, CenterCreationRequest } from '../types/center';
 import { INITIAL_USERS, INITIAL_CENTERS, INITIAL_CENTER_REQUESTS } from '../services/mockData';
 import { authService, SignUpParams } from '../services/authService';
+import { sessionService } from '../services/sessionService';
 import { isFirebaseConfigured } from '../config/firebase';
 
 interface AuthContextType {
@@ -21,6 +22,9 @@ interface AuthContextType {
   isDemoMode: boolean;
   isAuthLoading: boolean;
   isFirebaseConfigured: boolean;
+  sessionMinutesLeft: number | null;
+  sessionExpiredNotice: string | null;
+  clearSessionExpiredNotice: () => void;
   // Auth actions
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: (centerId?: string, centerName?: string) => Promise<void>;
@@ -61,12 +65,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Default demo user: Krishna Chaitanya Dasa (Admin 1 of Ponda)
   const [currentUser, setCurrentUser] = useState<UserProfile>(INITIAL_USERS[1]);
   const [currentCenter, setCurrentCenter] = useState<Center>(INITIAL_CENTERS[0]);
+  const [sessionMinutesLeft, setSessionMinutesLeft] = useState<number | null>(null);
+  const [sessionExpiredNotice, setSessionExpiredNotice] = useState<string | null>(null);
+
+  const clearSessionExpiredNotice = () => setSessionExpiredNotice(null);
 
   const setDemoMode = (enabled: boolean) => {
     setIsDemoModeState(enabled);
     localStorage.setItem('kitchen_demo_mode', enabled ? 'true' : 'false');
     if (enabled && !firebaseUser) {
+      setSessionExpiredNotice(null);
       setCurrentUser(users[1]); // Default to Admin 1
+      sessionService.createDemoSession(users[1].uid, users[1].email);
+    } else if (!enabled && !firebaseUser) {
+      sessionService.endCurrentSession();
+      setSessionMinutesLeft(null);
     }
   };
 
@@ -148,6 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Real Firebase Auth Actions
   const login = async (email: string, password: string) => {
     setIsAuthLoading(true);
+    setSessionExpiredNotice(null);
     try {
       const profile = await authService.signIn(email, password);
       setCurrentUser(profile);
@@ -160,6 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async (centerId?: string, centerName?: string) => {
     setIsAuthLoading(true);
+    setSessionExpiredNotice(null);
     try {
       const profile = await authService.signInWithGoogle(centerId, centerName);
       setCurrentUser(profile);
@@ -172,6 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (params: SignUpParams) => {
     setIsAuthLoading(true);
+    setSessionExpiredNotice(null);
     try {
       const profile = await authService.signUp(params);
       setCurrentUser(profile);
@@ -188,11 +204,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await authService.signOut();
       setFirebaseUser(null);
       setIsDemoModeState(false);
+      setSessionMinutesLeft(null);
       localStorage.removeItem('kitchen_demo_mode');
     } finally {
       setIsAuthLoading(false);
     }
   };
+
+  // 30-Minute Session Timeout Enforcement
+  useEffect(() => {
+    const isAuthenticated = Boolean(firebaseUser || isDemoMode);
+    if (!isAuthenticated) {
+      setSessionMinutesLeft(null);
+      return;
+    }
+
+    const checkSession = () => {
+      const session = sessionService.getLocalSession();
+      if (!session) return;
+
+      const remainingMs = session.expiresAt - Date.now();
+      if (remainingMs <= 0) {
+        setSessionExpiredNotice('Your 30-minute session has expired. Please sign in again.');
+        logout();
+      } else {
+        setSessionMinutesLeft(Math.max(1, Math.ceil(remainingMs / 60000)));
+      }
+    };
+
+    checkSession();
+    const interval = setInterval(checkSession, 10000); // check every 10s
+    return () => clearInterval(interval);
+  }, [firebaseUser, isDemoMode]);
 
   const resetPassword = async (email: string) => {
     await authService.resetPassword(email);
@@ -385,6 +428,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isDemoMode,
         isAuthLoading,
         isFirebaseConfigured,
+        sessionMinutesLeft,
+        sessionExpiredNotice,
+        clearSessionExpiredNotice,
         login,
         loginWithGoogle,
         signUp,

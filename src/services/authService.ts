@@ -24,6 +24,7 @@ import { auth, db, isFirebaseConfigured } from '../config/firebase';
 import { UserProfile, UserRole } from '../types/user';
 import { Center } from '../types/center';
 import { INITIAL_CENTERS } from './mockData';
+import { sessionService } from './sessionService';
 
 export interface SignUpParams {
   email: string;
@@ -35,6 +36,8 @@ export interface SignUpParams {
 }
 
 export class AuthService {
+  private isAuthenticating = false;
+
   /**
    * Look up an existing user profile in Firestore by normalized email
    * so Google Sign-In and Email/Password registrations with the same email
@@ -222,6 +225,7 @@ export class AuthService {
     };
 
     await setDoc(doc(db, 'users', user.uid), userProfile);
+    await sessionService.createSession(userProfile.uid, userProfile.email);
     return userProfile;
   }
 
@@ -233,32 +237,46 @@ export class AuthService {
       throw new Error('Firebase credentials are not configured.');
     }
 
-    const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-    const user = cred.user;
+    this.isAuthenticating = true;
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const user = cred.user;
 
-    // Retrieve profile from Firestore
-    const userDocRef = doc(db, 'users', user.uid);
-    const userSnap = await getDoc(userDocRef);
+      // Retrieve profile from Firestore
+      const userDocRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userDocRef);
 
-    if (userSnap.exists()) {
-      return userSnap.data() as UserProfile;
+      let profile: UserProfile;
+      if (userSnap.exists()) {
+        profile = userSnap.data() as UserProfile;
+      } else {
+        const now = new Date().toISOString();
+        profile = {
+          uid: user.uid,
+          name: user.displayName || user.email?.split('@')[0] || 'Devotee',
+          email: user.email || email.trim(),
+          emailLower: (user.email || email.trim()).toLowerCase(),
+          role: 'user',
+          centerId: 'center_ponda',
+          centerName: 'ISKCON Ponda Center',
+          createdAt: now,
+          updatedAt: now,
+        };
+        await setDoc(userDocRef, profile);
+      }
+
+      // Enforce 2-device limit & 30-min session
+      try {
+        await sessionService.createSession(profile.uid, profile.email);
+      } catch (sessionErr) {
+        await firebaseSignOut(auth);
+        throw sessionErr;
+      }
+
+      return profile;
+    } finally {
+      this.isAuthenticating = false;
     }
-
-    // Fallback if profile doc does not exist yet (e.g. created manually in console)
-    const now = new Date().toISOString();
-    const fallbackProfile: UserProfile = {
-      uid: user.uid,
-      name: user.displayName || user.email?.split('@')[0] || 'Devotee',
-      email: user.email || email.trim(),
-      role: 'user',
-      centerId: 'center_ponda',
-      centerName: 'ISKCON Ponda Center',
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await setDoc(userDocRef, fallbackProfile);
-    return fallbackProfile;
   }
 
   /**
@@ -274,89 +292,108 @@ export class AuthService {
 
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    const cred = await signInWithPopup(auth, provider);
-    const user = cred.user;
-    const normalizedEmail = (user.email || '').trim().toLowerCase();
-    const now = new Date().toISOString();
-
-    const userDocRef = doc(db, 'users', user.uid);
+    this.isAuthenticating = true;
     try {
-      const userSnap = await getDoc(userDocRef);
-      if (userSnap.exists()) {
-        const existing = userSnap.data() as UserProfile;
-        const providers = Array.from(new Set([...(existing.authProviders || []), 'google.com']));
-        if (!existing.emailLower || !existing.authProviders?.includes('google.com')) {
-          const updated: UserProfile = {
-            ...existing,
+      const cred = await signInWithPopup(auth, provider);
+      const user = cred.user;
+      const normalizedEmail = (user.email || '').trim().toLowerCase();
+      const now = new Date().toISOString();
+
+      let profile: UserProfile | null = null;
+      const userDocRef = doc(db, 'users', user.uid);
+
+      try {
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+          const existing = userSnap.data() as UserProfile;
+          const providers = Array.from(new Set([...(existing.authProviders || []), 'google.com']));
+          if (!existing.emailLower || !existing.authProviders?.includes('google.com')) {
+            const updated: UserProfile = {
+              ...existing,
+              emailLower: normalizedEmail,
+              avatarUrl: user.photoURL || existing.avatarUrl,
+              authProviders: providers,
+              updatedAt: now,
+            };
+            await setDoc(userDocRef, updated, { merge: true }).catch(() => {});
+            profile = updated;
+          } else {
+            profile = existing;
+          }
+        }
+      } catch (e) {
+        console.warn('Could not read existing user doc in Google sign in, checking email:', e);
+      }
+
+      if (!profile) {
+        // Check if a profile with this exact email already exists (e.g., created via Email/Password)
+        const existingByEmail = await this.findUserByEmail(normalizedEmail);
+        if (existingByEmail) {
+          profile = {
+            ...existingByEmail,
+            uid: user.uid,
+            email: user.email || existingByEmail.email,
             emailLower: normalizedEmail,
-            avatarUrl: user.photoURL || existing.avatarUrl,
-            authProviders: providers,
+            avatarUrl: user.photoURL || existingByEmail.avatarUrl,
+            authProviders: Array.from(new Set([...(existingByEmail.authProviders || ['password']), 'google.com'])),
+            needsCenterSelection: existingByEmail.needsCenterSelection ?? false,
             updatedAt: now,
           };
-          await setDoc(userDocRef, updated, { merge: true }).catch(() => {});
-          return updated;
+          try {
+            await setDoc(userDocRef, profile, { merge: true });
+          } catch (e) {
+            console.warn('Could not persist unified Google user profile to Firestore:', e);
+          }
+        } else {
+          // Brand new Google user -> prompt center selection if not sadmin and no center explicitly chosen
+          const isSAdminEmail = Boolean(
+            normalizedEmail && (normalizedEmail.includes('sadmin') || normalizedEmail === 'sadmin@iskcon.org')
+          );
+          const role: UserRole = isSAdminEmail ? 'sadmin' : 'user';
+          const requiresCenterPick = role !== 'sadmin' && !selectedCenterId;
+
+          profile = {
+            uid: user.uid,
+            name: user.displayName || user.email?.split('@')[0] || 'Devotee',
+            email: user.email || '',
+            emailLower: normalizedEmail,
+            role,
+            centerId: role === 'sadmin' ? 'all' : (selectedCenterId || 'center_ponda'),
+            centerName: role === 'sadmin' ? 'Global Administration' : (selectedCenterName || 'ISKCON Ponda Center'),
+            avatarUrl: user.photoURL || undefined,
+            authProviders: ['google.com'],
+            needsCenterSelection: requiresCenterPick,
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          try {
+            await setDoc(userDocRef, profile, { merge: true });
+          } catch (e) {
+            console.warn('Could not persist Google user profile to Firestore:', e);
+          }
         }
-        return existing;
       }
-    } catch (e) {
-      console.warn('Could not read existing user doc in Google sign in, checking email:', e);
-    }
 
-    // Check if a profile with this exact email already exists (e.g., created via Email/Password)
-    const existingByEmail = await this.findUserByEmail(normalizedEmail);
-    if (existingByEmail) {
-      const unifiedProfile: UserProfile = {
-        ...existingByEmail,
-        uid: user.uid,
-        email: user.email || existingByEmail.email,
-        emailLower: normalizedEmail,
-        avatarUrl: user.photoURL || existingByEmail.avatarUrl,
-        authProviders: Array.from(new Set([...(existingByEmail.authProviders || ['password']), 'google.com'])),
-        needsCenterSelection: existingByEmail.needsCenterSelection ?? false,
-        updatedAt: now,
-      };
+      // Enforce 2-device limit & 30-min session
       try {
-        await setDoc(userDocRef, unifiedProfile, { merge: true });
-      } catch (e) {
-        console.warn('Could not persist unified Google user profile to Firestore:', e);
+        await sessionService.createSession(profile.uid, profile.email);
+      } catch (sessionErr) {
+        await firebaseSignOut(auth);
+        throw sessionErr;
       }
-      return unifiedProfile;
+
+      return profile;
+    } finally {
+      this.isAuthenticating = false;
     }
-
-    // Brand new Google user -> prompt center selection if not sadmin and no center explicitly chosen
-    const isSAdminEmail = Boolean(
-      normalizedEmail && (normalizedEmail.includes('sadmin') || normalizedEmail === 'sadmin@iskcon.org')
-    );
-    const role: UserRole = isSAdminEmail ? 'sadmin' : 'user';
-    const requiresCenterPick = role !== 'sadmin' && !selectedCenterId;
-
-    const newProfile: UserProfile = {
-      uid: user.uid,
-      name: user.displayName || user.email?.split('@')[0] || 'Devotee',
-      email: user.email || '',
-      emailLower: normalizedEmail,
-      role,
-      centerId: role === 'sadmin' ? 'all' : (selectedCenterId || 'center_ponda'),
-      centerName: role === 'sadmin' ? 'Global Administration' : (selectedCenterName || 'ISKCON Ponda Center'),
-      avatarUrl: user.photoURL || undefined,
-      authProviders: ['google.com'],
-      needsCenterSelection: requiresCenterPick,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    try {
-      await setDoc(userDocRef, newProfile, { merge: true });
-    } catch (e) {
-      console.warn('Could not persist Google user profile to Firestore:', e);
-    }
-    return newProfile;
   }
 
   /**
-   * Sign out current Firebase Auth user
+   * Sign out current Firebase Auth user and clear session
    */
   async signOut(): Promise<void> {
+    await sessionService.endCurrentSession();
     if (auth) {
       await firebaseSignOut(auth);
     }
@@ -453,6 +490,26 @@ export class AuthService {
       if (!db) {
         callback(firebaseUser, null);
         return;
+      }
+
+      // Skip intermediate auth state check while signIn/signUp/Google popup is creating the session
+      if (!this.isAuthenticating) {
+        const localSession = sessionService.getLocalSession();
+        if (localSession && sessionService.isSessionExpired(localSession)) {
+          await sessionService.endCurrentSession();
+          if (auth) await firebaseSignOut(auth);
+          callback(null, null);
+          return;
+        }
+        if (!localSession) {
+          try {
+            await sessionService.createSession(firebaseUser.uid, firebaseUser.email || '');
+          } catch {
+            if (auth) await firebaseSignOut(auth);
+            callback(null, null);
+            return;
+          }
+        }
       }
 
       try {
