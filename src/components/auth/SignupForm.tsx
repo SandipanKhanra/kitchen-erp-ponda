@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Mail, Lock, User, Building2, Key, Eye, EyeOff, UserPlus, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, User, Building2, Key, Eye, EyeOff, UserPlus, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 const GoogleIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -40,6 +40,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSucce
   const [passcode, setPasscode] = useState('');
   const [showPasscodeField, setShowPasscodeField] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const formatErrorMessage = (err: any): string => {
@@ -96,7 +97,10 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSucce
         centerName: selectedCenter.name,
         passcode: passcode.trim(),
       });
-      onSuccess?.();
+      setSuccessMessage('Registration successful! Redirecting you to Sign In...');
+      setTimeout(() => {
+        onSwitchToLogin();
+      }, 1800);
     } catch (err: any) {
       setError(formatErrorMessage(err));
     } finally {
@@ -123,6 +127,13 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSucce
 
   return (
     <div className="w-full">
+      {successMessage && (
+        <div className="mb-4 p-3.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center space-x-2.5 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
       {error && (
         <div className="mb-4 p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-xl flex items-start space-x-2.5 text-rose-700 dark:text-rose-300 text-xs">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />

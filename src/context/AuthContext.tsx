@@ -186,8 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthLoading(true);
     setSessionExpiredNotice(null);
     try {
-      const profile = await authService.signUp(params);
-      setCurrentUser(profile);
+      await authService.signUp(params);
     } finally {
       setIsAuthLoading(false);
     }

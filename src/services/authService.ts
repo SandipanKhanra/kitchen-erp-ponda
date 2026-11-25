@@ -155,77 +155,72 @@ export class AuthService {
     }
 
     // 1. Create Firebase Auth user (or handle if email already registered)
-    let user: FirebaseUser;
+    this.isAuthenticating = true;
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      user = cred.user;
-    } catch (err: any) {
-      if (err?.code === 'auth/email-already-in-use') {
-        // Check if user can sign in with this password (existing email/password user)
-        try {
-          const signInCred = await signInWithEmailAndPassword(auth, email.trim(), password);
-          user = signInCred.user;
-          const existingSnap = await getDoc(doc(db, 'users', user.uid));
-          if (existingSnap.exists()) {
-            return existingSnap.data() as UserProfile;
-          }
-        } catch {
+      let user: FirebaseUser;
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        user = cred.user;
+      } catch (err: any) {
+        if (err?.code === 'auth/email-already-in-use') {
           throw new Error(
-            'An account with this email already exists (e.g. via Google Sign-In). Please sign in using "Continue with Google" to access your existing account.'
+            'An account with this email already exists. Please switch to "Devotee Sign In" to log in.'
           );
         }
-      } else {
         throw err;
       }
+
+      // 2. Update display name in Firebase Auth
+      try {
+        await updateProfile(user, { displayName: name.trim() });
+      } catch (e) {
+        console.warn('Could not update Firebase displayName:', e);
+      }
+
+      // 3. Check if an account with the same email already exists in Firestore (e.g. from Google Sign-In)
+      const existingByEmail = await this.findUserByEmail(normalizedEmail);
+      const now = new Date().toISOString();
+
+      let finalProfile: UserProfile;
+      if (existingByEmail) {
+        finalProfile = {
+          ...existingByEmail,
+          uid: user.uid,
+          name: existingByEmail.name || name.trim(),
+          email: user.email || email.trim(),
+          emailLower: normalizedEmail,
+          role: role !== 'user' ? role : existingByEmail.role,
+          centerId: existingByEmail.centerId || (role === 'sadmin' ? 'all' : centerId),
+          centerName: existingByEmail.centerName || (role === 'sadmin' ? 'Global Administration' : centerName),
+          authProviders: Array.from(new Set([...(existingByEmail.authProviders || []), 'password'])),
+          needsCenterSelection: false,
+          updatedAt: now,
+        };
+        await setDoc(doc(db, 'users', user.uid), finalProfile, { merge: true });
+      } else {
+        // 4. Create new User Profile document in Firestore
+        finalProfile = {
+          uid: user.uid,
+          name: name.trim(),
+          email: user.email || email.trim(),
+          emailLower: normalizedEmail,
+          role,
+          centerId: role === 'sadmin' ? 'all' : centerId,
+          centerName: role === 'sadmin' ? 'Global Administration' : centerName,
+          authProviders: ['password'],
+          needsCenterSelection: false,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await setDoc(doc(db, 'users', user.uid), finalProfile);
+      }
+
+      // Sign out immediately so user is redirected to Login page to sign in
+      await firebaseSignOut(auth);
+      return finalProfile;
+    } finally {
+      this.isAuthenticating = false;
     }
-
-    // 2. Update display name in Firebase Auth
-    try {
-      await updateProfile(user, { displayName: name.trim() });
-    } catch (e) {
-      console.warn('Could not update Firebase displayName:', e);
-    }
-
-    // 3. Check if an account with the same email already exists in Firestore (e.g. from Google Sign-In)
-    const existingByEmail = await this.findUserByEmail(normalizedEmail);
-    const now = new Date().toISOString();
-
-    if (existingByEmail) {
-      const unifiedProfile: UserProfile = {
-        ...existingByEmail,
-        uid: user.uid,
-        name: existingByEmail.name || name.trim(),
-        email: user.email || email.trim(),
-        emailLower: normalizedEmail,
-        role: role !== 'user' ? role : existingByEmail.role,
-        centerId: existingByEmail.centerId || (role === 'sadmin' ? 'all' : centerId),
-        centerName: existingByEmail.centerName || (role === 'sadmin' ? 'Global Administration' : centerName),
-        authProviders: Array.from(new Set([...(existingByEmail.authProviders || []), 'password'])),
-        needsCenterSelection: false,
-        updatedAt: now,
-      };
-      await setDoc(doc(db, 'users', user.uid), unifiedProfile, { merge: true });
-      return unifiedProfile;
-    }
-
-    // 4. Create new User Profile document in Firestore
-    const userProfile: UserProfile = {
-      uid: user.uid,
-      name: name.trim(),
-      email: user.email || email.trim(),
-      emailLower: normalizedEmail,
-      role,
-      centerId: role === 'sadmin' ? 'all' : centerId,
-      centerName: role === 'sadmin' ? 'Global Administration' : centerName,
-      authProviders: ['password'],
-      needsCenterSelection: false,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await setDoc(doc(db, 'users', user.uid), userProfile);
-    await sessionService.createSession(userProfile.uid, userProfile.email);
-    return userProfile;
   }
 
   /**
@@ -542,23 +537,25 @@ export class AuthService {
         return;
       }
 
-      // Skip intermediate auth state check while signIn/signUp/Google popup is creating the session
-      if (!this.isAuthenticating) {
-        const localSession = sessionService.getLocalSession();
-        if (localSession && sessionService.isSessionExpired(localSession)) {
-          await sessionService.endCurrentSession();
+      // Ignore intermediate auth state events while signIn/signUp/Google popup is in progress
+      if (this.isAuthenticating) {
+        return;
+      }
+
+      const localSession = sessionService.getLocalSession();
+      if (localSession && sessionService.isSessionExpired(localSession)) {
+        await sessionService.endCurrentSession();
+        if (auth) await firebaseSignOut(auth);
+        callback(null, null);
+        return;
+      }
+      if (!localSession) {
+        try {
+          await sessionService.createSession(firebaseUser.uid, firebaseUser.email || '');
+        } catch {
           if (auth) await firebaseSignOut(auth);
           callback(null, null);
           return;
-        }
-        if (!localSession) {
-          try {
-            await sessionService.createSession(firebaseUser.uid, firebaseUser.email || '');
-          } catch {
-            if (auth) await firebaseSignOut(auth);
-            callback(null, null);
-            return;
-          }
         }
       }
 
