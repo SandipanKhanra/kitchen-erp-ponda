@@ -7,7 +7,6 @@ import {
   resolveCenterLocation,
   parseVaishnavaICS,
 } from '../../core/gaurabdaCalendarEngine';
-import { ISKCON_CHOWPATTY_CALENDAR } from '../../core/iskconChowpattyCalendar';
 import { calendarRepository } from '../../services/repositories/CalendarRepository';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -21,8 +20,6 @@ import {
   Clock,
   RefreshCw,
   Upload,
-  ExternalLink,
-  Calendar as CalendarIcon,
 } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
 import { formatDateDDMMYYYY } from '../../utils/formatters';
@@ -40,7 +37,6 @@ export const VaishnavaCalendarView: React.FC = () => {
   const [pageSize, setPageSize] = useState<number>(6);
   const [syncVersion, setSyncVersion] = useState<number>(0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [calendarViewMode, setCalendarViewMode] = useState<'list' | 'embed'>('list');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load any previously synced occasions from Firestore for this center
@@ -124,7 +120,7 @@ export const VaishnavaCalendarView: React.FC = () => {
         <div>
           <div className="flex items-center space-x-2 flex-wrap gap-y-1">
             <span className="bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-xs font-black px-2.5 py-1 rounded-md border border-purple-300 dark:border-purple-800">
-              ISKCON CHOWPATTY GOOGLE CALENDAR
+              GCAL / GAURABDA ENGINE
             </span>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
               Vaishnava Calendar & Fasting Rules
@@ -138,49 +134,12 @@ export const VaishnavaCalendarView: React.FC = () => {
                 {centerLocation.longitude.toFixed(2)}°E &bull; {centerLocation.timezone})
               </span>
             </span>
-            <span>&bull; Synced with ISKCON Chowpatty Google Calendar feed (2025–2030) + Gaurabda fallback</span>
+            <span>&bull; GCAL Vaishnava dates &amp; Parana break-fast windows</span>
           </div>
         </div>
 
-        {/* Year Selector + View Toggle + Sync & .ics Import Controls */}
+        {/* Year Selector + Sync & .ics Import Controls */}
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl font-bold">
-            <button
-              type="button"
-              onClick={() => setCalendarViewMode('list')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                calendarViewMode === 'list'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              Fasting List
-            </button>
-            <button
-              type="button"
-              onClick={() => setCalendarViewMode('embed')}
-              className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg transition-all ${
-                calendarViewMode === 'embed'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <CalendarIcon className="w-3.5 h-3.5 text-purple-500" />
-              <span>Google Calendar</span>
-            </button>
-          </div>
-
-          <a
-            href={ISKCON_CHOWPATTY_CALENDAR.addToCalendarUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-white/85 dark:bg-slate-800/85 hover:bg-slate-50 dark:hover:bg-slate-700 border-y border-slate-200/80 dark:border-slate-700/80 border-l-2 border-l-orange-500 border-r-2 border-r-purple-500/50 text-slate-700 dark:text-slate-200 rounded-xl font-bold shadow-sm transition"
-            title="Subscribe to ISKCON Chowpatty Vaishnava Calendar in your Google Calendar"
-          >
-            <ExternalLink className="w-3.5 h-3.5 text-orange-500" />
-            <span>+ Add to My Google Calendar</span>
-          </a>
-
           <select
             value={selectedYear}
             onChange={(e) => {
@@ -248,62 +207,38 @@ export const VaishnavaCalendarView: React.FC = () => {
         </div>
       </div>
 
-      {calendarViewMode === 'embed' ? (
-        <div className="modern-card rounded-3xl p-3 sm:p-4 overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-3 px-1">
-            <div className="text-xs font-bold text-slate-700 dark:text-slate-200">
-              ISKCON Chowpatty Official Google Calendar (Asia/Kolkata)
-            </div>
-            <a
-              href={ISKCON_CHOWPATTY_CALENDAR.embedUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center space-x-1"
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div className="flex flex-wrap gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl text-xs font-bold w-full sm:w-auto">
+          {types.map((t) => (
+            <button
+              key={t}
+              onClick={() => handleTypeChange(t)}
+              className={`px-3 py-1.5 rounded-xl transition-all ${
+                selectedType === t
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
             >
-              <span>Open Full Window</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-          <iframe
-            src={ISKCON_CHOWPATTY_CALENDAR.embedUrl}
-            title="ISKCON Chowpatty Vaishnava Google Calendar"
-            className="w-full h-[650px] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white"
+              {t} {t === 'All' ? `(${occasions.length})` : ''}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full sm:w-64">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            placeholder="Search occasion or date..."
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white placeholder-slate-400"
           />
         </div>
-      ) : (
-        <>
-          {/* Filter and Search Bar */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-            <div className="flex flex-wrap gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl text-xs font-bold w-full sm:w-auto">
-              {types.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => handleTypeChange(t)}
-                  className={`px-3 py-1.5 rounded-xl transition-all ${
-                    selectedType === t
-                      ? 'bg-purple-600 text-white shadow-sm'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  {t} {t === 'All' ? `(${occasions.length})` : ''}
-                </button>
-              ))}
-            </div>
+      </div>
 
-            <div className="relative w-full sm:w-64">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Search occasion or date..."
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white placeholder-slate-400"
-              />
-            </div>
-          </div>
-
-          {/* Calendar Occasions Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Calendar Occasions Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {paginated.length === 0 ? (
           <div className="col-span-full py-12 text-center text-slate-400 text-xs">
             No occasions found matching your filter.
@@ -364,8 +299,6 @@ export const VaishnavaCalendarView: React.FC = () => {
         }}
         pageSizeOptions={[6, 12, 24]}
       />
-        </>
-      )}
     </div>
   );
 };
