@@ -27,6 +27,7 @@ import { MealType, Recipe, MenuPattern, Occasion } from '../../types/recipe';
 import { FifteenDayMenuPlan } from '../../types/menu';
 import { sanitizeNumericChange } from '../../utils/numberInput';
 import { generateAshramWeeklyRotation, generateFull15DayMenuFromStartDate, formatDateISO } from '../../core/rotationEngine';
+import { resolveCenterLocation } from '../../core/gaurabdaCalendarEngine';
 import { formatDateDDMMYYYY } from '../../utils/formatters';
 
 export type MealSlotKey = 'breakfast' | 'lunch' | 'dinner' | 'brahmacariBreakfast' | 'brahmacariLunch';
@@ -48,7 +49,7 @@ const getMealSlotTitle = (key: MealSlotKey | null) => {
 };
 
 export const FifteenDayMenuPlanner: React.FC = () => {
-  const { currentUser, isAdmin, isSAdmin, allUsers } = useAuth();
+  const { currentUser, currentCenter, isAdmin, isSAdmin, allUsers } = useAuth();
   const {
     activeMenuPlan,
     saveMenuPlan,
@@ -92,7 +93,8 @@ export const FifteenDayMenuPlanner: React.FC = () => {
 
   const handleStartDateChange = (newStartDate: string) => {
     if (!newStartDate) return;
-    const generated = generateFull15DayMenuFromStartDate(newStartDate, recipes, activeMenuPlan);
+    const centerLocation = resolveCenterLocation(currentCenter);
+    const generated = generateFull15DayMenuFromStartDate(newStartDate, recipes, activeMenuPlan, centerLocation);
     saveMenuPlan(generated, { recordAudit: false });
     setHasUnsavedChanges(true);
     setApprovalMessage(

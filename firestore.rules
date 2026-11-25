@@ -111,7 +111,7 @@ service cloud.firestore {
     // ==========================================
     match /vaishnava_calendar/{occasionId} {
       allow read: if true;
-      allow write: if isSAdmin();
+      allow write: if isAuthenticated();
     }
 
     // ==========================================

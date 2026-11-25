@@ -7,6 +7,9 @@ export interface Center {
   city: string;
   state: string;
   country: string;
+  latitude?: number;
+  longitude?: number;
+  timezone?: string;
   status: CenterStatus;
   requestedByAdminId?: string;
   requestedByAdminName?: string;

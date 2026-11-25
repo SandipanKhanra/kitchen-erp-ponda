@@ -1,98 +1,85 @@
-import { VaishnavaOccasion } from '../types/vaishnavaCalendar';
+import { CenterLocation, VaishnavaOccasion } from '../types/vaishnavaCalendar';
 import { Recipe } from '../types/recipe';
+import {
+  computeVaishnavaYearCalendar,
+  DEFAULT_CENTER_LOCATION,
+} from './gaurabdaCalendarEngine';
+
+// Cache keyed by `${year}_${lat.toFixed(2)}_${lon.toFixed(2)}_${timezone}`
+const yearCalendarCache = new Map<string, Record<string, VaishnavaOccasion>>();
+// Custom / Firestore / iCal synced overrides keyed by `YYYY-MM-DD`
+const syncedOccasionsMap = new Map<string, VaishnavaOccasion>();
 
 /**
- * Pre-compiled ISKCON Vaishnava Fasting & Ekadashi Calendar Table
- * Covers all Ekadashi cycles and major festival appearances.
+ * Registers synced occasions (e.g., from Firestore or GCAL .ics import)
+ * so they are immediately available to the planner & calendar view.
  */
-export const VAISHNAVA_OCCASIONS: Record<string, VaishnavaOccasion> = {
-  // Sample upcoming dates mapped for calendar synchronization
-  '2026-11-20': {
-    date: '2026-11-20',
-    name: 'Utpanna Ekadashi',
-    type: 'Ekadashi',
-    fastingRule: 'Grain Fast (Ekadashi Prasadam)',
-    prohibitedItems: ['Rice', 'Wheat', 'Toor Dal', 'Moong Dal', 'Urad Dal', 'Chana', 'Corn', 'Mustard Oil'],
-    allowedSubstitutes: ['Sama Rice', 'Sabudana', 'Potatoes', 'Buckwheat', 'Fruits', 'Milk', 'Ghee', 'Paneer'],
-    description: 'Appearance of Ekadashi Devi from Lord Vishnu. Strictly abstain from grains and beans.',
-  },
-  '2026-12-05': {
-    date: '2026-12-05',
-    name: 'Mokshada Ekadashi (Gita Jayanti)',
-    type: 'Ekadashi',
-    fastingRule: 'Grain Fast (Ekadashi Prasadam)',
-    prohibitedItems: ['Rice', 'Wheat', 'All Grains', 'Beans', 'Pulses'],
-    allowedSubstitutes: ['Sama Rice', 'Sabudana', 'Potatoes', 'Fruits', 'Milk', 'Ghee', 'Paneer'],
-    description: 'Advent of Srimad Bhagavad-gita. Fasting from grains and beans.',
-  },
-  '2026-12-20': {
-    date: '2026-12-20',
-    name: 'Saphala Ekadashi',
-    type: 'Ekadashi',
-    fastingRule: 'Grain Fast (Ekadashi Prasadam)',
-    prohibitedItems: ['Rice', 'Wheat', 'All Grains', 'Beans'],
-    allowedSubstitutes: ['Sama Rice', 'Sabudana', 'Potatoes', 'Fruits', 'Dairy'],
-    description: 'Fasting from grains and beans.',
-  },
-  '2027-01-04': {
-    date: '2027-01-04',
-    name: 'Putrada Ekadashi',
-    type: 'Ekadashi',
-    fastingRule: 'Grain Fast (Ekadashi Prasadam)',
-    prohibitedItems: ['Rice', 'Wheat', 'All Grains', 'Beans'],
-    allowedSubstitutes: ['Sama Rice', 'Sabudana', 'Potatoes', 'Fruits', 'Dairy'],
-    description: 'Fasting from grains and beans.',
-  },
-  '2027-01-19': {
-    date: '2027-01-19',
-    name: 'Shat-tila Ekadashi',
-    type: 'Ekadashi',
-    fastingRule: 'Grain Fast (Ekadashi Prasadam)',
-    prohibitedItems: ['Rice', 'Wheat', 'All Grains', 'Beans'],
-    allowedSubstitutes: ['Sama Rice', 'Sabudana', 'Potatoes', 'Fruits', 'Dairy'],
-    description: 'Fasting from grains and beans. Sesame seeds may be used in puja.',
-  },
-  '2027-02-03': {
-    date: '2027-02-03',
-    name: 'Bhaimi Ekadashi (Jaya Ekadashi)',
-    type: 'Ekadashi',
-    fastingRule: 'Grain Fast (Ekadashi Prasadam)',
-    prohibitedItems: ['Rice', 'Wheat', 'All Grains', 'Beans'],
-    allowedSubstitutes: ['Sama Rice', 'Sabudana', 'Potatoes', 'Fruits', 'Dairy'],
-    description: 'Fasting from grains and beans for liberation from ghostly life.',
-  },
-  '2027-02-04': {
-    date: '2027-02-04',
-    name: 'Varaha Dvadasi (Appearance of Lord Varahadeva)',
-    type: 'Fasting',
-    fastingRule: 'Full Fast until Noon',
-    prohibitedItems: ['Heavy Feasting before Noon'],
-    allowedSubstitutes: ['Noon Ekadashi style or Light Prasadam, feast after'],
-    description: 'Fasting until noon for Lord Varaha appearance.',
-  },
-  '2027-03-24': {
-    date: '2027-03-24',
-    name: 'Gaura Purnima (Appearance of Sri Caitanya Mahaprabhu)',
-    type: 'Fasting',
-    fastingRule: 'Full Fast until Moonrise',
-    prohibitedItems: ['Grains and meals before moonrise'],
-    allowedSubstitutes: ['Anukalpa Prasadam after moonrise (Non-grain feast)'],
-    description: 'Grand appearance day of Sri Chaitanya Mahaprabhu. Fast until moonrise, then feast.',
-  },
-};
+export function registerSyncedOccasions(occasions: VaishnavaOccasion[]): void {
+  for (const occ of occasions) {
+    if (occ.date) {
+      syncedOccasionsMap.set(occ.date, occ);
+    }
+  }
+}
 
 /**
- * Returns the Vaishnava Occasion for a given date if any, or null.
+ * Returns all Vaishnava occasions (Ekadashi, Fasting, Festivals) for a given year
+ * and Center location using the Gaurabda astronomical calculation engine.
  */
-export function getVaishnavaOccasionForDate(dateStr: string): VaishnavaOccasion | null {
-  return VAISHNAVA_OCCASIONS[dateStr] || null;
+export function getVaishnavaCalendarForYear(
+  year: number,
+  location: CenterLocation = DEFAULT_CENTER_LOCATION
+): VaishnavaOccasion[] {
+  const cacheKey = `${year}_${location.latitude.toFixed(2)}_${location.longitude.toFixed(2)}_${location.timezone}`;
+  let record = yearCalendarCache.get(cacheKey);
+
+  if (!record) {
+    const computed = computeVaishnavaYearCalendar(year, location);
+    record = {};
+    for (const occ of computed) {
+      record[occ.date] = occ;
+    }
+    yearCalendarCache.set(cacheKey, record);
+  }
+
+  // Merge with any synced/imported overrides for that year
+  const merged: Record<string, VaishnavaOccasion> = { ...record };
+  for (const [dateStr, occ] of syncedOccasionsMap.entries()) {
+    if (dateStr.startsWith(`${year}-`)) {
+      merged[dateStr] = occ;
+    }
+  }
+
+  return Object.values(merged).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Returns the Vaishnava Occasion for a given date (YYYY-MM-DD) at the specified location, or null.
+ */
+export function getVaishnavaOccasionForDate(
+  dateStr: string,
+  location: CenterLocation = DEFAULT_CENTER_LOCATION
+): VaishnavaOccasion | null {
+  if (!dateStr) return null;
+  if (syncedOccasionsMap.has(dateStr)) {
+    return syncedOccasionsMap.get(dateStr) || null;
+  }
+
+  const year = parseInt(dateStr.slice(0, 4), 10);
+  if (isNaN(year)) return null;
+
+  const list = getVaishnavaCalendarForYear(year, location);
+  return list.find((occ) => occ.date === dateStr) || null;
 }
 
 /**
  * Checks if a date requires grain fasting (Ekadashi or Major Festival fast)
  */
-export function isEkadashiOrFastingDate(dateStr: string): boolean {
-  const occ = getVaishnavaOccasionForDate(dateStr);
+export function isEkadashiOrFastingDate(
+  dateStr: string,
+  location: CenterLocation = DEFAULT_CENTER_LOCATION
+): boolean {
+  const occ = getVaishnavaOccasionForDate(dateStr, location);
   return occ !== null && (occ.type === 'Ekadashi' || occ.type === 'Fasting');
 }
 
@@ -103,9 +90,10 @@ export function isEkadashiOrFastingDate(dateStr: string): boolean {
  */
 export function validateRecipeForDate(
   recipe: Recipe,
-  dateStr: string
+  dateStr: string,
+  location: CenterLocation = DEFAULT_CENTER_LOCATION
 ): { isAllowed: boolean; warning?: string } {
-  const occasion = getVaishnavaOccasionForDate(dateStr);
+  const occasion = getVaishnavaOccasionForDate(dateStr, location);
 
   if (occasion && occasion.type === 'Ekadashi') {
     if (recipe.occasion !== 'Ekadashi' && recipe.occasion !== 'Fasting') {

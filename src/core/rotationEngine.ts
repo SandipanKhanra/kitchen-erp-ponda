@@ -1,5 +1,6 @@
 import { FifteenDayMenuPlan, DayMenuSchedule } from '../types/menu';
 import { Recipe } from '../types/recipe';
+import { CenterLocation } from '../types/vaishnavaCalendar';
 import { getVaishnavaOccasionForDate, isEkadashiOrFastingDate } from './vaishnavaCalendar';
 
 /**
@@ -117,7 +118,7 @@ export function generateAshramWeeklyRotation(
  * Creates a clean, empty 15-Day Menu Plan structure starting from today's date
  * for a center when no existing plan is stored in Firestore yet.
  */
-export function createEmpty15DayMenu(centerId: string): FifteenDayMenuPlan {
+export function createEmpty15DayMenu(centerId: string, location?: CenterLocation): FifteenDayMenuPlan {
   const days: Record<number, DayMenuSchedule> = {};
   const start = new Date();
   const startDate = formatDateISO(start);
@@ -127,9 +128,9 @@ export function createEmpty15DayMenu(centerId: string): FifteenDayMenuPlan {
     const current = new Date(start);
     current.setDate(start.getDate() + i);
     const dateStr = formatDateISO(current);
-    const occasion = getVaishnavaOccasionForDate(dateStr);
+    const occasion = getVaishnavaOccasionForDate(dateStr, location);
     const isEkadashi = occasion?.type === 'Ekadashi';
-    const isFasting = isEkadashiOrFastingDate(dateStr);
+    const isFasting = isEkadashiOrFastingDate(dateStr, location);
 
     days[dayNum] = {
       dayNumber: dayNum,
@@ -172,7 +173,8 @@ export function createEmpty15DayMenu(centerId: string): FifteenDayMenuPlan {
 export function generateFull15DayMenuFromStartDate(
   startDateStr: string,
   recipes: Recipe[],
-  existingPlan: FifteenDayMenuPlan
+  existingPlan: FifteenDayMenuPlan,
+  location?: CenterLocation
 ): FifteenDayMenuPlan {
   const [y, m, d] = startDateStr.split('-').map(Number);
   const start = y && m && d ? new Date(y, m - 1, d) : new Date();
@@ -201,9 +203,9 @@ export function generateFull15DayMenuFromStartDate(
     const current = new Date(start);
     current.setDate(start.getDate() + i);
     const dateStr = formatDateISO(current);
-    const occasion = getVaishnavaOccasionForDate(dateStr);
+    const occasion = getVaishnavaOccasionForDate(dateStr, location);
     const isEkadashi = occasion?.type === 'Ekadashi';
-    const isFasting = isEkadashiOrFastingDate(dateStr);
+    const isFasting = isEkadashiOrFastingDate(dateStr, location);
     isEkadashiMap[dayNum] = isEkadashi || isFasting;
   }
 
@@ -219,9 +221,9 @@ export function generateFull15DayMenuFromStartDate(
     const current = new Date(start);
     current.setDate(start.getDate() + i);
     const dateStr = formatDateISO(current);
-    const occasion = getVaishnavaOccasionForDate(dateStr);
+    const occasion = getVaishnavaOccasionForDate(dateStr, location);
     const isEkadashi = occasion?.type === 'Ekadashi';
-    const isFasting = isEkadashiOrFastingDate(dateStr);
+    const isFasting = isEkadashiOrFastingDate(dateStr, location);
     const existingDay = existingPlan.days[dayNum];
 
     let bfIds: string[] = [];

@@ -1,15 +1,58 @@
-import React, { useState } from 'react';
-import { VAISHNAVA_OCCASIONS } from '../../core/vaishnavaCalendar';
-import { AlertCircle, CheckCircle, Search } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import {
+  getVaishnavaCalendarForYear,
+  registerSyncedOccasions,
+} from '../../core/vaishnavaCalendar';
+import {
+  resolveCenterLocation,
+  parseVaishnavaICS,
+} from '../../core/gaurabdaCalendarEngine';
+import { calendarRepository } from '../../services/repositories/CalendarRepository';
+import { useAuth } from '../../context/AuthContext';
+import { VaishnavaOccasion } from '../../types/vaishnavaCalendar';
+import {
+  AlertCircle,
+  CheckCircle,
+  Search,
+  MapPin,
+  Sun,
+  Clock,
+  RefreshCw,
+  Upload,
+} from 'lucide-react';
 import { Pagination } from '../common/Pagination';
 import { formatDateDDMMYYYY } from '../../utils/formatters';
 
 export const VaishnavaCalendarView: React.FC = () => {
-  const occasions = Object.values(VAISHNAVA_OCCASIONS);
+  const { currentCenter } = useAuth();
+  const centerLocation = useMemo(() => resolveCenterLocation(currentCenter), [currentCenter]);
+
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedType, setSelectedType] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(6);
+  const [syncVersion, setSyncVersion] = useState<number>(0);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load any previously synced occasions from Firestore for this center
+  useEffect(() => {
+    if (!currentCenter?.id) return;
+    calendarRepository.fetchCenterCalendarOccasions(currentCenter.id).then((saved) => {
+      if (saved && saved.length > 0) {
+        registerSyncedOccasions(saved);
+        setSyncVersion((v) => v + 1);
+      }
+    });
+  }, [currentCenter?.id]);
+
+  // Compute full year's Vaishnava calendar dynamically for this center's coordinates
+  const occasions: VaishnavaOccasion[] = useMemo(() => {
+    return getVaishnavaCalendarForYear(selectedYear, centerLocation);
+  }, [selectedYear, centerLocation, syncVersion]);
 
   const types = ['All', 'Ekadashi', 'Fasting', 'Festival'];
 
@@ -36,30 +79,124 @@ export const VaishnavaCalendarView: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const handleSyncToFirestore = async () => {
+    setIsSyncing(true);
+    setSyncMessage(null);
+    try {
+      await calendarRepository.syncCenterCalendarOccasions(currentCenter.id || 'default', occasions);
+      setSyncMessage(
+        `Synced ${occasions.length} location-based Vaishnava occasions (${selectedYear}) for ${centerLocation.label || currentCenter.city} to Firestore!`
+      );
+      setTimeout(() => setSyncMessage(null), 5000);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleICSImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = parseVaishnavaICS(text);
+      if (parsed.length === 0) {
+        alert('No Vaishnava Ekadashi or fasting events found in this .ics file.');
+        return;
+      }
+      registerSyncedOccasions(parsed);
+      setSyncVersion((v) => v + 1);
+      await calendarRepository.syncCenterCalendarOccasions(currentCenter.id || 'default', parsed);
+      setSyncMessage(`Imported & synced ${parsed.length} events from ${file.name}!`);
+      setTimeout(() => setSyncMessage(null), 5000);
+    } catch {
+      alert('Failed to read .ics file.');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
             <span className="bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-xs font-black px-2.5 py-1 rounded-md border border-purple-300 dark:border-purple-800">
-              VAISHNAVA SMRITI ENGINE
+              GAURABDA / PANCHANG ENGINE
             </span>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
               Vaishnava Calendar & Fasting Rules
             </h1>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            While fixing menus, the 15-day rotation engine checks all Ekadashis and Fasting occasions to enforce strict non-grain recipes.
-          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+            <span className="flex items-center space-x-1 font-semibold text-orange-600 dark:text-orange-400">
+              <MapPin className="w-3.5 h-3.5" />
+              <span>
+                {centerLocation.label || currentCenter?.name || 'Ponda, Goa'} ({centerLocation.latitude.toFixed(2)}°N,{' '}
+                {centerLocation.longitude.toFixed(2)}°E &bull; {centerLocation.timezone})
+              </span>
+            </span>
+            <span>&bull; Sunrise &amp; Parana break-fast windows calculated dynamically per location</span>
+          </div>
+        </div>
+
+        {/* Year Selector + Sync & .ics Import Controls */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <select
+            value={selectedYear}
+            onChange={(e) => {
+              setSelectedYear(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+          >
+            {[currentYear - 1, currentYear, currentYear + 1, currentYear + 2].map((yr) => (
+              <option key={yr} value={yr}>
+                Year {yr}
+              </option>
+            ))}
+          </select>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".ics"
+            onChange={handleICSImport}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold shadow-sm transition"
+            title="Import .ics calendar file from GCAL or vaisnavacalendar.info"
+          >
+            <Upload className="w-3.5 h-3.5 text-purple-600" />
+            <span>Import GCAL .ics</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSyncToFirestore}
+            disabled={isSyncing}
+            className="flex items-center space-x-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold shadow-md shadow-purple-600/20 transition disabled:opacity-60"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Syncing...' : 'Sync Calendar'}</span>
+          </button>
         </div>
       </div>
+
+      {syncMessage && (
+        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-xs font-bold text-emerald-800 dark:text-emerald-300 text-center">
+          {syncMessage}
+        </div>
+      )}
 
       {/* Guidelines Box */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
         <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 p-5 rounded-3xl space-y-2">
           <div className="flex items-center space-x-2 text-rose-700 dark:text-rose-400 font-black">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>Strictly Prohibited on Ekadashi & Grain Fasts</span>
+            <span>Strictly Prohibited on Ekadashi &amp; Grain Fasts</span>
           </div>
           <p className="text-rose-900 dark:text-rose-300 leading-relaxed">
             All grains, wheat, rice, corn, mustard seeds/oil, toor dal, moong dal, urad dal, chana, beans, peas, and sesame seeds (except on Shat-tila Ekadashi).
@@ -133,6 +270,23 @@ export const VaishnavaCalendarView: React.FC = () => {
 
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{occ.description}</p>
 
+              {(occ.sunriseLocal || occ.paranaWindow) && (
+                <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/50 rounded-xl p-2.5 space-y-1 text-[11px]">
+                  {occ.sunriseLocal && (
+                    <div className="flex items-center space-x-1.5 text-amber-800 dark:text-amber-300 font-semibold">
+                      <Sun className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                      <span>Local Sunrise: {occ.sunriseLocal}</span>
+                    </div>
+                  )}
+                  {occ.paranaWindow && (
+                    <div className="flex items-center space-x-1.5 text-emerald-700 dark:text-emerald-300 font-semibold">
+                      <Clock className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                      <span>Parana: {occ.paranaWindow}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 text-xs text-purple-600 dark:text-purple-400 font-bold">
                 Rule: {occ.fastingRule}
               </div>
@@ -141,7 +295,6 @@ export const VaishnavaCalendarView: React.FC = () => {
         )}
       </div>
 
-      {/* Pagination */}
       <Pagination
         currentPage={currentPage}
         totalItems={filtered.length}
