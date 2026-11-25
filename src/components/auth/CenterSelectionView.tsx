@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useKitchen } from '../../context/KitchenContext';
+import { useToast } from '../../context/ToastContext';
+import { LoadingSpinner } from '../common/LoadingSpinner';
 import { Building2, CheckCircle2, MapPin, LogOut, Sun, Moon, Search, ArrowRight } from 'lucide-react';
 
 export const CenterSelectionView: React.FC = () => {
   const { currentUser, availableCenters, completeCenterSelection, logout } = useAuth();
   const { theme, toggleTheme } = useKitchen();
+  const { showToast } = useToast();
 
   const [selectedCenterId, setSelectedCenterId] = useState<string>(
     availableCenters[0]?.id || ''
@@ -35,8 +38,11 @@ export const CenterSelectionView: React.FC = () => {
     setSubmitting(true);
     try {
       await completeCenterSelection(chosen.id, chosen.name);
+      showToast(`Welcome to ${chosen.name}!`, 'success');
     } catch (err: any) {
-      setError(err?.message || 'Failed to save your center selection. Please try again.');
+      const msg = err?.message || 'Failed to save your center selection. Please try again.';
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -173,8 +179,17 @@ export const CenterSelectionView: React.FC = () => {
             disabled={submitting || !selectedCenterId}
             className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-orange-500/25 flex items-center justify-center space-x-2 transition disabled:opacity-50 cursor-pointer"
           >
-            <span>{submitting ? 'Setting up your workspace...' : 'Confirm Center & Continue'}</span>
-            <ArrowRight className="w-4 h-4" />
+            {submitting ? (
+              <>
+                <LoadingSpinner size="xs" />
+                <span>Setting up your workspace...</span>
+              </>
+            ) : (
+              <>
+                <span>Confirm Center &amp; Continue</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </form>
       </div>

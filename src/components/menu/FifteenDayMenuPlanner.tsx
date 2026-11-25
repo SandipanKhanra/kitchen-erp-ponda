@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useKitchen } from '../../context/KitchenContext';
+import { useToast } from '../../context/ToastContext';
+import { LoadingSpinner } from '../common/LoadingSpinner';
 import {
   Flame,
   CheckCircle2,
@@ -50,6 +52,7 @@ const getMealSlotTitle = (key: MealSlotKey | null) => {
 
 export const FifteenDayMenuPlanner: React.FC = () => {
   const { currentUser, currentCenter, isAdmin, isSAdmin, allUsers } = useAuth();
+  const { showToast } = useToast();
   const {
     activeMenuPlan,
     saveMenuPlan,
@@ -97,9 +100,9 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     const generated = generateFull15DayMenuFromStartDate(newStartDate, recipes, activeMenuPlan, centerLocation);
     saveMenuPlan(generated, { recordAudit: false });
     setHasUnsavedChanges(true);
-    setApprovalMessage(
-      `Calculated 2-week cycle (${formatDateDDMMYYYY(generated.startDate)} to ${formatDateDDMMYYYY(generated.endDate)}) and auto-filled menus! Click "Update" to save & record in audit trail.`
-    );
+    const msg = `Calculated 2-week cycle (${formatDateDDMMYYYY(generated.startDate)} to ${formatDateDDMMYYYY(generated.endDate)}) and auto-filled menus! Click "Update" to save.`;
+    setApprovalMessage(msg);
+    showToast(msg, 'info');
     setTimeout(() => setApprovalMessage(null), 5000);
   };
 
@@ -108,7 +111,9 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     try {
       await saveMenuPlan(activeMenuPlan, { recordAudit: true });
       setHasUnsavedChanges(false);
-      setApprovalMessage('15-Day Menu Plan updated & recorded in Audit Trail!');
+      const msg = '15-Day Menu Plan updated & recorded in Audit Trail!';
+      setApprovalMessage(msg);
+      showToast(msg, 'success');
       setTimeout(() => setApprovalMessage(null), 4000);
     } finally {
       setIsUpdating(false);
@@ -118,10 +123,12 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   const handleApprove = async () => {
     const res = await approveMenuPlan(activeMenuPlan.id);
     if (res.success) {
-      setApprovalMessage('15-Day Menu Plan successfully approved by Admin!');
+      const msg = '15-Day Menu Plan successfully approved by Admin!';
+      setApprovalMessage(msg);
+      showToast(msg, 'success');
       setTimeout(() => setApprovalMessage(null), 4000);
     } else {
-      alert(res.error);
+      showToast(res.error || 'Could not approve menu plan.', 'error');
     }
   };
 
@@ -265,7 +272,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   const handleAutoRotateAshram = () => {
     const ashramRecipes = recipes.filter((r) => r.type === 'Ashram' || r.isAshramSpecific);
     if (ashramRecipes.length === 0) {
-      alert('No Ashram recipes found. Please add Ashram recipes in the Recipes & Patterns tab first.');
+      showToast('No Ashram recipes found. Please add Ashram recipes in the Recipes & Patterns tab first.', 'warning');
       return;
     }
 
@@ -438,7 +445,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
               } disabled:opacity-60`}
               title="Save changes to Firestore and record in Audit Trail"
             >
-              <Save className="w-4 h-4" />
+              {isUpdating ? <LoadingSpinner size="xs" /> : <Save className="w-4 h-4" />}
               <span>{isUpdating ? 'Updating...' : hasUnsavedChanges ? 'Update*' : 'Update'}</span>
             </button>
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
+import { LoadingSpinner } from '../common/LoadingSpinner';
 
 const GoogleIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -328,7 +329,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
             className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-orange-500/20 flex items-center justify-center space-x-2 transition disabled:opacity-60 cursor-pointer"
           >
             {loading ? (
-              <span>Authenticating...</span>
+              <>
+                <LoadingSpinner size="xs" />
+                <span>Authenticating...</span>
+              </>
             ) : (
               <>
                 <LogIn className="w-4 h-4" />

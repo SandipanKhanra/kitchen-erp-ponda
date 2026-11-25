@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useKitchen } from '../../context/KitchenContext';
+import { useToast } from '../../context/ToastContext';
 import { Plus, Trash2, Layers, Utensils, Sparkles, Check, Edit3, Search, History, Building2 } from 'lucide-react';
 import { Recipe, MenuPattern, Occasion, MealType, RecipeType, MeasurableIndex } from '../../types/recipe';
 import { MEAL_TYPES } from '../../config/constants';
@@ -10,6 +11,7 @@ import { sanitizeNumericChange } from '../../utils/numberInput';
 export const RecipeAndPatternManagement: React.FC = () => {
   const { currentCenter, isAdmin, isSAdmin } = useAuth();
   const { recipes, patterns, stockItems, saveRecipe, deleteRecipe, savePattern, deletePattern, openAuditModal } = useKitchen();
+  const { showToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'recipes' | 'patterns'>('recipes');
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,7 +56,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
   const handleSaveRecipe = async () => {
     if (!recipeName || ingredientsList.length === 0) {
-      alert('Please provide Recipe Name and at least one ingredient.');
+      showToast('Please provide Recipe Name and at least one ingredient.', 'warning');
       return;
     }
 
@@ -77,6 +79,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
     };
 
     await saveRecipe(newRec);
+    showToast(`Recipe "${recipeName}" saved & synced with Firestore!`, 'success');
     setIsRecipeModalOpen(false);
     setRecipeName('');
     setIngredientsList([]);
@@ -84,7 +87,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
   const handleSavePattern = async () => {
     if (!patternName || selectedRecipeIds.length === 0) {
-      alert('Please provide Pattern Name and select at least one recipe.');
+      showToast('Please provide Pattern Name and select at least one recipe.', 'warning');
       return;
     }
 

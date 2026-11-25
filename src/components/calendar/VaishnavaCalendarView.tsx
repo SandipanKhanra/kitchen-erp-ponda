@@ -9,6 +9,7 @@ import {
 } from '../../core/gaurabdaCalendarEngine';
 import { calendarRepository } from '../../services/repositories/CalendarRepository';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { VaishnavaOccasion } from '../../types/vaishnavaCalendar';
 import {
   AlertCircle,
@@ -25,6 +26,7 @@ import { formatDateDDMMYYYY } from '../../utils/formatters';
 
 export const VaishnavaCalendarView: React.FC = () => {
   const { currentCenter } = useAuth();
+  const { showToast } = useToast();
   const centerLocation = useMemo(() => resolveCenterLocation(currentCenter), [currentCenter]);
 
   const currentYear = new Date().getFullYear();
@@ -84,9 +86,9 @@ export const VaishnavaCalendarView: React.FC = () => {
     setSyncMessage(null);
     try {
       await calendarRepository.syncCenterCalendarOccasions(currentCenter.id || 'default', occasions);
-      setSyncMessage(
-        `Synced ${occasions.length} location-based Vaishnava occasions (${selectedYear}) for ${centerLocation.label || currentCenter.city} to Firestore!`
-      );
+      const msg = `Synced ${occasions.length} location-based Vaishnava occasions (${selectedYear}) for ${centerLocation.label || currentCenter.city} to Firestore!`;
+      setSyncMessage(msg);
+      showToast(msg, 'success');
       setTimeout(() => setSyncMessage(null), 5000);
     } finally {
       setIsSyncing(false);
@@ -100,16 +102,18 @@ export const VaishnavaCalendarView: React.FC = () => {
       const text = await file.text();
       const parsed = parseVaishnavaICS(text);
       if (parsed.length === 0) {
-        alert('No Vaishnava Ekadashi or fasting events found in this .ics file.');
+        showToast('No Vaishnava Ekadashi or fasting events found in this .ics file.', 'warning');
         return;
       }
       registerSyncedOccasions(parsed);
       setSyncVersion((v) => v + 1);
       await calendarRepository.syncCenterCalendarOccasions(currentCenter.id || 'default', parsed);
-      setSyncMessage(`Imported & synced ${parsed.length} events from ${file.name}!`);
+      const msg = `Imported & synced ${parsed.length} events from ${file.name}!`;
+      setSyncMessage(msg);
+      showToast(msg, 'success');
       setTimeout(() => setSyncMessage(null), 5000);
     } catch {
-      alert('Failed to read .ics file.');
+      showToast('Failed to read .ics file.', 'error');
     } finally {
       e.target.value = '';
     }

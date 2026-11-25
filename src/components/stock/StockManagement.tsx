@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useKitchen } from '../../context/KitchenContext';
+import { useToast } from '../../context/ToastContext';
 import { StockCategory, MeasureIndex } from '../../types/stock';
 import { Package, Plus, DollarSign, RefreshCw, CheckCircle2, TrendingUp, Search, History } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
@@ -7,6 +8,7 @@ import { sanitizeNumericChange } from '../../utils/numberInput';
 
 export const StockManagement: React.FC = () => {
   const { stockItems, recordStockPurchase, updateStockPrice, updateStockCount, addNewStockItem, openAuditModal } = useKitchen();
+  const { showToast } = useToast();
 
   const [selectedCat, setSelectedCat] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,7 +58,7 @@ export const StockManagement: React.FC = () => {
 
   const handleRecordPurchase = async () => {
     if (!selectedItemForPurchase || purchasedQty <= 0 || purchasedUnitPrice <= 0) {
-      alert('Please select item, quantity, and unit purchase price.');
+      showToast('Please select item, quantity, and unit purchase price.', 'warning');
       return;
     }
 
@@ -66,6 +68,7 @@ export const StockManagement: React.FC = () => {
       purchasedUnitPrice,
     });
 
+    showToast('Stock purchase recorded & weighted average price updated!', 'success');
     setPurchaseSuccess(true);
     setTimeout(() => {
       setPurchaseSuccess(false);

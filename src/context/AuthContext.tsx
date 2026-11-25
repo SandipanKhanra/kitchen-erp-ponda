@@ -5,6 +5,7 @@ import { Center, CenterCreationRequest } from '../types/center';
 import { authService, SignUpParams } from '../services/authService';
 import { sessionService } from '../services/sessionService';
 import { isFirebaseConfigured } from '../config/firebase';
+import { useToast } from './ToastContext';
 
 const EMPTY_USER: UserProfile = {
   uid: '',
@@ -68,6 +69,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { showToast } = useToast();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [centers, setCenters] = useState<Center[]>([]);
   const [centerRequests, setCenterRequests] = useState<CenterCreationRequest[]>([]);
@@ -243,7 +245,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const switchCenter = (centerId: string) => {
     if (!isSAdmin) {
-      alert('Only Super Admin can switch across centers!');
+      showToast('Only Super Admin can switch across centers!', 'error');
       return;
     }
     const c = centers.find((item) => item.id === centerId);
@@ -319,7 +321,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const toggleCenterStatus = async (centerId: string) => {
     if (!isSAdmin) {
-      alert('Only Super Admin can activate or deactivate centers.');
+      showToast('Only Super Admin can activate or deactivate centers.', 'error');
       return;
     }
     const center = centers.find((c) => c.id === centerId);
@@ -330,13 +332,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       prev.map((c) => (c.id === centerId ? { ...c, status: newStatus } : c))
     );
     await authService.updateCenterStatus(centerId, newStatus);
+    showToast(`Center "${center.name}" is now ${newStatus}.`, 'success');
   };
 
   const deleteCenter = async (centerId: string) => {
     if (!isSAdmin) {
-      alert('Only Super Admin can delete centers.');
+      showToast('Only Super Admin can delete centers.', 'error');
       return;
     }
+    const target = centers.find((c) => c.id === centerId);
     setCenters((prev) => prev.filter((c) => c.id !== centerId));
     if (currentCenter.id === centerId) {
       const remaining = centers.filter((c) => c.id !== centerId);
@@ -347,6 +351,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     await authService.deleteCenter(centerId);
+    showToast(`Center "${target?.name || centerId}" deleted.`, 'info');
   };
 
   const assignUserRole = async (uid: string, newRole: 'admin' | 'user') => {
@@ -354,12 +359,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!targetUser) return;
 
     if (targetUser.role === 'sadmin') {
-      alert('Unauthorized: Super Admin role is protected and cannot be changed.');
+      showToast('Unauthorized: Super Admin role is protected and cannot be changed.', 'error');
       return;
     }
 
     if (!isSAdmin && targetUser.centerId !== currentCenter.id) {
-      alert('Unauthorized: You can only manage users within your own center.');
+      showToast('Unauthorized: You can only manage users within your own center.', 'error');
       return;
     }
 
@@ -367,6 +372,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       prev.map((u) => (u.uid === uid ? { ...u, role: newRole, updatedAt: new Date().toISOString() } : u))
     );
     await authService.updateUserRoleInDb(uid, newRole);
+    showToast(
+      `Updated ${targetUser.name}'s role to ${newRole === 'admin' ? 'Admin' : 'Devotee'}.`,
+      'success'
+    );
   };
 
   const removeUserFromCenter = async (uid: string) => {

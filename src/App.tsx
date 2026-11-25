@@ -12,6 +12,7 @@ import { VaishnavaCalendarView } from './components/calendar/VaishnavaCalendarVi
 import { AuthView } from './components/auth/AuthView';
 import { CenterSelectionView } from './components/auth/CenterSelectionView';
 import { AuditHistoryModal } from './components/audit/AuditHistoryModal';
+import { LoadingScreen, LoadingSpinner } from './components/common/LoadingSpinner';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { ChefHat } from 'lucide-react';
 
@@ -19,7 +20,7 @@ function AppContent() {
   const { firebaseUser, currentUser, isSAdmin, isAuthLoading } = useAuth();
   const isAuthenticated = Boolean(firebaseUser);
   const needsCenterSelection = Boolean(firebaseUser && currentUser.needsCenterSelection && !isSAdmin);
-  const { isAuditModalOpen, auditModalCategory, closeAuditModal } = useKitchen();
+  const { isAuditModalOpen, auditModalCategory, closeAuditModal, isSyncing } = useKitchen();
   const {
     activeTab,
     navigateToTab,
@@ -33,17 +34,10 @@ function AppContent() {
   // Loading Splash Screen while Firebase Auth initializes
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-transparent flex flex-col items-center justify-center p-4">
-        <div className="p-4 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white shadow-2xl shadow-orange-500/30 animate-bounce mb-4">
-          <ChefHat className="w-10 h-10" />
-        </div>
-        <h2 className="text-xl font-extrabold tracking-tight text-slate-800 dark:text-white">
-          Ponda Kitchen ERP
-        </h2>
-        <p className="text-xs text-slate-400 mt-1 animate-pulse">
-          Connecting to Firebase & Vaishnava Centers...
-        </p>
-      </div>
+      <LoadingScreen
+        title="Ponda Kitchen ERP"
+        subtitle="Connecting to Firebase & Vaishnava Centers..."
+      />
     );
   }
 
@@ -78,6 +72,12 @@ function AppContent() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
+        {isSyncing && (
+          <div className="mb-4 px-4 py-2.5 rounded-2xl bg-orange-50/90 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/60 flex items-center space-x-2.5 text-xs font-bold text-orange-700 dark:text-orange-300 shadow-sm">
+            <LoadingSpinner size="xs" className="text-orange-500" />
+            <span>Syncing center inventory, recipes &amp; menus with Firestore...</span>
+          </div>
+        )}
         {activeTab === 'menu_planner' && <FifteenDayMenuPlanner />}
         {activeTab === 'daywise_shopping' && <DaywiseAndShoppingView />}
         {activeTab === 'stock' && <StockManagement />}

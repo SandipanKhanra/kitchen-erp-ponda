@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { Building2, Search } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
 import { formatUserRole } from '../../utils/formatters';
 
 export const AdminUserManagement: React.FC = () => {
   const { currentCenter, centerUsers, currentUser, assignUserRole, raiseCenterRequest, isSAdmin } = useAuth();
+  const { showToast } = useToast();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,7 +36,7 @@ export const AdminUserManagement: React.FC = () => {
 
   const handleRaiseRequest = async () => {
     if (!centerName || !centerCode || !city) {
-      alert('Please fill in Center Name, Center Code, and City.');
+      showToast('Please fill in Center Name, Center Code, and City.', 'warning');
       return;
     }
 
@@ -46,6 +48,7 @@ export const AdminUserManagement: React.FC = () => {
       country,
     });
 
+    showToast(`Center request for "${centerName}" submitted for Super Admin approval!`, 'success');
     setRequestSent(true);
     setTimeout(() => {
       setRequestSent(false);
