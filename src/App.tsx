@@ -73,7 +73,7 @@ function AppContent() {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
         {isSyncing && (
-          <div className="mb-4 px-4 py-2.5 rounded-2xl bg-orange-50/90 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/60 flex items-center space-x-2.5 text-xs font-bold text-orange-700 dark:text-orange-300 shadow-sm">
+          <div className="mb-4 px-4 py-2.5 rounded-2xl bg-orange-50/90 dark:bg-orange-950/40 border border-orange-200/80 dark:border-orange-900/60 border-l-4 border-l-orange-500 flex items-center space-x-2.5 text-xs font-bold text-orange-700 dark:text-orange-300 shadow-sm">
             <LoadingSpinner size="xs" className="text-orange-500" />
             <span>Syncing center inventory, recipes &amp; menus with Firestore...</span>
           </div>
@@ -105,7 +105,7 @@ function AppContent() {
         />
       )}
 
-      <footer className="bg-white/80 dark:bg-slate-900/80 border-t border-slate-200 dark:border-slate-800 py-6 text-center text-xs text-slate-400">
+      <footer className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-md border-t-2 border-t-orange-500/25 dark:border-t-orange-500/20 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
         Ponda Kitchen ERP
       </footer>
     </div>

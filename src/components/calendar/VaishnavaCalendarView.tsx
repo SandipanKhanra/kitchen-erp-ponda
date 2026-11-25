@@ -165,7 +165,7 @@ export const VaishnavaCalendarView: React.FC = () => {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold shadow-sm transition"
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-white/85 dark:bg-slate-800/85 hover:bg-slate-50 dark:hover:bg-slate-700 border-y border-slate-200/80 dark:border-slate-700/80 border-l-2 border-l-purple-500 border-r-2 border-r-indigo-400/50 text-slate-700 dark:text-slate-200 rounded-xl font-bold shadow-sm transition"
             title="Import .ics calendar file from GCAL or vaisnavacalendar.info"
           >
             <Upload className="w-3.5 h-3.5 text-purple-600" />
@@ -176,7 +176,7 @@ export const VaishnavaCalendarView: React.FC = () => {
             type="button"
             onClick={handleSyncToFirestore}
             disabled={isSyncing}
-            className="flex items-center space-x-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold shadow-md shadow-purple-600/20 transition disabled:opacity-60"
+            className="flex items-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-bold border-t border-t-white/30 border-b-2 border-b-purple-900/50 shadow-md shadow-purple-600/20 transition disabled:opacity-60"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
             <span>{isSyncing ? 'Syncing...' : 'Sync Calendar'}</span>
@@ -186,7 +186,7 @@ export const VaishnavaCalendarView: React.FC = () => {
 
       {/* Guidelines Box */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 p-5 rounded-3xl space-y-2">
+        <div className="bg-rose-50/90 dark:bg-rose-950/40 backdrop-blur-sm border-y border-r border-rose-200/80 dark:border-rose-900/80 border-l-4 border-l-rose-500 p-5 rounded-3xl space-y-2">
           <div className="flex items-center space-x-2 text-rose-700 dark:text-rose-400 font-black">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>Strictly Prohibited on Ekadashi &amp; Grain Fasts</span>

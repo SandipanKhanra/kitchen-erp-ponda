@@ -170,7 +170,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
           <button
             onClick={() => openAuditModal('recipe')}
-            className="flex items-center space-x-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"
+            className="flex items-center space-x-1.5 modern-btn-secondary text-slate-700 dark:text-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-slate-100/90 dark:hover:bg-slate-800/90 shadow-sm"
             title="View recipe audit trail"
           >
             <History className="w-3.5 h-3.5 text-purple-500" />
@@ -180,7 +180,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
           {(isAdmin || isSAdmin) && (
             <button
               onClick={() => (activeTab === 'recipes' ? setIsRecipeModalOpen(true) : setIsPatternModalOpen(true))}
-              className="flex items-center space-x-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition"
+              className="flex items-center space-x-1.5 bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold modern-btn-primary shadow-orange-500/20"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{activeTab === 'recipes' ? 'Add Recipe' : 'Create Pattern (Admin)'}</span>

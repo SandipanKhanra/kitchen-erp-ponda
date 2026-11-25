@@ -133,7 +133,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
 
           <button
             onClick={handleExportCSV}
-            className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition"
+            className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-4 py-2 rounded-xl text-xs font-bold border-t border-t-white/30 border-b-2 border-b-emerald-900/50 shadow-md shadow-emerald-600/20 transition"
             title="Download purchase order list without internal stocks and prices"
           >
             <Download className="w-3.5 h-3.5" />
@@ -144,7 +144,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="modern-card p-4 sm:p-5 rounded-2xl">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Total Menu Cost</span>
           <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">
             ₹{requisitionSummary.totalMenuCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
@@ -152,7 +152,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
           <span className="text-[11px] text-slate-500 dark:text-slate-400">Gross 15-day value</span>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="bg-white/85 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border-x border-slate-200/60 dark:border-slate-800/70 border-t-2 border-t-emerald-500/75 border-b-2 border-b-teal-500/40 shadow-sm">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Net To Procure</span>
           <div className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
             ₹{requisitionSummary.totalNetProcurementCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
@@ -160,7 +160,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
           <span className="text-[11px] text-slate-500 dark:text-slate-400">After deducting stock</span>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="bg-white/85 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border-x border-slate-200/60 dark:border-slate-800/70 border-t-2 border-t-amber-500/75 border-b-2 border-b-rose-500/40 shadow-sm">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Items To Purchase</span>
           <div className="text-xl sm:text-2xl font-black text-orange-600 dark:text-orange-400 mt-1">
             {requisitionSummary.shoppingList.filter((i) => i.netToPurchase > 0).length} of{' '}
@@ -169,7 +169,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
           <span className="text-[11px] text-slate-500 dark:text-slate-400">In Shopping Sheet</span>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="bg-white/85 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border-x border-slate-200/60 dark:border-slate-800/70 border-t-2 border-t-indigo-500/75 border-b-2 border-b-purple-500/40 shadow-sm">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Operational Span</span>
           <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">
             15 Days

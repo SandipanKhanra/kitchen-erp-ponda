@@ -357,12 +357,12 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     <div className="space-y-6">
       {/* Top Banner: Maker-Checker Approval Status */}
       <div
-        className={`p-5 rounded-3xl border transition-all ${
+        className={`p-5 rounded-3xl transition-all backdrop-blur-md ${
           isApproved
-            ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+            ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-x border-emerald-200/80 dark:border-emerald-800/70 border-t-2 border-t-emerald-500 border-b-2 border-b-teal-500/50'
             : isPending
-            ? 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
-            : 'bg-white/90 dark:bg-slate-800/90 border-slate-200 dark:border-slate-700'
+            ? 'bg-amber-50/90 dark:bg-amber-950/40 border-x border-amber-200/80 dark:border-amber-800/70 border-t-2 border-t-amber-500 border-b-2 border-b-orange-500/50'
+            : 'modern-card'
         }`}
       >
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -416,7 +416,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleStartDateChange(activeMenuPlan.startDate || formatDateISO(new Date()))}
-                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-orange-100 hover:bg-orange-200 dark:bg-orange-950/60 dark:hover:bg-orange-900/60 text-orange-700 dark:text-orange-300 font-bold border border-orange-200 dark:border-orange-800 transition"
+                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-orange-100/90 hover:bg-orange-200 dark:bg-orange-950/60 dark:hover:bg-orange-900/60 text-orange-700 dark:text-orange-300 font-bold border-y border-orange-200 dark:border-orange-800 border-l-2 border-l-orange-500 border-r-2 border-r-amber-500/60 transition"
                 title="Recalculate 2 weeks from start date and auto-fill menus"
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -430,9 +430,9 @@ export const FifteenDayMenuPlanner: React.FC = () => {
             <button
               onClick={handleCommitUpdate}
               disabled={isUpdating}
-              className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl font-bold transition shadow-md ${
+              className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl font-bold modern-btn-primary ${
                 hasUnsavedChanges
-                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-orange-500/25 ring-2 ring-orange-300 dark:ring-orange-700'
+                  ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white shadow-orange-500/25 ring-2 ring-orange-300 dark:ring-orange-700'
                   : 'bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white shadow-slate-900/15'
               } disabled:opacity-60`}
               title="Save changes to Firestore and record in Audit Trail"
@@ -443,7 +443,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
 
             <button
               onClick={() => openAuditModal('menu_planner')}
-              className="flex items-center space-x-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3.5 py-2 rounded-xl font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"
+              className="flex items-center space-x-1.5 modern-btn-secondary text-slate-700 dark:text-slate-300 px-3.5 py-2 rounded-xl font-bold hover:bg-slate-100/90 dark:hover:bg-slate-800/90 shadow-sm"
               title="View revision and Maker-Checker approval history"
             >
               <History className="w-4 h-4 text-orange-500" />

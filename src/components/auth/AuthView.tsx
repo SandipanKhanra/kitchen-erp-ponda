@@ -47,7 +47,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
     : 'w-full flex items-center justify-center py-6 sm:py-10 px-3 sm:px-4';
 
   const cardClasses =
-    'relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-7 transition-all my-auto';
+    'relative w-full max-w-md bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl shadow-2xl border-x border-slate-200/70 dark:border-slate-800/70 border-t-2 border-t-orange-500/80 border-b-2 border-b-indigo-500/45 p-5 sm:p-7 transition-all my-auto';
 
   return (
     <div
