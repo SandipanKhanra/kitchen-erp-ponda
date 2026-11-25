@@ -22,7 +22,7 @@ export const ROUTE_TO_TAB: Record<string, NavTab> = {
   '/sadmin-hq': 'sadmin_dashboard',
 };
 
-export function useAppNavigation(isAuthenticated = false) {
+export function useAppNavigation(isAuthenticated = false, needsCenterSelection = false) {
   const getInitialTabFromLocation = (): NavTab => {
     const path = window.location.pathname.toLowerCase().replace(/\/$/, '') || '/';
     return ROUTE_TO_TAB[path] || 'menu_planner';
@@ -102,7 +102,7 @@ export function useAppNavigation(isAuthenticated = false) {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Route synchronization based on authentication state
+  // Route synchronization based on authentication state & center onboarding
   useEffect(() => {
     const path = window.location.pathname.toLowerCase().replace(/\/$/, '') || '/';
     if (!isAuthenticated) {
@@ -110,16 +110,21 @@ export function useAppNavigation(isAuthenticated = false) {
       if (path !== '/signup' && path !== '/login') {
         window.history.replaceState({ auth: 'login' }, '', '/login');
       }
+    } else if (needsCenterSelection) {
+      // New Google user needs to pick their center
+      if (path !== '/select-center') {
+        window.history.replaceState({ auth: 'select-center' }, '', '/select-center');
+      }
     } else {
-      // If authenticated and on login/signup/root, navigate to active tab route
-      if (path === '/' || path === '' || path === '/login' || path === '/signup') {
+      // If authenticated and on login/signup/select-center/root, navigate to active tab route
+      if (path === '/' || path === '' || path === '/login' || path === '/signup' || path === '/select-center') {
         const targetUrl = TAB_ROUTES[activeTab] || '/menu-planner';
         if (window.location.pathname !== targetUrl) {
           window.history.replaceState({ tab: activeTab }, '', targetUrl);
         }
       }
     }
-  }, [isAuthenticated, activeTab]);
+  }, [isAuthenticated, needsCenterSelection, activeTab]);
 
   return {
     activeTab,

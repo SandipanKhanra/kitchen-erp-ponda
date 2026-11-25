@@ -28,6 +28,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   setDemoMode: (enabled: boolean) => void;
+  completeCenterSelection: (centerId: string, centerName: string) => Promise<void>;
   // Demo Switcher
   switchDemoUser: (target: 'sadmin' | 'admin1' | 'admin2' | 'user') => void;
   switchCenter: (centerId: string) => void;
@@ -83,6 +84,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    // Load unified users from Firestore (deduplicated by email)
+    authService.getAllUsers().then((fetchedUsers) => {
+      if (fetchedUsers && fetchedUsers.length > 0) {
+        setUsers((prev) => {
+          const map = new Map<string, UserProfile>();
+          for (const u of [...prev, ...fetchedUsers]) {
+            const key = (u.emailLower || u.email || u.uid).trim().toLowerCase();
+            map.set(key, u);
+          }
+          return Array.from(map.values());
+        });
+      }
+    });
+
     // Listen to Firebase Auth state
     const unsubscribe = authService.onAuthStateChange((fbUser, profile) => {
       setIsAuthLoading(false);
@@ -92,10 +107,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsDemoModeState(false);
         localStorage.setItem('kitchen_demo_mode', 'false');
 
-        // Add to allUsers if not exists
+        // Unify / deduplicate in allUsers by normalized email
         setUsers((prev) => {
-          const exists = prev.some((u) => u.uid === profile.uid);
-          return exists ? prev.map((u) => (u.uid === profile.uid ? profile : u)) : [profile, ...prev];
+          const emailKey = (profile.emailLower || profile.email || profile.uid).trim().toLowerCase();
+          const filtered = prev.filter(
+            (u) => u.uid !== profile.uid && (u.emailLower || u.email || u.uid).trim().toLowerCase() !== emailKey
+          );
+          return [profile, ...filtered];
         });
       } else {
         setFirebaseUser(null);
@@ -178,6 +196,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resetPassword = async (email: string) => {
     await authService.resetPassword(email);
+  };
+
+  const completeCenterSelection = async (centerId: string, centerName: string) => {
+    const updated = await authService.updateUserCenter(currentUser.uid, centerId, centerName);
+    const nextUser: UserProfile = updated || {
+      ...currentUser,
+      centerId,
+      centerName,
+      needsCenterSelection: false,
+      updatedAt: new Date().toISOString(),
+    };
+    setCurrentUser(nextUser);
+    setUsers((prev) => {
+      const emailKey = (nextUser.emailLower || nextUser.email || nextUser.uid).trim().toLowerCase();
+      const filtered = prev.filter(
+        (u) => u.uid !== nextUser.uid && (u.emailLower || u.email || u.uid).trim().toLowerCase() !== emailKey
+      );
+      return [nextUser, ...filtered];
+    });
+    const chosenCenter = centers.find((c) => c.id === centerId);
+    if (chosenCenter) {
+      setCurrentCenter(chosenCenter);
+    }
   };
 
   // Demo Switcher for fast live testing of RBAC and Maker-Checker
@@ -350,6 +391,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         resetPassword,
         setDemoMode,
+        completeCenterSelection,
         switchDemoUser,
         switchCenter,
         raiseCenterRequest,

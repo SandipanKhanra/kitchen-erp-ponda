@@ -17,6 +17,8 @@ import {
   deleteDoc,
   collection,
   getDocs,
+  query,
+  where,
 } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '../config/firebase';
 import { UserProfile, UserRole } from '../types/user';
@@ -34,7 +36,89 @@ export interface SignUpParams {
 
 export class AuthService {
   /**
-   * Register a new user in Firebase Auth and persist profile to Firestore
+   * Look up an existing user profile in Firestore by normalized email
+   * so Google Sign-In and Email/Password registrations with the same email
+   * are always treated as the same unified user.
+   */
+  async findUserByEmail(email: string): Promise<UserProfile | null> {
+    if (!isFirebaseConfigured || !db || !email) return null;
+    const normalized = email.trim().toLowerCase();
+    try {
+      const q1 = query(collection(db, 'users'), where('emailLower', '==', normalized));
+      const snap1 = await getDocs(q1);
+      if (!snap1.empty) {
+        return snap1.docs[0].data() as UserProfile;
+      }
+
+      const q2 = query(collection(db, 'users'), where('email', '==', email.trim()));
+      const snap2 = await getDocs(q2);
+      if (!snap2.empty) {
+        return snap2.docs[0].data() as UserProfile;
+      }
+
+      const q3 = query(collection(db, 'users'), where('email', '==', normalized));
+      const snap3 = await getDocs(q3);
+      if (!snap3.empty) {
+        return snap3.docs[0].data() as UserProfile;
+      }
+    } catch (err) {
+      console.warn('[AuthService] findUserByEmail notice:', err);
+    }
+    return null;
+  }
+
+  /**
+   * Fetch all unique users from Firestore, deduplicated by emailLower
+   */
+  async getAllUsers(): Promise<UserProfile[]> {
+    if (!isFirebaseConfigured || !db) return [];
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      const byEmail = new Map<string, UserProfile>();
+      snap.docs.forEach((d) => {
+        const u = d.data() as UserProfile;
+        const key = (u.emailLower || u.email || u.uid).trim().toLowerCase();
+        const existing = byEmail.get(key);
+        if (!existing || (u.updatedAt && existing.updatedAt && u.updatedAt > existing.updatedAt)) {
+          byEmail.set(key, u);
+        }
+      });
+      return Array.from(byEmail.values());
+    } catch (err) {
+      console.warn('[AuthService] getAllUsers notice:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Update user's selected center and mark onboarding center selection as complete
+   */
+  async updateUserCenter(uid: string, centerId: string, centerName: string): Promise<UserProfile | null> {
+    if (!isFirebaseConfigured || !db) return null;
+    const now = new Date().toISOString();
+    try {
+      const userRef = doc(db, 'users', uid);
+      await setDoc(
+        userRef,
+        {
+          centerId,
+          centerName,
+          needsCenterSelection: false,
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+      const snap = await getDoc(userRef);
+      return snap.exists() ? (snap.data() as UserProfile) : null;
+    } catch (err) {
+      console.warn('[AuthService] updateUserCenter failed:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Register a new user in Firebase Auth and persist profile to Firestore.
+   * Unifies with any existing profile sharing the same email.
    */
   async signUp({
     email,
@@ -48,18 +132,50 @@ export class AuthService {
       throw new Error('Firebase credentials are not configured.');
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Determine initial role based on admin authorization passcode or default 'user'
     let role: UserRole = 'user';
     const trimmedPasscode = passcode?.trim().toUpperCase();
-    if (trimmedPasscode === 'SADMIN' || trimmedPasscode === 'PONDA-SADMIN' || trimmedPasscode === 'ISKCON-SADMIN' || email.toLowerCase().includes('sadmin')) {
+    if (
+      trimmedPasscode === 'SADMIN' ||
+      trimmedPasscode === 'PONDA-SADMIN' ||
+      trimmedPasscode === 'ISKCON-SADMIN' ||
+      normalizedEmail.includes('sadmin')
+    ) {
       role = 'sadmin';
-    } else if (trimmedPasscode === 'ADMIN' || trimmedPasscode === 'PONDA-ADMIN' || trimmedPasscode === 'ISKCON-ADMIN') {
+    } else if (
+      trimmedPasscode === 'ADMIN' ||
+      trimmedPasscode === 'PONDA-ADMIN' ||
+      trimmedPasscode === 'ISKCON-ADMIN'
+    ) {
       role = 'admin';
     }
 
-    // 1. Create Firebase Auth user
-    const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-    const user = cred.user;
+    // 1. Create Firebase Auth user (or handle if email already registered)
+    let user: FirebaseUser;
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      user = cred.user;
+    } catch (err: any) {
+      if (err?.code === 'auth/email-already-in-use') {
+        // Check if user can sign in with this password (existing email/password user)
+        try {
+          const signInCred = await signInWithEmailAndPassword(auth, email.trim(), password);
+          user = signInCred.user;
+          const existingSnap = await getDoc(doc(db, 'users', user.uid));
+          if (existingSnap.exists()) {
+            return existingSnap.data() as UserProfile;
+          }
+        } catch {
+          throw new Error(
+            'An account with this email already exists (e.g. via Google Sign-In). Please sign in using "Continue with Google" to access your existing account.'
+          );
+        }
+      } else {
+        throw err;
+      }
+    }
 
     // 2. Update display name in Firebase Auth
     try {
@@ -68,15 +184,39 @@ export class AuthService {
       console.warn('Could not update Firebase displayName:', e);
     }
 
-    // 3. Create User Profile document in Firestore
+    // 3. Check if an account with the same email already exists in Firestore (e.g. from Google Sign-In)
+    const existingByEmail = await this.findUserByEmail(normalizedEmail);
     const now = new Date().toISOString();
+
+    if (existingByEmail) {
+      const unifiedProfile: UserProfile = {
+        ...existingByEmail,
+        uid: user.uid,
+        name: existingByEmail.name || name.trim(),
+        email: user.email || email.trim(),
+        emailLower: normalizedEmail,
+        role: role !== 'user' ? role : existingByEmail.role,
+        centerId: existingByEmail.centerId || (role === 'sadmin' ? 'all' : centerId),
+        centerName: existingByEmail.centerName || (role === 'sadmin' ? 'Global Administration' : centerName),
+        authProviders: Array.from(new Set([...(existingByEmail.authProviders || []), 'password'])),
+        needsCenterSelection: false,
+        updatedAt: now,
+      };
+      await setDoc(doc(db, 'users', user.uid), unifiedProfile, { merge: true });
+      return unifiedProfile;
+    }
+
+    // 4. Create new User Profile document in Firestore
     const userProfile: UserProfile = {
       uid: user.uid,
       name: name.trim(),
       email: user.email || email.trim(),
+      emailLower: normalizedEmail,
       role,
       centerId: role === 'sadmin' ? 'all' : centerId,
       centerName: role === 'sadmin' ? 'Global Administration' : centerName,
+      authProviders: ['password'],
+      needsCenterSelection: false,
       createdAt: now,
       updatedAt: now,
     };
@@ -122,7 +262,10 @@ export class AuthService {
   }
 
   /**
-   * Sign in with Google Popup
+   * Sign in with Google Popup.
+   * - If an account with the same email already exists (e.g. from Email/Password),
+   *   unifies into the same user profile without creating a duplicate.
+   * - If brand new Google user, marks `needsCenterSelection: true` so they can choose their center.
    */
   async signInWithGoogle(selectedCenterId?: string, selectedCenterName?: string): Promise<UserProfile> {
     if (!isFirebaseConfigured || !auth || !db) {
@@ -133,30 +276,71 @@ export class AuthService {
     provider.setCustomParameters({ prompt: 'select_account' });
     const cred = await signInWithPopup(auth, provider);
     const user = cred.user;
+    const normalizedEmail = (user.email || '').trim().toLowerCase();
+    const now = new Date().toISOString();
 
     const userDocRef = doc(db, 'users', user.uid);
     try {
       const userSnap = await getDoc(userDocRef);
       if (userSnap.exists()) {
-        return userSnap.data() as UserProfile;
+        const existing = userSnap.data() as UserProfile;
+        const providers = Array.from(new Set([...(existing.authProviders || []), 'google.com']));
+        if (!existing.emailLower || !existing.authProviders?.includes('google.com')) {
+          const updated: UserProfile = {
+            ...existing,
+            emailLower: normalizedEmail,
+            avatarUrl: user.photoURL || existing.avatarUrl,
+            authProviders: providers,
+            updatedAt: now,
+          };
+          await setDoc(userDocRef, updated, { merge: true }).catch(() => {});
+          return updated;
+        }
+        return existing;
       }
     } catch (e) {
-      console.warn('Could not read existing user doc in Google sign in, proceeding to create/sync:', e);
+      console.warn('Could not read existing user doc in Google sign in, checking email:', e);
     }
 
-    // Default to Ponda Center or passed center
-    const now = new Date().toISOString();
-    const isSAdminEmail = Boolean(user.email && (user.email.toLowerCase().includes('sadmin') || user.email.toLowerCase() === 'sadmin@iskcon.org'));
+    // Check if a profile with this exact email already exists (e.g., created via Email/Password)
+    const existingByEmail = await this.findUserByEmail(normalizedEmail);
+    if (existingByEmail) {
+      const unifiedProfile: UserProfile = {
+        ...existingByEmail,
+        uid: user.uid,
+        email: user.email || existingByEmail.email,
+        emailLower: normalizedEmail,
+        avatarUrl: user.photoURL || existingByEmail.avatarUrl,
+        authProviders: Array.from(new Set([...(existingByEmail.authProviders || ['password']), 'google.com'])),
+        needsCenterSelection: existingByEmail.needsCenterSelection ?? false,
+        updatedAt: now,
+      };
+      try {
+        await setDoc(userDocRef, unifiedProfile, { merge: true });
+      } catch (e) {
+        console.warn('Could not persist unified Google user profile to Firestore:', e);
+      }
+      return unifiedProfile;
+    }
+
+    // Brand new Google user -> prompt center selection if not sadmin and no center explicitly chosen
+    const isSAdminEmail = Boolean(
+      normalizedEmail && (normalizedEmail.includes('sadmin') || normalizedEmail === 'sadmin@iskcon.org')
+    );
     const role: UserRole = isSAdminEmail ? 'sadmin' : 'user';
+    const requiresCenterPick = role !== 'sadmin' && !selectedCenterId;
 
     const newProfile: UserProfile = {
       uid: user.uid,
       name: user.displayName || user.email?.split('@')[0] || 'Devotee',
       email: user.email || '',
+      emailLower: normalizedEmail,
       role,
       centerId: role === 'sadmin' ? 'all' : (selectedCenterId || 'center_ponda'),
-      centerName: role === 'sadmin' ? 'Global Administration' : (selectedCenterName || 'Ponda Center'),
+      centerName: role === 'sadmin' ? 'Global Administration' : (selectedCenterName || 'ISKCON Ponda Center'),
       avatarUrl: user.photoURL || undefined,
+      authProviders: ['google.com'],
+      needsCenterSelection: requiresCenterPick,
       createdAt: now,
       updatedAt: now,
     };
@@ -276,18 +460,42 @@ export class AuthService {
         if (snap.exists()) {
           callback(firebaseUser, snap.data() as UserProfile);
         } else {
-          // If no doc exists yet, generate fallback profile and persist it
+          // Before generating a new profile, check if a profile with the same email already exists
+          const normalizedEmail = (firebaseUser.email || '').trim().toLowerCase();
+          const existingByEmail = await this.findUserByEmail(normalizedEmail);
+          if (existingByEmail) {
+            const unifiedProfile: UserProfile = {
+              ...existingByEmail,
+              uid: firebaseUser.uid,
+              emailLower: normalizedEmail,
+              avatarUrl: firebaseUser.photoURL || existingByEmail.avatarUrl,
+              updatedAt: new Date().toISOString(),
+            };
+            setDoc(doc(db, 'users', firebaseUser.uid), unifiedProfile, { merge: true }).catch(() => {});
+            callback(firebaseUser, unifiedProfile);
+            return;
+          }
+
+          const isGoogleUser = firebaseUser.providerData?.some((p) => p.providerId === 'google.com');
+          const isSAdminEmail = Boolean(
+            normalizedEmail && (normalizedEmail.includes('sadmin') || normalizedEmail === 'sadmin@iskcon.org')
+          );
+          const role: UserRole = isSAdminEmail ? 'sadmin' : 'user';
+
           const fallbackProfile: UserProfile = {
             uid: firebaseUser.uid,
             name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Devotee',
             email: firebaseUser.email || '',
-            role: 'user',
-            centerId: 'center_ponda',
-            centerName: 'Ponda Center',
+            emailLower: normalizedEmail,
+            role,
+            centerId: role === 'sadmin' ? 'all' : 'center_ponda',
+            centerName: role === 'sadmin' ? 'Global Administration' : 'ISKCON Ponda Center',
+            avatarUrl: firebaseUser.photoURL || undefined,
+            authProviders: isGoogleUser ? ['google.com'] : ['password'],
+            needsCenterSelection: Boolean(isGoogleUser && role !== 'sadmin'),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
-          // Asynchronously create the document for future reads
           setDoc(doc(db, 'users', firebaseUser.uid), fallbackProfile, { merge: true }).catch((err) => {
             console.warn('Initial profile doc auto-creation notice:', err);
           });

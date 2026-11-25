@@ -9,13 +9,15 @@ import { AdminUserManagement } from './components/admin/AdminUserManagement';
 import { SAdminDashboard } from './components/sadmin/SAdminDashboard';
 import { VaishnavaCalendarView } from './components/calendar/VaishnavaCalendarView';
 import { AuthView } from './components/auth/AuthView';
+import { CenterSelectionView } from './components/auth/CenterSelectionView';
 import { AuditHistoryModal } from './components/audit/AuditHistoryModal';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { ChefHat } from 'lucide-react';
 
 function AppContent() {
-  const { firebaseUser, isDemoMode, isAuthLoading } = useAuth();
+  const { firebaseUser, currentUser, isSAdmin, isDemoMode, isAuthLoading } = useAuth();
   const isAuthenticated = Boolean(firebaseUser || isDemoMode);
+  const needsCenterSelection = Boolean(firebaseUser && currentUser.needsCenterSelection && !isSAdmin);
   const { isAuditModalOpen, auditModalCategory, closeAuditModal } = useKitchen();
   const {
     activeTab,
@@ -25,7 +27,7 @@ function AppContent() {
     openAuth,
     switchAuthTab,
     closeAuth,
-  } = useAppNavigation(isAuthenticated);
+  } = useAppNavigation(isAuthenticated, needsCenterSelection);
 
   // Loading Splash Screen while Firebase Auth initializes
   if (isAuthLoading) {
@@ -52,6 +54,15 @@ function AppContent() {
           initialTab={authModalTab}
           onTabChange={switchAuthTab}
         />
+      </div>
+    );
+  }
+
+  // If newly registered via Google and hasn't chosen a center yet: Redirect to Center Selection page
+  if (needsCenterSelection) {
+    return (
+      <div className="min-h-screen bg-transparent text-slate-900 dark:text-slate-100 flex items-center justify-center p-3 sm:p-4 transition-colors duration-200">
+        <CenterSelectionView />
       </div>
     );
   }

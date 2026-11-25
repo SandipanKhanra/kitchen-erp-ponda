@@ -108,8 +108,8 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSucce
     setError(null);
     setLoading(true);
     try {
-      const selectedCenter = availableCenters.find((c) => c.id === centerId) || availableCenters[0];
-      await loginWithGoogle(selectedCenter?.id, selectedCenter?.name);
+      // Do not pre-assign a center so new Google users are redirected to choose their center
+      await loginWithGoogle();
       onSuccess?.();
     } catch (err: any) {
       if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
