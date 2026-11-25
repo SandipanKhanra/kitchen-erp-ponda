@@ -159,37 +159,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAdmin = currentUser.role === 'admin';
   const isUser = currentUser.role === 'user';
 
-  // Real Firebase Auth Actions
+  // Real Firebase Auth Actions (do NOT toggle global isAuthLoading so forms don't unmount & lose error state)
   const login = async (email: string, password: string) => {
-    setIsAuthLoading(true);
     setSessionExpiredNotice(null);
-    try {
-      const profile = await authService.signIn(email, password);
-      setCurrentUser(profile);
-    } finally {
-      setIsAuthLoading(false);
-    }
+    const profile = await authService.signIn(email, password);
+    setCurrentUser(profile);
   };
 
   const loginWithGoogle = async (centerId?: string, centerName?: string, mode: 'login' | 'signup' = 'login') => {
-    setIsAuthLoading(true);
     setSessionExpiredNotice(null);
-    try {
-      const profile = await authService.signInWithGoogle(centerId, centerName, mode);
-      setCurrentUser(profile);
-    } finally {
-      setIsAuthLoading(false);
-    }
+    const profile = await authService.signInWithGoogle(centerId, centerName, mode);
+    setCurrentUser(profile);
   };
 
   const signUp = async (params: SignUpParams) => {
-    setIsAuthLoading(true);
     setSessionExpiredNotice(null);
-    try {
-      await authService.signUp(params);
-    } finally {
-      setIsAuthLoading(false);
-    }
+    await authService.signUp(params);
   };
 
   const logout = async () => {

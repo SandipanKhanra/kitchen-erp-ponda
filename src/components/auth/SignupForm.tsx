@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { Mail, Lock, User, Building2, Key, Eye, EyeOff, UserPlus, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 const GoogleIcon = () => (
@@ -30,6 +31,7 @@ interface SignupFormProps {
 
 export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSuccess }) => {
   const { signUp, loginWithGoogle, availableCenters, isAuthLoading } = useAuth();
+  const { showToast } = useToast();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -97,12 +99,16 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSucce
         centerName: selectedCenter.name,
         passcode: passcode.trim(),
       });
-      setSuccessMessage('Registration successful! Redirecting you to Sign In...');
+      const msg = 'Registration successful! Redirecting you to Sign In...';
+      setSuccessMessage(msg);
+      showToast(msg, 'success');
       setTimeout(() => {
         onSwitchToLogin();
       }, 1800);
     } catch (err: any) {
-      setError(formatErrorMessage(err));
+      const msg = formatErrorMessage(err);
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -118,7 +124,9 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onSucce
       onSuccess?.();
     } catch (err: any) {
       if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
-        setError(formatErrorMessage(err));
+        const msg = formatErrorMessage(err);
+        setError(msg);
+        showToast(msg, 'error');
       }
     } finally {
       setLoading(false);

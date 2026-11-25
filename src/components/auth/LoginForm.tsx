@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 
 const GoogleIcon = () => (
@@ -37,6 +38,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
     sessionExpiredNotice,
     clearSessionExpiredNotice,
   } = useAuth();
+  const { showToast } = useToast();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -74,7 +76,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
     e.preventDefault();
     setError(null);
     if (!email.trim() || !password) {
-      setError('Please provide both email and password.');
+      const msg = 'Please provide both email and password.';
+      setError(msg);
+      showToast(msg, 'error');
       return;
     }
 
@@ -83,7 +87,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
       await login(email, password);
       onSuccess?.();
     } catch (err: any) {
-      setError(formatErrorMessage(err));
+      const msg = formatErrorMessage(err);
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -97,7 +103,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
       onSuccess?.();
     } catch (err: any) {
       if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
-        setError(formatErrorMessage(err));
+        const msg = formatErrorMessage(err);
+        setError(msg);
+        showToast(msg, 'error');
       }
     } finally {
       setLoading(false);
@@ -108,7 +116,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
     e.preventDefault();
     setError(null);
     if (!resetEmail.trim()) {
-      setError('Please enter your email to receive a password reset link.');
+      const msg = 'Please enter your email to receive a password reset link.';
+      setError(msg);
+      showToast(msg, 'error');
       return;
     }
 
@@ -116,12 +126,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
     try {
       await resetPassword(resetEmail);
       setResetSent(true);
+      showToast('Password reset link sent! Check your email inbox.', 'success');
       setTimeout(() => {
         setShowResetModal(false);
         setResetSent(false);
       }, 3000);
     } catch (err: any) {
-      setError(formatErrorMessage(err));
+      const msg = formatErrorMessage(err);
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }

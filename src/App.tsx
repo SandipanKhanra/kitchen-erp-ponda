@@ -1,5 +1,6 @@
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { KitchenProvider, useKitchen } from './context/KitchenContext';
+import { ToastProvider } from './context/ToastContext';
 import { Navbar } from './components/layout/Navbar';
 import { FifteenDayMenuPlanner } from './components/menu/FifteenDayMenuPlanner';
 import { DaywiseAndShoppingView } from './components/requisition/DaywiseAndShoppingView';
@@ -113,10 +114,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <KitchenProvider>
-        <AppContent />
-      </KitchenProvider>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <KitchenProvider>
+          <AppContent />
+        </KitchenProvider>
+      </AuthProvider>
+    </ToastProvider>
   );
 }
