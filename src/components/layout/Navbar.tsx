@@ -262,7 +262,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
                         <div className="pt-1.5 mt-1.5 border-t border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between text-[11px]">
                           <span className="text-slate-500 dark:text-slate-400">Session Timeout:</span>
                           <span className="font-bold text-amber-600 dark:text-amber-400">
-                            {sessionMinutesLeft} min left (max 2 devices)
+                            {sessionMinutesLeft} min left
                           </span>
                         </div>
                       )}
