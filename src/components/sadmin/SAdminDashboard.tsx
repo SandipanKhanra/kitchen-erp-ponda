@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { ShieldCheck, CheckCircle2, XCircle, Search, PauseCircle, PlayCircle, Trash2 } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, XCircle, Search, PauseCircle, PlayCircle, Trash2, BarChart3 } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
 import { formatDateDDMMYYYY, formatUserRole } from '../../utils/formatters';
+import { SAdminCenterAnalytics } from './SAdminCenterAnalytics';
 
 export const SAdminDashboard: React.FC = () => {
   const {
@@ -17,7 +18,7 @@ export const SAdminDashboard: React.FC = () => {
     deleteCenter,
   } = useAuth();
 
-  const [activeSubTab, setActiveSubTab] = useState<'requests' | 'centers' | 'users'>('requests');
+  const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'requests' | 'centers' | 'users'>('analytics');
   const [rejectReason, setRejectReason] = useState('');
   const [rejectingId, setRejectingId] = useState<string | null>(null);
 
@@ -78,6 +79,20 @@ export const SAdminDashboard: React.FC = () => {
         <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs w-full sm:w-auto overflow-x-auto">
           <button
             onClick={() => {
+              setActiveSubTab('analytics');
+              setSearchQuery('');
+            }}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
+              activeSubTab === 'analytics'
+                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-purple-500" />
+            <span>Center-Wise Report</span>
+          </button>
+          <button
+            onClick={() => {
               setActiveSubTab('requests');
               setSearchQuery('');
             }}
@@ -119,6 +134,9 @@ export const SAdminDashboard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Subtab 0: Center-Wise Analytics & Financial Report */}
+      {activeSubTab === 'analytics' && <SAdminCenterAnalytics />}
 
       {/* Subtab 1: Pending Center Addition Requests (Feature c) */}
       {activeSubTab === 'requests' && (

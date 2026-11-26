@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { Building2, Search } from 'lucide-react';
+import { Building2, Search, BarChart3, Users } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
 import { formatUserRole } from '../../utils/formatters';
+import { CenterCostAnalytics } from './CenterCostAnalytics';
 
 export const AdminUserManagement: React.FC = () => {
   const { currentCenter, centerUsers, currentUser, assignUserRole, raiseCenterRequest, isSAdmin } = useAuth();
   const { showToast } = useToast();
 
+  const [adminSubTab, setAdminSubTab] = useState<'analytics' | 'users'>('analytics');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
@@ -71,20 +73,52 @@ export const AdminUserManagement: React.FC = () => {
           </p>
         </div>
 
-        {/* Feature c: Admin can only raise request to add a new center (Do not show for sadmin) */}
-        {!isSAdmin && (
-          <button
-            onClick={() => setIsRequestModalOpen(true)}
-            className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-md shadow-orange-500/20 text-xs transition-all"
-          >
-            <Building2 className="w-4 h-4" />
-            <span>Request New Center (SAdmin Approval)</span>
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setAdminSubTab('analytics')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all ${
+                adminSubTab === 'analytics'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-orange-500" />
+              <span>Cost Analytics</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setAdminSubTab('users')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all ${
+                adminSubTab === 'users'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Devotees ({centerUsers.length})</span>
+            </button>
+          </div>
+
+          {/* Feature c: Admin can only raise request to add a new center (Do not show for sadmin) */}
+          {!isSAdmin && (
+            <button
+              onClick={() => setIsRequestModalOpen(true)}
+              className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2.5 rounded-xl font-bold modern-btn-primary shadow-orange-500/20 text-xs transition-all"
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Request New Center (SAdmin Approval)</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Feature d: Admin can only assign new admin from the existing users of a center */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden space-y-4 p-4">
+      {adminSubTab === 'analytics' ? (
+        <CenterCostAnalytics />
+      ) : (
+        /* Feature d: Admin can only assign new admin from the existing users of a center */
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden space-y-4 p-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
             <h3 className="font-bold text-slate-900 dark:text-white text-sm">
@@ -201,6 +235,7 @@ export const AdminUserManagement: React.FC = () => {
           pageSizeOptions={[4, 6, 12]}
         />
       </div>
+      )}
 
       {/* Modal: Raise Center Addition Request (Feature c) */}
       {isRequestModalOpen && (
