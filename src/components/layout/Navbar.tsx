@@ -79,7 +79,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
     { id: 'stock', label: 'Stock & Price Adjuster', icon: Package, visible: true },
     { id: 'recipes_patterns', label: 'Recipes & Patterns', icon: Layers, visible: true },
     { id: 'vaishnava_calendar', label: 'Vaishnava Calendar', icon: Calendar, visible: true },
-    { id: 'admin_users', label: 'Center User Admin', icon: UserCheck, visible: isAdmin || isSAdmin },
+    { id: 'admin_users', label: 'Center User Admin', icon: UserCheck, visible: isAdmin && !isSAdmin },
     {
       id: 'sadmin_dashboard',
       label: 'SAdmin HQ',
