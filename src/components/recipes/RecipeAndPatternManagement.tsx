@@ -177,15 +177,13 @@ export const RecipeAndPatternManagement: React.FC = () => {
             <span>Audit History</span>
           </button>
 
-          {(isAdmin || isSAdmin) && (
-            <button
-              onClick={() => (activeTab === 'recipes' ? setIsRecipeModalOpen(true) : setIsPatternModalOpen(true))}
-              className="flex items-center space-x-1.5 bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold modern-btn-primary shadow-orange-500/20"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>{activeTab === 'recipes' ? 'Add Recipe' : 'Create Pattern (Admin)'}</span>
-            </button>
-          )}
+          <button
+            onClick={() => (activeTab === 'recipes' ? setIsRecipeModalOpen(true) : setIsPatternModalOpen(true))}
+            className="flex items-center space-x-1.5 bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold modern-btn-primary shadow-orange-500/20"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>{activeTab === 'recipes' ? 'Add Recipe' : 'Create Pattern'}</span>
+          </button>
         </div>
 
         {/* Search Bar */}
