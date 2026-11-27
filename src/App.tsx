@@ -1,21 +1,62 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { KitchenProvider, useKitchen } from './context/KitchenContext';
 import { ToastProvider } from './context/ToastContext';
 import { Navbar } from './components/layout/Navbar';
-import { FifteenDayMenuPlanner } from './components/menu/FifteenDayMenuPlanner';
-import { DaywiseAndShoppingView } from './components/requisition/DaywiseAndShoppingView';
-import { StockManagement } from './components/stock/StockManagement';
-import { RecipeAndPatternManagement } from './components/recipes/RecipeAndPatternManagement';
-import { AdminUserManagement } from './components/admin/AdminUserManagement';
-import { SAdminDashboard } from './components/sadmin/SAdminDashboard';
-import { VaishnavaCalendarView } from './components/calendar/VaishnavaCalendarView';
 import { AuthView } from './components/auth/AuthView';
-import { EmailActionView } from './components/auth/EmailActionView';
-import { CenterSelectionView } from './components/auth/CenterSelectionView';
-import { AuditHistoryModal } from './components/audit/AuditHistoryModal';
 import { LoadingScreen, LoadingSpinner } from './components/common/LoadingSpinner';
 import { useAppNavigation } from './hooks/useAppNavigation';
+
+const FifteenDayMenuPlanner = lazy(() =>
+  import('./components/menu/FifteenDayMenuPlanner').then((m) => ({
+    default: m.FifteenDayMenuPlanner,
+  }))
+);
+const DaywiseAndShoppingView = lazy(() =>
+  import('./components/requisition/DaywiseAndShoppingView').then((m) => ({
+    default: m.DaywiseAndShoppingView,
+  }))
+);
+const StockManagement = lazy(() =>
+  import('./components/stock/StockManagement').then((m) => ({
+    default: m.StockManagement,
+  }))
+);
+const RecipeAndPatternManagement = lazy(() =>
+  import('./components/recipes/RecipeAndPatternManagement').then((m) => ({
+    default: m.RecipeAndPatternManagement,
+  }))
+);
+const AdminUserManagement = lazy(() =>
+  import('./components/admin/AdminUserManagement').then((m) => ({
+    default: m.AdminUserManagement,
+  }))
+);
+const SAdminDashboard = lazy(() =>
+  import('./components/sadmin/SAdminDashboard').then((m) => ({
+    default: m.SAdminDashboard,
+  }))
+);
+const VaishnavaCalendarView = lazy(() =>
+  import('./components/calendar/VaishnavaCalendarView').then((m) => ({
+    default: m.VaishnavaCalendarView,
+  }))
+);
+const EmailActionView = lazy(() =>
+  import('./components/auth/EmailActionView').then((m) => ({
+    default: m.EmailActionView,
+  }))
+);
+const CenterSelectionView = lazy(() =>
+  import('./components/auth/CenterSelectionView').then((m) => ({
+    default: m.CenterSelectionView,
+  }))
+);
+const AuditHistoryModal = lazy(() =>
+  import('./components/audit/AuditHistoryModal').then((m) => ({
+    default: m.AuditHistoryModal,
+  }))
+);
 import { ChefHat } from 'lucide-react';
 
 function AppContent() {
@@ -51,11 +92,13 @@ function AppContent() {
 
   if (isEmailAction) {
     return (
-      <EmailActionView
-        onDone={() => {
-          window.location.href = '/login';
-        }}
-      />
+      <Suspense fallback={<LoadingScreen title="Ponda Kitchen ERP" subtitle="Loading..." />}>
+        <EmailActionView
+          onDone={() => {
+            window.location.href = '/login';
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -85,7 +128,9 @@ function AppContent() {
   if (needsCenterSelection) {
     return (
       <div className="min-h-screen bg-transparent text-slate-900 dark:text-slate-100 flex items-center justify-center p-3 sm:p-4 transition-colors duration-200">
-        <CenterSelectionView />
+        <Suspense fallback={<LoadingScreen title="Ponda Kitchen ERP" subtitle="Loading centers..." />}>
+          <CenterSelectionView />
+        </Suspense>
       </div>
     );
   }
@@ -106,13 +151,24 @@ function AppContent() {
             <span>Syncing center inventory, recipes &amp; menus with Firestore...</span>
           </div>
         )}
-        {activeTab === 'menu_planner' && <FifteenDayMenuPlanner />}
-        {activeTab === 'daywise_shopping' && <DaywiseAndShoppingView />}
-        {activeTab === 'stock' && <StockManagement />}
-        {activeTab === 'recipes_patterns' && <RecipeAndPatternManagement />}
-        {activeTab === 'admin_users' && isAdmin && !isSAdmin && <AdminUserManagement />}
-        {activeTab === 'sadmin_dashboard' && isSAdmin && <SAdminDashboard />}
-        {activeTab === 'vaishnava_calendar' && <VaishnavaCalendarView />}
+        <Suspense
+          fallback={
+            <div className="py-16 flex flex-col items-center justify-center space-y-3">
+              <LoadingSpinner size="md" className="text-orange-500" />
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                Loading module...
+              </span>
+            </div>
+          }
+        >
+          {activeTab === 'menu_planner' && <FifteenDayMenuPlanner />}
+          {activeTab === 'daywise_shopping' && <DaywiseAndShoppingView />}
+          {activeTab === 'stock' && <StockManagement />}
+          {activeTab === 'recipes_patterns' && <RecipeAndPatternManagement />}
+          {activeTab === 'admin_users' && isAdmin && !isSAdmin && <AdminUserManagement />}
+          {activeTab === 'sadmin_dashboard' && isSAdmin && <SAdminDashboard />}
+          {activeTab === 'vaishnava_calendar' && <VaishnavaCalendarView />}
+        </Suspense>
       </main>
 
       {/* Auth Modal (if opened while in Demo Mode or from deep-link) */}
@@ -127,10 +183,12 @@ function AppContent() {
 
       {/* Audit History Modal */}
       {isAuditModalOpen && (
-        <AuditHistoryModal
-          initialCategory={auditModalCategory}
-          onClose={closeAuditModal}
-        />
+        <Suspense fallback={null}>
+          <AuditHistoryModal
+            initialCategory={auditModalCategory}
+            onClose={closeAuditModal}
+          />
+        </Suspense>
       )}
 
       <footer className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-md border-t-2 border-t-orange-500/25 dark:border-t-orange-500/20 py-6 text-center text-xs text-slate-500 dark:text-slate-400">

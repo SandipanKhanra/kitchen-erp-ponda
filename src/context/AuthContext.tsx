@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { UserProfile } from '../types/user';
 import { Center, CenterCreationRequest } from '../types/center';
@@ -384,43 +384,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUsers((prev) => prev.filter((u) => u.uid !== uid));
   };
 
-  const centerUsers = users.filter((u) => u.centerId === currentCenter.id);
+  const availableCenters = useMemo(
+    () => centers.filter((c) => c.status === 'active'),
+    [centers]
+  );
+
+  const centerUsers = useMemo(
+    () => users.filter((u) => u.centerId === currentCenter.id),
+    [users, currentCenter.id]
+  );
+
+  const contextValue = useMemo(
+    () => ({
+      currentUser,
+      firebaseUser,
+      currentCenter,
+      availableCenters,
+      allCenters: centers,
+      centerUsers,
+      allUsers: users,
+      centerRequests,
+      isSAdmin,
+      isAdmin,
+      isUser,
+      isAuthLoading,
+      isFirebaseConfigured,
+      sessionMinutesLeft,
+      sessionExpiredNotice,
+      clearSessionExpiredNotice,
+      login,
+      loginWithGoogle,
+      signUp,
+      logout,
+      resetPassword,
+      completeCenterSelection,
+      switchCenter,
+      raiseCenterRequest,
+      approveCenterRequest,
+      rejectCenterRequest,
+      toggleCenterStatus,
+      deleteCenter,
+      assignUserRole,
+      removeUserFromCenter,
+    }),
+    [
+      currentUser,
+      firebaseUser,
+      currentCenter,
+      availableCenters,
+      centers,
+      centerUsers,
+      users,
+      centerRequests,
+      isSAdmin,
+      isAdmin,
+      isUser,
+      isAuthLoading,
+      sessionMinutesLeft,
+      sessionExpiredNotice,
+    ]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        currentUser,
-        firebaseUser,
-        currentCenter,
-        availableCenters: centers.filter((c) => c.status === 'active'),
-        allCenters: centers,
-        centerUsers,
-        allUsers: users,
-        centerRequests,
-        isSAdmin,
-        isAdmin,
-        isUser,
-        isAuthLoading,
-        isFirebaseConfigured,
-        sessionMinutesLeft,
-        sessionExpiredNotice,
-        clearSessionExpiredNotice,
-        login,
-        loginWithGoogle,
-        signUp,
-        logout,
-        resetPassword,
-        completeCenterSelection,
-        switchCenter,
-        raiseCenterRequest,
-        approveCenterRequest,
-        rejectCenterRequest,
-        toggleCenterStatus,
-        deleteCenter,
-        assignUserRole,
-        removeUserFromCenter,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
