@@ -20,7 +20,13 @@ import {
   X,
   ChevronDown,
   HelpCircle,
+  Bell,
+  BellRing,
+  CheckCheck,
 } from 'lucide-react';
+import { pushNotificationService } from '../../services/pushNotificationService';
+import { useToast } from '../../context/ToastContext';
+import { formatTimestampDDMMYYYY } from '../../utils/formatters';
 
 export type NavTab =
   | 'menu_planner'
@@ -58,12 +64,41 @@ export const Navbar: React.FC<NavbarProps> = ({
     logout,
     sessionMinutesLeft,
   } = useAuth();
-  const { theme, toggleTheme } = useKitchen();
+  const {
+    theme,
+    toggleTheme,
+    notifications,
+    unreadNotificationCount,
+    markNotificationRead,
+    markAllNotificationsRead,
+  } = useKitchen();
+  const { showToast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState<boolean>(() =>
+    pushNotificationService.isUserEnabled()
+  );
   const profileRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const activeTabRef = useRef<HTMLButtonElement>(null);
+
+  const handleTogglePush = async () => {
+    if (pushEnabled) {
+      pushNotificationService.disablePushNotifications();
+      setPushEnabled(false);
+      showToast('Push notifications paused on this device.', 'info');
+      return;
+    }
+    const res = await pushNotificationService.enablePushNotifications();
+    if (res.granted) {
+      setPushEnabled(true);
+      showToast('Push notifications enabled for this device!', 'success');
+    } else {
+      showToast(res.reason || 'Could not enable push notifications.', 'warning');
+    }
+  };
 
   // Scroll only the horizontal nav bar (not the page) so the active tab is visible on small screens
   useEffect(() => {
@@ -76,20 +111,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const avatarSrc = currentUser?.avatarUrl || firebaseUser?.photoURL || undefined;
 
-  // Close profile dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileDropdownOpen(false);
       }
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifDropdownOpen(false);
+      }
     };
-    if (profileDropdownOpen) {
+    if (profileDropdownOpen || notifDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [profileDropdownOpen]);
+  }, [profileDropdownOpen, notifDropdownOpen]);
 
   const pendingRequestsCount = centerRequests.filter((r) => r.status === 'pending_approval').length;
 
@@ -318,6 +356,106 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <UserPlus className="w-3.5 h-3.5" />
                   <span>Register</span>
                 </button>
+              </div>
+            )}
+
+            {/* Notification Bell + Push Notification Toggle */}
+            {firebaseUser && (
+              <div className="relative" ref={notifRef}>
+                <button
+                  type="button"
+                  onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
+                  className="relative p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  title="Notifications & Push Alerts"
+                  aria-label="Notifications"
+                >
+                  <Bell className={`w-4 h-4 ${unreadNotificationCount > 0 ? 'text-orange-500' : ''}`} />
+                  {unreadNotificationCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow">
+                      {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                    </span>
+                  )}
+                </button>
+
+                {notifDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/90 dark:border-slate-800 p-3 space-y-2.5 z-50 animate-fade-in">
+                    <div className="flex items-center justify-between px-1 pb-2 border-b border-slate-100 dark:border-slate-800">
+                      <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                        Notifications ({unreadNotificationCount} unread)
+                      </span>
+                      {unreadNotificationCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={markAllNotificationsRead}
+                          className="text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline inline-flex items-center gap-1"
+                        >
+                          <CheckCheck className="w-3 h-3" />
+                          <span>Mark all read</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Push Notification Toggle */}
+                    <button
+                      type="button"
+                      onClick={handleTogglePush}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold border transition ${
+                        pushEnabled
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                          : 'bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        <BellRing className="w-3.5 h-3.5" />
+                        <span>Device Push Notifications</span>
+                      </span>
+                      <span className="text-[10px] font-black uppercase">
+                        {pushEnabled ? 'ON' : 'Enable'}
+                      </span>
+                    </button>
+
+                    <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                      {notifications.length === 0 ? (
+                        <div className="py-6 text-center text-xs text-slate-400">
+                          No notifications yet.
+                        </div>
+                      ) : (
+                        notifications.slice(0, 10).map((n) => {
+                          const isUnread = !n.readBy.includes(currentUser.uid);
+                          return (
+                            <button
+                              key={n.id}
+                              type="button"
+                              onClick={() => {
+                                markNotificationRead(n.id);
+                                setNotifDropdownOpen(false);
+                                handleTabClick(n.actionTab);
+                              }}
+                              className={`w-full text-left p-2.5 rounded-xl transition space-y-1 ${
+                                isUnread
+                                  ? 'bg-orange-50/70 dark:bg-orange-950/30 hover:bg-orange-100/70'
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 opacity-80'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                  {n.title}
+                                </span>
+                                {isUnread && <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />}
+                              </div>
+                              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
+                                {n.message}
+                              </p>
+                              <div className="text-[10px] text-slate-400">
+                                {formatTimestampDDMMYYYY(n.createdAt)}
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

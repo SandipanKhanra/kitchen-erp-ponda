@@ -1,12 +1,15 @@
-import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { IngredientStockItem, StockAdjustmentEntry } from '../types/stock';
 import { Recipe, MenuPattern, CalculatedRecipeCost } from '../types/recipe';
 import { FifteenDayMenuPlan } from '../types/menu';
 import { PeriodRequirementSummary } from '../types/requisition';
 import { AuditLogEntry, AuditCategory } from '../types/audit';
+import { AppNotification } from '../types/notification';
 import { kitchenDbService } from '../services/kitchenDbService';
 import { emailNotificationService } from '../services/emailNotificationService';
+import { notificationRepository } from '../services/repositories/NotificationRepository';
+import { pushNotificationService } from '../services/pushNotificationService';
 import { createEmpty15DayMenu } from '../core/rotationEngine';
 import { calculateWeightedAveragePrice, deductStock } from '../core/stockEngine';
 import { calculateDayWiseAndShoppingRequirements } from '../core/daywiseRequirementCalculator';
@@ -64,6 +67,11 @@ interface KitchenContextType {
   refreshAuditLogs: () => Promise<void>;
   isSyncing: boolean;
   syncAllWithFirestore: () => Promise<void>;
+  // In-App & Push Notifications
+  notifications: AppNotification[];
+  unreadNotificationCount: number;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
 }
 
 const KitchenContext = createContext<KitchenContextType | null>(null);
@@ -140,6 +148,84 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [auditModalCategory, setAuditModalCategory] = useState<AuditCategory | undefined>();
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const seenNotifIdsRef = useRef<Set<string>>(new Set());
+  const notifInitializedRef = useRef<boolean>(false);
+
+  // Real-time center notifications + automatic PWA/OS push alert for newly arrived unread items
+  useEffect(() => {
+    if (!currentCenter.id) return;
+    notifInitializedRef.current = false;
+    seenNotifIdsRef.current = new Set();
+
+    const unsub = notificationRepository.subscribeToCenterNotifications(
+      currentCenter.id,
+      (items) => {
+        setNotifications(items);
+        if (!notifInitializedRef.current) {
+          items.forEach((n) => seenNotifIdsRef.current.add(n.id));
+          notifInitializedRef.current = true;
+          return;
+        }
+        items.forEach((n) => {
+          if (seenNotifIdsRef.current.has(n.id)) return;
+          seenNotifIdsRef.current.add(n.id);
+          const isTargeted =
+            n.targetUids.length === 0 || n.targetUids.includes(currentUser.uid);
+          const isUnread = !n.readBy.includes(currentUser.uid);
+          if (isTargeted && isUnread && n.createdByUid !== currentUser.uid) {
+            pushNotificationService.showNotification(
+              n.title,
+              n.message,
+              `/${n.actionTab === 'menu_planner' ? 'menu-planner' : n.actionTab}`
+            );
+          }
+        });
+      }
+    );
+
+    return () => unsub();
+  }, [currentCenter.id, currentUser.uid]);
+
+  const userNotifications = useMemo(
+    () =>
+      notifications.filter(
+        (n) => n.targetUids.length === 0 || n.targetUids.includes(currentUser.uid)
+      ),
+    [notifications, currentUser.uid]
+  );
+
+  const unreadNotificationCount = useMemo(
+    () => userNotifications.filter((n) => !n.readBy.includes(currentUser.uid)).length,
+    [userNotifications, currentUser.uid]
+  );
+
+  const markNotificationRead = async (id: string) => {
+    if (!currentCenter.id || !currentUser.uid) return;
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.id === id && !n.readBy.includes(currentUser.uid)
+          ? { ...n, readBy: [...n.readBy, currentUser.uid] }
+          : n
+      )
+    );
+    await notificationRepository.markAsRead(currentCenter.id, id, currentUser.uid);
+  };
+
+  const markAllNotificationsRead = async () => {
+    if (!currentCenter.id || !currentUser.uid) return;
+    const unread = userNotifications.filter((n) => !n.readBy.includes(currentUser.uid));
+    setNotifications((prev) =>
+      prev.map((n) =>
+        !n.readBy.includes(currentUser.uid)
+          ? { ...n, readBy: [...n.readBy, currentUser.uid] }
+          : n
+      )
+    );
+    await Promise.all(
+      unread.map((n) => notificationRepository.markAsRead(currentCenter.id, n.id, currentUser.uid))
+    );
+  };
 
   // Load center-specific data from Firestore and local cache whenever center switches
   useEffect(() => {
@@ -527,6 +613,28 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       // Notify eligible Center Admins (all admins if user submitted, or all OTHER admins if admin updated)
       if (!isEditedBySAdmin) {
+        const targetAdmins = emailNotificationService.getTargetAdminRecipients(
+          allUsers,
+          currentCenter.id,
+          currentUser.uid
+        );
+
+        // 1. Create real-time In-App Notification (+ triggers Push Notification for online admins)
+        notificationRepository
+          .createNotification(currentCenter.id, {
+            centerId: currentCenter.id,
+            title: '15-Day Menu Awaiting Approval',
+            message: `${currentUser.name} (${formatUserRole(currentUser.role)}) updated "${updatedPlan.title}". Please review & approve.`,
+            type: 'menu_approval',
+            targetUids: targetAdmins.map((a) => a.uid),
+            readBy: [currentUser.uid],
+            createdByUid: currentUser.uid,
+            createdByName: currentUser.name,
+            actionTab: 'menu_planner',
+          })
+          .catch((err) => console.warn('[InAppNotification] Notice:', err));
+
+        // 2. Send EmailJS notification if configured
         emailNotificationService
           .notifyAdminsForMenuApproval({
             allUsers,
@@ -833,6 +941,10 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
         refreshAuditLogs,
         isSyncing,
         syncAllWithFirestore,
+        notifications: userNotifications,
+        unreadNotificationCount,
+        markNotificationRead,
+        markAllNotificationsRead,
       }}
     >
       {children}

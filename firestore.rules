@@ -124,7 +124,17 @@ service cloud.firestore {
     }
 
     // ==========================================
-    // 7. Session Management (Max 2 Devices, 30-Min TTL)
+    // 7. In-App Notifications
+    // ==========================================
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isSAdmin();
+    }
+
+    // ==========================================
+    // 8. Session Management (Max 2 Devices, 30-Min TTL)
     // ==========================================
     match /user_sessions/{sessionId} {
       allow read: if isAuthenticated() && (

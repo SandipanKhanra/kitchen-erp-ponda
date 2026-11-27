@@ -24,6 +24,7 @@ import {
   RotateCcw,
   ChevronDown,
   Save,
+  MessageCircle,
 } from 'lucide-react';
 import { MealType, Recipe, MenuPattern, Occasion } from '../../types/recipe';
 import { FifteenDayMenuPlan } from '../../types/menu';
@@ -459,6 +460,21 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                   Under <strong>Maker-Checker policy</strong>, another admin must review and approve.
                 </span>
               </div>
+            )}
+
+            {isPending && !isSAdmin && (
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  `Hare Krishna!\n15-Day Prasadam Menu updated for *${currentCenter?.name || 'ISKCON Center'}* (${formatDateDDMMYYYY(activeMenuPlan.startDate)} to ${formatDateDDMMYYYY(activeMenuPlan.endDate)}) by ${currentUser.name}.\n\nPlease review & approve:\n${typeof window !== 'undefined' ? window.location.origin : 'https://iskcon-ponda-kitchen-erp.web.app'}/menu-planner`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-9 px-3 rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition"
+                title="Send formatted approval request to Center Admins via WhatsApp"
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>Notify via WhatsApp</span>
+              </a>
             )}
 
             {isPending && canApproveActiveMenu && (
