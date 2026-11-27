@@ -36,9 +36,16 @@ interface NavbarProps {
   setActiveTab: (tab: NavTab) => void;
   onOpenAuth?: (tab?: 'login' | 'signup') => void;
   onStartTour?: () => void;
+  tourHighlightedTab?: NavTab | null;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenAuth, onStartTour }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  activeTab,
+  setActiveTab,
+  onOpenAuth,
+  onStartTour,
+  tourHighlightedTab,
+}) => {
   const {
     currentUser,
     firebaseUser,
@@ -488,6 +495,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
               .map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
+                const isTourFocus = tourHighlightedTab === item.id;
                 return (
                   <button
                     key={item.id}
@@ -497,6 +505,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
                       isActive
                         ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500 text-white border-t-white/30 border-b-orange-800/40 shadow-md shadow-orange-500/20'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/80 dark:hover:bg-slate-800/80 border-t-transparent border-b-transparent hover:border-b-orange-400/50'
+                    } ${
+                      isTourFocus
+                        ? 'ring-2 ring-amber-400 ring-offset-2 dark:ring-offset-slate-950 animate-pulse'
+                        : ''
                     }`}
                   >
                     <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />

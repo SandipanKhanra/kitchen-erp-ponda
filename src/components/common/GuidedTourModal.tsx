@@ -22,6 +22,7 @@ interface GuidedTourModalProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigateTab: (tab: NavTab) => void;
+  onTourTabChange?: (tab: NavTab | null) => void;
 }
 
 interface TourStep {
@@ -39,6 +40,7 @@ export const GuidedTourModal: React.FC<GuidedTourModalProps> = ({
   isOpen,
   onClose,
   onNavigateTab,
+  onTourTabChange,
 }) => {
   const { currentUser, currentCenter, isAdmin, isSAdmin } = useAuth();
   const [stepIndex, setStepIndex] = useState(0);
@@ -174,63 +176,64 @@ export const GuidedTourModal: React.FC<GuidedTourModalProps> = ({
   const goToStep = (nextIdx: number) => {
     const clamped = Math.max(0, Math.min(steps.length - 1, nextIdx));
     setStepIndex(clamped);
-    const targetTab = steps[clamped]?.tab;
+    const targetTab = steps[clamped]?.tab || null;
     if (targetTab) {
       onNavigateTab(targetTab);
     }
+    onTourTabChange?.(targetTab);
+  };
+
+  const handleClose = () => {
+    onTourTabChange?.(null);
+    onClose();
   };
 
   const handleFinish = () => {
     setStepIndex(0);
+    onTourTabChange?.(null);
     onNavigateTab('menu_planner');
     onClose();
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-lg bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl shadow-2xl border-x border-slate-200/80 dark:border-slate-800/80 border-t-2 border-t-orange-500 border-b-2 border-b-indigo-500/50 p-6 sm:p-7 space-y-5"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-[400px] z-50 animate-fade-in pointer-events-auto">
+      <div className="relative w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl shadow-[0_20px_50px_rgba(15,23,42,0.28)] border-x border-slate-200/90 dark:border-slate-700/90 border-t-2 border-t-orange-500 border-b-2 border-b-indigo-500/60 p-5 space-y-3.5">
         <button
           type="button"
-          onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          onClick={handleClose}
+          className="absolute top-3.5 right-3.5 p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
           aria-label="Close guided tour"
         >
           <X className="w-4 h-4" />
         </button>
 
         {/* Header */}
-        <div className="flex items-start space-x-3.5 pr-6">
+        <div className="flex items-start space-x-3 pr-6">
           <div
-            className={`p-3 rounded-2xl bg-gradient-to-tr ${currentStep.accentClass} text-white shadow-lg flex-shrink-0`}
+            className={`p-2.5 rounded-2xl bg-gradient-to-tr ${currentStep.accentClass} text-white shadow-lg flex-shrink-0`}
           >
-            <Icon className="w-6 h-6" />
+            <Icon className="w-5 h-5" />
           </div>
           <div>
             <span className="inline-flex items-center space-x-1 text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400">
               <Sparkles className="w-3 h-3" />
               <span>{currentStep.badge}</span>
             </span>
-            <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-tight mt-0.5">
+            <h2 className="text-base font-black text-slate-900 dark:text-white leading-tight mt-0.5">
               {currentStep.title}
             </h2>
           </div>
         </div>
 
         {/* Description */}
-        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
           {currentStep.description}
         </p>
 
         {/* Key Tips */}
-        <div className="bg-slate-50/90 dark:bg-slate-800/70 rounded-2xl p-3.5 border-l-4 border-l-orange-500 space-y-2">
+        <div className="bg-slate-50/90 dark:bg-slate-800/70 rounded-2xl p-3 border-l-4 border-l-orange-500 space-y-1.5">
           {currentStep.tips.map((tip, i) => (
-            <div key={i} className="flex items-start space-x-2 text-xs text-slate-700 dark:text-slate-200">
+            <div key={i} className="flex items-start space-x-2 text-[11px] text-slate-700 dark:text-slate-200">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
               <span>{tip}</span>
             </div>
@@ -238,7 +241,7 @@ export const GuidedTourModal: React.FC<GuidedTourModalProps> = ({
         </div>
 
         {/* Progress Dots */}
-        <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center justify-between pt-0.5">
           <div className="flex items-center space-x-1.5">
             {steps.map((s, idx) => (
               <button
@@ -247,7 +250,7 @@ export const GuidedTourModal: React.FC<GuidedTourModalProps> = ({
                 onClick={() => goToStep(idx)}
                 className={`h-2 rounded-full transition-all ${
                   idx === stepIndex
-                    ? 'w-6 bg-orange-500'
+                    ? 'w-5 bg-orange-500'
                     : 'w-2 bg-slate-300 dark:bg-slate-700 hover:bg-orange-300'
                 }`}
                 aria-label={`Go to step ${idx + 1}`}
@@ -263,7 +266,7 @@ export const GuidedTourModal: React.FC<GuidedTourModalProps> = ({
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 px-2 py-1.5"
           >
             Skip Tour

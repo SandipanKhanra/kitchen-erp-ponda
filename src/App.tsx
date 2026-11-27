@@ -2,7 +2,7 @@ import { useEffect, useState, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { KitchenProvider, useKitchen } from './context/KitchenContext';
 import { ToastProvider } from './context/ToastContext';
-import { Navbar } from './components/layout/Navbar';
+import { Navbar, NavTab } from './components/layout/Navbar';
 import { AuthView } from './components/auth/AuthView';
 import { LoadingScreen, LoadingSpinner } from './components/common/LoadingSpinner';
 import { useAppNavigation } from './hooks/useAppNavigation';
@@ -76,6 +76,7 @@ function AppContent() {
   const needsCenterSelection = Boolean(firebaseUser && currentUser.needsCenterSelection && !isSAdmin);
   const { isAuditModalOpen, auditModalCategory, closeAuditModal, isSyncing } = useKitchen();
   const [isTourOpen, setIsTourOpen] = useState(false);
+  const [tourTab, setTourTab] = useState<NavTab | null>(null);
   const {
     activeTab,
     navigateToTab,
@@ -98,6 +99,7 @@ function AppContent() {
 
   const handleCloseTour = () => {
     setIsTourOpen(false);
+    setTourTab(null);
     if (currentUser.uid) {
       SafeStorage.setItem(`kitchen_tour_seen_${currentUser.uid}`, true);
     }
@@ -171,7 +173,11 @@ function AppContent() {
         activeTab={activeTab}
         setActiveTab={navigateToTab}
         onOpenAuth={(tab) => openAuth(tab || 'login')}
-        onStartTour={() => setIsTourOpen(true)}
+        onStartTour={() => {
+          setTourTab('menu_planner');
+          setIsTourOpen(true);
+        }}
+        tourHighlightedTab={tourTab}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
@@ -233,6 +239,7 @@ function AppContent() {
             isOpen={isTourOpen}
             onClose={handleCloseTour}
             onNavigateTab={navigateToTab}
+            onTourTabChange={setTourTab}
           />
         </Suspense>
       )}
