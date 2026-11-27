@@ -8,10 +8,7 @@ A modern, easy-to-use **Kitchen Management & Prasadam Planning ERP** built for *
 
 ## Screen-by-Screen Guide & Functionality
 
-> **Screenshots Note:** Add captured screenshots of each screen to `docs/screenshots/` (e.g., `login.png`, `menu-planner.png`, `recipes-patterns.png`, `shopping-list.png`, `stock.png`, `calendar.png`, `admin-analytics.png`, `sadmin-report.png`) to display them inline below.
-
 ### 1. Sign In, Registration & Center Selection
-![Sign In & Registration](docs/screenshots/login.png)
 - **Sign In**: Log in with Email & Password or **Continue with Google**.
 - **New Registration (Email Verification)**: New email signups receive a verification email valid for **15 minutes**. Once the link is clicked, registration is completed and you are redirected to Sign In.
 - **Google Onboarding**: First-time Google users are guided to **Choose Your Kitchen Center** before entering the dashboard.
@@ -64,15 +61,13 @@ A modern, easy-to-use **Kitchen Management & Prasadam Planning ERP** built for *
 
 ---
 
-### 7. Center Admin Dashboard (Analytics & Devotees)
-![Center Admin Analytics](docs/screenshots/admin-analytics.png)
+### 7. Center Admin Dashboard (Analytics & Devotees) *(Admin Role)*
 - **Monthly & Previous-Days Cost Analytics**: Filter by **Month**, **Yesterday**, **Last 7 Days**, **Last 15 Days**, or **Pick Date** to inspect Menu Cost, Stock Purchase Spend, Avg Daily Cost, Cost/Plate, and Inventory Value by Category—with CSV export.
 - **Devotee Management**: Promote devotees to Center Admin or demote them, and raise requests for new centers.
 
 ---
 
-### 8. Super Admin Console (SAdmin HQ)
-![SAdmin HQ Center-Wise Report](docs/screenshots/sadmin-report.png)
+### 8. Super Admin Console (SAdmin HQ) *(Super Admin Role)*
 - **Center-Wise Report**: Compare 15-day menu costs, net procurement, stock asset value, workforce, and color-coded **Plan Status** (`approved`, `pending approval`, `rejected`, `draft`) across every ISKCON center—with stacked mobile cards and CSV export.
 - **Governance**: Approve/reject new center requests, activate/pause centers, and switch between centers from the top bar.
 
