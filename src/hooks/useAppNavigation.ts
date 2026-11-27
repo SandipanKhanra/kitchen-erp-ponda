@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, startTransition } from 'react';
 import { NavTab } from '../components/layout/Navbar';
 
 export const TAB_ROUTES: Record<NavTab, string> = {
@@ -46,10 +46,12 @@ export function useAppNavigation(isAuthenticated = false, needsCenterSelection =
     };
   });
 
-  // Navigate to tab and push to browser history
+  // Navigate to tab and push to browser history (startTransition prevents Suspense flicker)
   const navigateToTab = useCallback((tab: NavTab) => {
-    setActiveTabState(tab);
-    setAuthModalState((prev) => ({ ...prev, isOpen: false }));
+    startTransition(() => {
+      setActiveTabState(tab);
+      setAuthModalState((prev) => (prev.isOpen ? { ...prev, isOpen: false } : prev));
+    });
     const targetUrl = TAB_ROUTES[tab] || '/menu-planner';
     if (window.location.pathname !== targetUrl) {
       window.history.pushState({ tab }, '', targetUrl);

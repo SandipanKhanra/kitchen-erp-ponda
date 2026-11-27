@@ -53,18 +53,16 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
   const activeTabRef = useRef<HTMLButtonElement>(null);
 
-  // Ensure the active tab is always scrolled into view on smaller screens
+  // Scroll only the horizontal nav bar (not the page) so the active tab is visible on small screens
   useEffect(() => {
-    const timer = setTimeout(() => {
-      activeTabRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        inline: 'center',
-        block: 'nearest',
-      });
-    }, 60);
-    return () => clearTimeout(timer);
+    const nav = navRef.current;
+    const btn = activeTabRef.current;
+    if (!nav || !btn) return;
+    const targetLeft = btn.offsetLeft - nav.clientWidth / 2 + btn.clientWidth / 2;
+    nav.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
   }, [activeTab, isAdmin, isSAdmin]);
 
   const avatarSrc = currentUser?.avatarUrl || firebaseUser?.photoURL || undefined;
@@ -452,7 +450,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
         )}
 
         {/* Navigation Tabs (Smooth Responsive Horizontal Scroll) */}
-        <nav className="flex space-x-1 overflow-x-auto py-2 border-t border-slate-100 dark:border-slate-800/80 no-scrollbar touch-pan-x">
+        <nav
+          ref={navRef}
+          className="flex space-x-1 overflow-x-auto py-2 border-t border-slate-100 dark:border-slate-800/80 no-scrollbar touch-pan-x"
+        >
           {navItems
             .filter((item) => item.visible)
             .map((item) => {
@@ -463,10 +464,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
                   key={item.id}
                   ref={isActive ? activeTabRef : undefined}
                   onClick={() => handleTabClick(item.id as NavTab)}
-                  className={`flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 relative ${
+                  className={`flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition-colors whitespace-nowrap flex-shrink-0 relative border-t border-b-2 ${
                     isActive
-                      ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500 text-white border-t border-t-white/30 border-b-2 border-b-orange-800/40 shadow-md shadow-orange-500/20'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border-b-2 border-b-transparent hover:border-b-orange-400/50'
+                      ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500 text-white border-t-white/30 border-b-orange-800/40 shadow-md shadow-orange-500/20'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border-t-transparent border-b-transparent hover:border-b-orange-400/50'
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
