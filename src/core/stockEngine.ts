@@ -22,7 +22,10 @@ export function calculateWeightedAveragePrice(
     };
   }
 
-  const existingValue = Math.max(0, oldStock) * oldPrice;
+  // If existing stock had no price set (₹0 placeholder), value it at the new purchase rate
+  // so it doesn't artificially dilute the weighted average price.
+  const effectiveOldPrice = oldPrice > 0 ? oldPrice : purchasedUnitPrice;
+  const existingValue = Math.max(0, oldStock) * effectiveOldPrice;
   const newValue = purchasedQty * purchasedUnitPrice;
   const weightedPrice = (existingValue + newValue) / newStock;
 
