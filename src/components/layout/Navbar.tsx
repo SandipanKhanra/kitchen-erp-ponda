@@ -53,6 +53,19 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const activeTabRef = useRef<HTMLButtonElement>(null);
+
+  // Ensure the active tab is always scrolled into view on smaller screens
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      activeTabRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [activeTab, isAdmin, isSAdmin]);
 
   const avatarSrc = currentUser?.avatarUrl || firebaseUser?.photoURL || undefined;
 
@@ -448,6 +461,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
               return (
                 <button
                   key={item.id}
+                  ref={isActive ? activeTabRef : undefined}
                   onClick={() => handleTabClick(item.id as NavTab)}
                   className={`flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 relative ${
                     isActive

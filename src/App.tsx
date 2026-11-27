@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { KitchenProvider, useKitchen } from './context/KitchenContext';
 import { ToastProvider } from './context/ToastContext';
@@ -17,7 +18,7 @@ import { useAppNavigation } from './hooks/useAppNavigation';
 import { ChefHat } from 'lucide-react';
 
 function AppContent() {
-  const { firebaseUser, currentUser, isSAdmin, isAuthLoading } = useAuth();
+  const { firebaseUser, currentUser, isSAdmin, isAdmin, isAuthLoading } = useAuth();
   const isAuthenticated = Boolean(firebaseUser);
   const needsCenterSelection = Boolean(firebaseUser && currentUser.needsCenterSelection && !isSAdmin);
   const { isAuditModalOpen, auditModalCategory, closeAuditModal, isSyncing } = useKitchen();
@@ -30,6 +31,16 @@ function AppContent() {
     switchAuthTab,
     closeAuth,
   } = useAppNavigation(isAuthenticated, needsCenterSelection);
+
+  // Redirect away from role-restricted tabs if role doesn't match
+  useEffect(() => {
+    if (!isAuthenticated || isAuthLoading || needsCenterSelection || !currentUser.uid) return;
+    if (activeTab === 'admin_users' && (isSAdmin || !isAdmin)) {
+      navigateToTab(isSAdmin ? 'sadmin_dashboard' : 'menu_planner');
+    } else if (activeTab === 'sadmin_dashboard' && !isSAdmin) {
+      navigateToTab('menu_planner');
+    }
+  }, [isAuthenticated, isAuthLoading, needsCenterSelection, currentUser.uid, activeTab, isSAdmin, isAdmin, navigateToTab]);
 
   // Loading Splash Screen while Firebase Auth initializes
   if (isAuthLoading) {
