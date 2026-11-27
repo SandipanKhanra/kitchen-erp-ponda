@@ -462,20 +462,43 @@ export const FifteenDayMenuPlanner: React.FC = () => {
               </div>
             )}
 
-            {isPending && !isSAdmin && (
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(
-                  `Hare Krishna!\n15-Day Prasadam Menu updated for *${currentCenter?.name || 'ISKCON Center'}* (${formatDateDDMMYYYY(activeMenuPlan.startDate)} to ${formatDateDDMMYYYY(activeMenuPlan.endDate)}) by ${currentUser.name}.\n\nPlease review & approve:\n${typeof window !== 'undefined' ? window.location.origin : 'https://iskcon-ponda-kitchen-erp.web.app'}/menu-planner`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="h-9 px-3 rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition"
-                title="Send formatted approval request to Center Admins via WhatsApp"
-              >
-                <MessageCircle className="w-3.5 h-3.5" />
-                <span>Notify via WhatsApp</span>
-              </a>
-            )}
+            {isPending && !isSAdmin && (() => {
+              const baseUrl =
+                typeof window !== 'undefined'
+                  ? window.location.origin
+                  : 'https://iskcon-ponda-kitchen-erp.web.app';
+              const waMessage = [
+                '🙏 *Hare Krishna!*',
+                '*15-Day Prasadam Menu — Approval Request*',
+                '',
+                `🏛️ *Center:* ${currentCenter?.name || 'ISKCON Center'}`,
+                `📋 *Menu Plan:* ${activeMenuPlan.title}`,
+                `📅 *Cycle:* ${formatDateDDMMYYYY(activeMenuPlan.startDate)} to ${formatDateDDMMYYYY(activeMenuPlan.endDate)}`,
+                `👤 *Updated By:* ${currentUser.name}`,
+                '⏳ *Status:* Pending Admin Approval',
+                '',
+                '_Under Maker-Checker policy, another Center Admin must review and approve this menu before it is locked._',
+                '',
+                '🔗 *Review & Approve Menu:*',
+                `${baseUrl}/menu-planner`,
+                '',
+                '🏠 *Open Kitchen ERP:*',
+                `${baseUrl}/`,
+              ].join('\n');
+
+              return (
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(waMessage)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-9 px-3 rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition"
+                  title="Send formatted approval request to Center Admins via WhatsApp"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>Notify via WhatsApp</span>
+                </a>
+              );
+            })()}
 
             {isPending && canApproveActiveMenu && (
               <button
