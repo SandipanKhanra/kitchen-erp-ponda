@@ -42,7 +42,13 @@ export const RecipeAndPatternManagement: React.FC = () => {
   const [patternDesc, setPatternDesc] = useState('');
 
   const handleAddIngredientToRecipe = () => {
-    if (stockItems.length === 0) return;
+    if (stockItems.length === 0) {
+      showToast(
+        'No stock items found for this center. Please add items in Stock & Price Adjuster first.',
+        'warning'
+      );
+      return;
+    }
     const defaultStock = stockItems[0];
     setIngredientsList((prev) => [
       ...prev,
@@ -55,34 +61,44 @@ export const RecipeAndPatternManagement: React.FC = () => {
   };
 
   const handleSaveRecipe = async () => {
-    if (!recipeName || ingredientsList.length === 0) {
-      showToast('Please provide Recipe Name and at least one ingredient.', 'warning');
+    if (!recipeName.trim()) {
+      showToast('Please provide a Recipe Name.', 'warning');
+      return;
+    }
+    if (ingredientsList.length === 0) {
+      showToast('Please click "+ Add Item" to add at least one ingredient.', 'warning');
       return;
     }
 
-    const newRec: Recipe = {
-      id: `rec_${Date.now()}`,
-      centerId: currentCenter.id,
-      name: recipeName,
-      occasion,
-      mealType,
-      type: recipeType,
-      measurableIndex,
-      baseYield,
-      prepTimeMinutes: prepTime,
-      cookTimeMinutes: cookTime,
-      description,
-      isAshramSpecific: isAshramSpecific || recipeType === 'Ashram',
-      ingredients: ingredientsList,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    try {
+      const newRec: Recipe = {
+        id: `rec_${Date.now()}`,
+        centerId: currentCenter.id,
+        name: recipeName.trim(),
+        occasion,
+        mealType,
+        type: recipeType,
+        measurableIndex,
+        baseYield,
+        prepTimeMinutes: prepTime,
+        cookTimeMinutes: cookTime,
+        description,
+        isAshramSpecific: isAshramSpecific || recipeType === 'Ashram',
+        ingredients: ingredientsList,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-    await saveRecipe(newRec);
-    showToast(`Recipe "${recipeName}" saved & synced with Firestore!`, 'success');
-    setIsRecipeModalOpen(false);
-    setRecipeName('');
-    setIngredientsList([]);
+      await saveRecipe(newRec);
+      showToast(`Recipe "${newRec.name}" saved!`, 'success');
+      setIsRecipeModalOpen(false);
+      setRecipeName('');
+      setDescription('');
+      setIsAshramSpecific(false);
+      setIngredientsList([]);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to save recipe. Please try again.', 'error');
+    }
   };
 
   const handleSavePattern = async () => {
@@ -464,12 +480,21 @@ export const RecipeAndPatternManagement: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-slate-700 dark:text-slate-300">Ingredients List</span>
                   <button
+                    type="button"
                     onClick={handleAddIngredientToRecipe}
-                    className="text-orange-500 font-bold hover:underline"
+                    className="px-3 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/50 dark:hover:bg-orange-900/50 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 font-bold transition"
                   >
                     + Add Item
                   </button>
                 </div>
+
+                {ingredientsList.length === 0 && (
+                  <p className="text-[11px] text-slate-400 italic py-1">
+                    {stockItems.length === 0
+                      ? 'No stock items available in this center yet. Add stock items in Stock & Price Adjuster first.'
+                      : 'Click "+ Add Item" to add ingredients from your stock.'}
+                  </p>
+                )}
 
                 {ingredientsList.map((ing, idx) => (
                   <div key={idx} className="flex gap-2 items-center flex-wrap sm:flex-nowrap">

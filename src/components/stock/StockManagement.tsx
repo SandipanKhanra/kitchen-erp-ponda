@@ -72,19 +72,29 @@ export const StockManagement: React.FC = () => {
   };
 
   const handleAddNewItem = async () => {
-    if (!newName) return;
-    await addNewStockItem({
-      name: newName,
-      brand: newBrand,
-      category: newCategory,
-      measureIndex: newMeasureIndex,
-      price: newPrice,
-      currentStock: newStock,
-      reorderLevel: 10,
-    });
-    setIsNewItemModalOpen(false);
-    setNewName('');
-    setNewBrand('');
+    if (!newName.trim()) {
+      showToast('Please enter an Item Name.', 'warning');
+      return;
+    }
+    try {
+      await addNewStockItem({
+        name: newName.trim(),
+        brand: newBrand.trim(),
+        category: newCategory,
+        measureIndex: newMeasureIndex,
+        price: newPrice,
+        currentStock: newStock,
+        reorderLevel: 10,
+      });
+      showToast(`Stock item "${newName.trim()}" added!`, 'success');
+      setIsNewItemModalOpen(false);
+      setNewName('');
+      setNewBrand('');
+      setNewPrice(0);
+      setNewStock(0);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to save stock item. Please try again.', 'error');
+    }
   };
 
   return (
