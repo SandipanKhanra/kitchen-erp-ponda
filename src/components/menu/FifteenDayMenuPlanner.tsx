@@ -31,6 +31,7 @@ import { sanitizeNumericChange } from '../../utils/numberInput';
 import { generateAshramWeeklyRotation, generateFull15DayMenuFromStartDate, formatDateISO } from '../../core/rotationEngine';
 import { resolveCenterLocation } from '../../core/gaurabdaCalendarEngine';
 import { formatDateDDMMYYYY } from '../../utils/formatters';
+import { useModalClose } from '../../hooks/useModalClose';
 
 export type MealSlotKey = 'breakfast' | 'lunch' | 'dinner' | 'brahmacariBreakfast' | 'brahmacariLunch';
 
@@ -72,6 +73,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
 
   // Day Editing State
   const [addDishModalMeal, setAddDishModalMeal] = useState<MealSlotKey | null>(null);
+  useModalClose(Boolean(addDishModalMeal), () => setAddDishModalMeal(null));
   const [dishModalTab, setDishModalTab] = useState<'recipes' | 'patterns'>('recipes');
   const [dishSearch, setDishSearch] = useState('');
   const [dishOccasionFilter, setDishOccasionFilter] = useState<'all' | 'Ashram' | Occasion>('all');

@@ -7,6 +7,7 @@ import { Recipe, MenuPattern, Occasion, MealType, RecipeType, MeasurableIndex } 
 import { MEAL_TYPES } from '../../config/constants';
 import { Pagination } from '../common/Pagination';
 import { sanitizeNumericChange } from '../../utils/numberInput';
+import { useModalClose } from '../../hooks/useModalClose';
 
 export const RecipeAndPatternManagement: React.FC = () => {
   const { currentCenter, isAdmin, isSAdmin } = useAuth();
@@ -37,6 +38,8 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
   // New / Edit Pattern Form state
   const [isPatternModalOpen, setIsPatternModalOpen] = useState(false);
+  useModalClose(isRecipeModalOpen, () => setIsRecipeModalOpen(false));
+  useModalClose(isPatternModalOpen, () => setIsPatternModalOpen(false));
   const [editingPatternId, setEditingPatternId] = useState<string | null>(null);
   const [patternName, setPatternName] = useState('');
   const [patternMealType, setPatternMealType] = useState<MealType>('Lunch');
@@ -537,11 +540,19 @@ export const RecipeAndPatternManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Modal: Add New Recipe */}
+      {/* Modal: Add / Edit Recipe */}
       {isRecipeModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-black text-slate-900 dark:text-white">Add New Recipe</h3>
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setIsRecipeModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-black text-slate-900 dark:text-white">
+              {editingRecipeId ? 'Edit Recipe' : 'Add New Recipe'}
+            </h3>
 
             <div className="space-y-3 text-xs">
               <div>
@@ -812,8 +823,14 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
       {/* Modal: Create / Edit Pattern */}
       {isPatternModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setIsPatternModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-black text-slate-900 dark:text-white">
               {editingPatternId ? 'Edit Menu Pattern' : 'Create Menu Pattern'}
             </h3>

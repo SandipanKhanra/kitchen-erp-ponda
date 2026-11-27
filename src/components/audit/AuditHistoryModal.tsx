@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
 import { formatTimestampDDMMYYYY, formatUserRole } from '../../utils/formatters';
+import { useModalClose } from '../../hooks/useModalClose';
 
 interface AuditHistoryModalProps {
   initialCategory?: AuditCategory;
@@ -33,6 +34,7 @@ export const AuditHistoryModal: React.FC<AuditHistoryModalProps> = ({
 }) => {
   const { currentCenter } = useAuth();
   const { auditLogs, refreshAuditLogs } = useKitchen();
+  useModalClose(true, onClose);
 
   const [activeCategory, setActiveCategory] = useState<AuditCategory | 'all'>(
     initialCategory || 'all'

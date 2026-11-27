@@ -5,6 +5,7 @@ import { Building2, Search, BarChart3, Users } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
 import { formatUserRole } from '../../utils/formatters';
 import { CenterCostAnalytics } from './CenterCostAnalytics';
+import { useModalClose } from '../../hooks/useModalClose';
 
 export const AdminUserManagement: React.FC = () => {
   const { currentCenter, centerUsers, currentUser, assignUserRole, raiseCenterRequest, isSAdmin } = useAuth();
@@ -16,6 +17,7 @@ export const AdminUserManagement: React.FC = () => {
   const [pageSize, setPageSize] = useState(6);
 
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  useModalClose(isRequestModalOpen, () => setIsRequestModalOpen(false));
   const [centerName, setCenterName] = useState('');
   const [centerCode, setCenterCode] = useState('');
   const [city, setCity] = useState('');
@@ -305,8 +307,14 @@ export const AdminUserManagement: React.FC = () => {
 
       {/* Modal: Raise Center Addition Request (Feature c) */}
       {isRequestModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setIsRequestModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-black text-slate-900 dark:text-white">
               Request New Center Addition
             </h3>

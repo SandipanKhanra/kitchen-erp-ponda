@@ -5,6 +5,7 @@ import { StockCategory, MeasureIndex } from '../../types/stock';
 import { Package, Plus, DollarSign, RefreshCw, CheckCircle2, TrendingUp, Search, History } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
 import { sanitizeNumericChange } from '../../utils/numberInput';
+import { useModalClose } from '../../hooks/useModalClose';
 
 export const StockManagement: React.FC = () => {
   const { stockItems, recordStockPurchase, updateStockPrice, updateStockCount, addNewStockItem, openAuditModal } = useKitchen();
@@ -25,6 +26,8 @@ export const StockManagement: React.FC = () => {
 
   // New Item modal
   const [isNewItemModalOpen, setIsNewItemModalOpen] = useState(false);
+  useModalClose(isPurchaseModalOpen, () => setIsPurchaseModalOpen(false));
+  useModalClose(isNewItemModalOpen, () => setIsNewItemModalOpen(false));
   const [newName, setNewName] = useState('');
   const [newBrand, setNewBrand] = useState('');
   const [newCategory, setNewCategory] = useState<StockCategory>('Grocery');
@@ -242,8 +245,14 @@ export const StockManagement: React.FC = () => {
 
       {/* Modal: Receive Stock Purchase (Adjust Weighted Average Price) */}
       {isPurchaseModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setIsPurchaseModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-black text-slate-900 dark:text-white">
               Receive Purchase & Auto-Adjust Price
             </h3>
@@ -323,8 +332,14 @@ export const StockManagement: React.FC = () => {
 
       {/* Modal: Add New Stock Item */}
       {isNewItemModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setIsNewItemModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-black text-slate-900 dark:text-white">Add New Stock Item</h3>
             <div className="space-y-3 text-xs">
               <div>
