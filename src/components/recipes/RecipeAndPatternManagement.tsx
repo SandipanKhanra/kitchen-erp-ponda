@@ -204,6 +204,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Row 1: Page Header & Primary Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -214,34 +215,10 @@ export const RecipeAndPatternManagement: React.FC = () => {
           </p>
         </div>
 
-        {/* Tab switch, Audit History & Add buttons */}
         <div className="toolbar-btn-row">
-          <div className="toolbar-pill-group text-xs font-bold">
-            <button
-              onClick={() => setActiveTab('recipes')}
-              className={`px-3.5 py-1.5 rounded-lg transition-all ${
-                activeTab === 'recipes'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              Recipes ({recipes.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('patterns')}
-              className={`px-3.5 py-1.5 rounded-lg transition-all ${
-                activeTab === 'patterns'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              Patterns ({patterns.length})
-            </button>
-          </div>
-
           <button
             onClick={() => openAuditModal('recipe')}
-            className="flex items-center space-x-1.5 modern-btn-secondary text-slate-700 dark:text-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-slate-100/90 dark:hover:bg-slate-800/90 shadow-sm"
+            className="modern-btn-secondary"
             title="View recipe audit trail"
           >
             <History className="w-3.5 h-3.5 text-purple-500" />
@@ -250,14 +227,39 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
           <button
             onClick={() => (activeTab === 'recipes' ? setIsRecipeModalOpen(true) : setIsPatternModalOpen(true))}
-            className="flex items-center space-x-1.5 bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold modern-btn-primary shadow-orange-500/20"
+            className="modern-btn-primary bg-gradient-to-b from-orange-500 to-orange-600 text-white"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{activeTab === 'recipes' ? 'Add Recipe' : 'Create Pattern'}</span>
           </button>
         </div>
+      </div>
 
-        {/* Search Bar */}
+      {/* Row 2: View Switcher & Search Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+        <div className="toolbar-pill-group text-xs font-semibold">
+          <button
+            onClick={() => setActiveTab('recipes')}
+            className={`px-3.5 py-1.5 rounded-lg transition-all ${
+              activeTab === 'recipes'
+                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            Recipes ({recipes.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('patterns')}
+            className={`px-3.5 py-1.5 rounded-lg transition-all ${
+              activeTab === 'patterns'
+                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            Patterns ({patterns.length})
+          </button>
+        </div>
+
         <div className="relative w-full sm:w-64">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
@@ -269,7 +271,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
               setRecipePage(1);
               setPatternPage(1);
             }}
-            className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900 dark:text-white placeholder-slate-400"
+            className="w-full h-9 pl-9 pr-3 bg-white/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/90 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900 dark:text-white placeholder-slate-400"
           />
         </div>
       </div>
