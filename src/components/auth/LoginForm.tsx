@@ -55,19 +55,19 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
       return 'Popup was blocked by your browser. Please allow popups for this site to sign in with Google.';
     }
     if (code === 'auth/user-not-found') {
-      return 'This email is not registered yet. Please register a new account first.';
+      return 'Email not registered. Please sign up first.';
     }
     if (code === 'auth/wrong-password') {
-      return 'Incorrect password. Please try again or reset your password.';
+      return 'Incorrect password. Please try again.';
     }
     if (code === 'auth/invalid-credential') {
-      return 'Incorrect password or this email is not registered yet. Please double-check your password, click "Continue with Google" if you used Google, or register a new account.';
+      return 'Invalid email or password.';
     }
     if (code === 'auth/too-many-requests') {
-      return 'Access temporarily blocked due to too many failed attempts. Please try again later or reset your password.';
+      return 'Too many failed attempts. Try again later.';
     }
     if (code === 'auth/invalid-email') {
-      return 'Please enter a valid email address.';
+      return 'Invalid email address.';
     }
     return err?.message || 'Failed to sign in. Please try again.';
   };
