@@ -86,9 +86,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
 
   const navItems = [
     { id: 'menu_planner', label: '15-Day Menu Planner', icon: Flame, visible: true },
+    { id: 'recipes_patterns', label: 'Recipes & Patterns', icon: Layers, visible: true },
     { id: 'daywise_shopping', label: 'Day-wise & Shopping List', icon: ShoppingBag, visible: true },
     { id: 'stock', label: 'Stock & Price Adjuster', icon: Package, visible: true },
-    { id: 'recipes_patterns', label: 'Recipes & Patterns', icon: Layers, visible: true },
     { id: 'vaishnava_calendar', label: 'Vaishnava Calendar', icon: Calendar, visible: true },
     { id: 'admin_users', label: 'Center User Admin', icon: UserCheck, visible: isAdmin && !isSAdmin },
     {
