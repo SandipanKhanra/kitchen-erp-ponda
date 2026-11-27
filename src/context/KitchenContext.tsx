@@ -8,6 +8,7 @@ import { AuditLogEntry, AuditCategory } from '../types/audit';
 import { AppNotification } from '../types/notification';
 import { kitchenDbService } from '../services/kitchenDbService';
 import { emailNotificationService } from '../services/emailNotificationService';
+import { workerNotificationService } from '../services/workerNotificationService';
 import { notificationRepository } from '../services/repositories/NotificationRepository';
 import { pushNotificationService } from '../services/pushNotificationService';
 import { createEmpty15DayMenu } from '../core/rotationEngine';
@@ -634,16 +635,51 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
           })
           .catch((err) => console.warn('[InAppNotification] Notice:', err));
 
-        // 2. Send EmailJS notification if configured
-        emailNotificationService
-          .notifyAdminsForMenuApproval({
-            allUsers,
-            centerId: currentCenter.id,
-            centerName: currentCenter.name,
-            submitter: currentUser,
-            plan: updatedPlan,
-          })
-          .catch((err) => console.warn('[EmailNotification] Notice:', err));
+        // 2. Dispatch Email + Closed-App FCM Push via Cloudflare Worker (falls back to EmailJS if Worker not configured)
+        if (workerNotificationService.isConfigured()) {
+          workerNotificationService
+            .notifyAdminsForMenuApproval({
+              allUsers,
+              centerId: currentCenter.id,
+              centerName: currentCenter.name,
+              submitter: currentUser,
+              plan: updatedPlan,
+            })
+            .then((res) => {
+              if (!res.emailConfigured) {
+                return emailNotificationService.notifyAdminsForMenuApproval({
+                  allUsers,
+                  centerId: currentCenter.id,
+                  centerName: currentCenter.name,
+                  submitter: currentUser,
+                  plan: updatedPlan,
+                });
+              }
+              return undefined;
+            })
+            .catch((err) => {
+              console.warn('[WorkerNotification] Notice, falling back to EmailJS:', err);
+              emailNotificationService
+                .notifyAdminsForMenuApproval({
+                  allUsers,
+                  centerId: currentCenter.id,
+                  centerName: currentCenter.name,
+                  submitter: currentUser,
+                  plan: updatedPlan,
+                })
+                .catch((e) => console.warn('[EmailNotification] Notice:', e));
+            });
+        } else {
+          emailNotificationService
+            .notifyAdminsForMenuApproval({
+              allUsers,
+              centerId: currentCenter.id,
+              centerName: currentCenter.name,
+              submitter: currentUser,
+              plan: updatedPlan,
+            })
+            .catch((err) => console.warn('[EmailNotification] Notice:', err));
+        }
       }
     }
   };

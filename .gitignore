@@ -7,3 +7,5 @@ dist-ssr/
 .DS_Store
 *.log
 .firebase/
+.wrangler/
+.dev.vars

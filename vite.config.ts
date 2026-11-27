@@ -44,7 +44,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/__\/auth\//],
+        navigateFallbackDenylist: [/^\/__\/auth\//, /^\/firebase-messaging-sw\.js$/],
       },
     }),
   ],

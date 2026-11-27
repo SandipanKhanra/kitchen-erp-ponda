@@ -1,6 +1,11 @@
+import { arrayUnion, doc, updateDoc } from 'firebase/firestore';
+import { getMessaging, getToken, isSupported as isFcmSupported } from 'firebase/messaging';
+import { app, db, isFirebaseConfigured } from '../config/firebase';
 import { SafeStorage } from '../utils/safeStorage';
 
 const PUSH_ENABLED_KEY = 'kitchen_push_enabled';
+const FCM_TOKEN_KEY = 'kitchen_fcm_token';
+const FIREBASE_VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
 
 export class PushNotificationService {
   isSupported(): boolean {
@@ -18,8 +23,47 @@ export class PushNotificationService {
     return SafeStorage.getItem<boolean>(PUSH_ENABLED_KEY, true);
   }
 
-  async enablePushNotifications(): Promise<{
+  /**
+   * Registers the dedicated FCM service worker and saves the device's FCM token
+   * on the user's Firestore profile so the Cloudflare Worker can send closed-app push.
+   */
+  async registerFcmToken(uid?: string): Promise<string | null> {
+    if (!uid || !isFirebaseConfigured || !app || !db || !FIREBASE_VAPID_KEY) {
+      return null;
+    }
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+      return null;
+    }
+
+    try {
+      const supported = await isFcmSupported();
+      if (!supported) return null;
+
+      const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+        scope: '/firebase-cloud-messaging-push-scope',
+      });
+      const messaging = getMessaging(app);
+      const token = await getToken(messaging, {
+        vapidKey: FIREBASE_VAPID_KEY,
+        serviceWorkerRegistration: swReg,
+      });
+
+      if (token) {
+        SafeStorage.setItem(FCM_TOKEN_KEY, token);
+        await updateDoc(doc(db, 'users', uid), {
+          fcmTokens: arrayUnion(token),
+        });
+        return token;
+      }
+    } catch (err) {
+      console.warn('[PushNotificationService] FCM token registration notice:', err);
+    }
+    return null;
+  }
+
+  async enablePushNotifications(uid?: string): Promise<{
     granted: boolean;
+    fcmRegistered?: boolean;
     reason?: string;
   }> {
     if (!this.isSupported()) {
@@ -42,12 +86,14 @@ export class PushNotificationService {
     }
 
     SafeStorage.setItem(PUSH_ENABLED_KEY, true);
+    const fcmToken = await this.registerFcmToken(uid);
+
     await this.showNotification(
       'Ponda Kitchen ERP',
       'Push notifications are now enabled for menu approvals & kitchen alerts.',
       '/menu-planner'
     );
-    return { granted: true };
+    return { granted: true, fcmRegistered: Boolean(fcmToken) };
   }
 
   disablePushNotifications(): void {

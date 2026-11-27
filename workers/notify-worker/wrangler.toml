@@ -1,0 +1,11 @@
+name = "kitchen-notify-worker"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+[vars]
+# Set this to your Firebase project ID (matches VITE_FIREBASE_PROJECT_ID)
+FIREBASE_PROJECT_ID = "iskcon-ponda-kitchen-erp"
+# Comma-separated allowed browser origins
+ALLOWED_ORIGINS = "https://iskcon-ponda-kitchen-erp.web.app,https://iskcon-ponda-kitchen-erp.firebaseapp.com,http://localhost:3000"
+# Sender address for Resend (onboarding@resend.dev works on free tier for testing; use your verified domain in production)
+RESEND_FROM_EMAIL = "Ponda Kitchen ERP <onboarding@resend.dev>"

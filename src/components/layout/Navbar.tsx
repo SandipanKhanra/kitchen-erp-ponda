@@ -91,7 +91,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       showToast('Push notifications paused on this device.', 'info');
       return;
     }
-    const res = await pushNotificationService.enablePushNotifications();
+    const res = await pushNotificationService.enablePushNotifications(currentUser.uid);
     if (res.granted) {
       setPushEnabled(true);
       showToast('Push notifications enabled for this device!', 'success');

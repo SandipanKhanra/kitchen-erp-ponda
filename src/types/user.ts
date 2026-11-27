@@ -9,6 +9,7 @@ export interface UserProfile {
   centerId: string;
   centerName: string;
   avatarUrl?: string;
+  fcmTokens?: string[];
   authProviders?: string[];
   needsCenterSelection?: boolean;
   emailVerified?: boolean;
