@@ -142,7 +142,7 @@ export const SAdminDashboard: React.FC = () => {
       {activeSubTab === 'requests' && (
         <div className="space-y-4">
           {pendingRequests.length === 0 ? (
-            <div className="bg-white dark:bg-slate-800 p-12 text-center rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="modern-card p-12 text-center rounded-2xl">
               <ShieldCheck className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
               <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
                 All Center Requests Cleared
@@ -155,7 +155,7 @@ export const SAdminDashboard: React.FC = () => {
             pendingRequests.map((req) => (
               <div
                 key={req.id}
-                className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4"
+                className="modern-card p-6 rounded-2xl space-y-4"
               >
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div>

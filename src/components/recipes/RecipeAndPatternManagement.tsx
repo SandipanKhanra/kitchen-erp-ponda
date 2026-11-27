@@ -375,7 +375,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
               paginatedRecipes.map((rec) => (
                 <div
                   key={rec.id}
-                  className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3"
+                  className="modern-card p-5 rounded-2xl space-y-3 hover:-translate-y-0.5 hover:shadow-lg"
                 >
                   <div className="flex justify-between items-start">
                     <div>
@@ -471,7 +471,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
               paginatedPatterns.map((pat) => (
                 <div
                   key={pat.id}
-                  className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3"
+                  className="modern-card p-5 rounded-2xl space-y-3 hover:-translate-y-0.5 hover:shadow-lg"
                 >
                   <div className="flex justify-between items-start">
                     <div>

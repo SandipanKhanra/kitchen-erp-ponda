@@ -120,7 +120,7 @@ export const AdminUserManagement: React.FC = () => {
         <CenterCostAnalytics />
       ) : (
         /* Feature d: Admin can only assign new admin from the existing users of a center */
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden space-y-4 p-4">
+        <div className="modern-card rounded-2xl overflow-hidden space-y-4 p-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
             <h3 className="font-bold text-slate-900 dark:text-white text-sm">

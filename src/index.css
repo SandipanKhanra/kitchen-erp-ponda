@@ -60,11 +60,11 @@ html[data-theme='light'] body {
 /* Modern Architectural 1-Side & Opposite-Sides Accent Borders */
 @layer components {
   .modern-card {
-    @apply bg-white/85 dark:bg-slate-900/80 backdrop-blur-md border-x border-slate-200/60 dark:border-slate-800/70 border-t-2 border-t-orange-400/75 dark:border-t-orange-500/60 border-b-2 border-b-indigo-400/40 dark:border-b-indigo-500/35 shadow-sm;
+    @apply bg-white/75 dark:bg-slate-900/65 backdrop-blur-xl border-x border-white/70 dark:border-slate-800/80 border-t-2 border-t-orange-400/75 dark:border-t-orange-500/60 border-b-2 border-b-indigo-400/35 dark:border-b-indigo-500/35 shadow-[0_8px_30px_rgba(15,23,42,0.06),inset_0_1px_0_rgba(255,255,255,0.7)] dark:shadow-[0_10px_32px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.07)] transition-all duration-200;
   }
 
   .modern-section {
-    @apply bg-white/80 dark:bg-slate-900/75 backdrop-blur-sm border-y border-r border-slate-200/60 dark:border-slate-800/70 border-l-4 border-l-orange-500 dark:border-l-amber-400;
+    @apply bg-white/70 dark:bg-slate-900/60 backdrop-blur-lg border-y border-r border-white/60 dark:border-slate-800/75 border-l-4 border-l-orange-500 dark:border-l-amber-400 shadow-[0_6px_24px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.55)] dark:shadow-[0_8px_28px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-200;
   }
 
   .modern-btn-primary {
