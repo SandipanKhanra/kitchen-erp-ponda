@@ -1,123 +1,117 @@
-# KitchenOps ERP Pro — ISKCON Kitchen & Center Management System 🍲
+# Ponda Kitchen ERP — ISKCON Kitchen Management System
 
-An enterprise-grade, multi-tenant Kitchen Management ERP designed for **ISKCON Centers & Temples**, featuring **Strict Center Isolation**, **Role-Based Access Control (sadmin / admin / user)**, **Maker-Checker Dual Approval Menus**, **Weighted Average Stock Recalibration**, and an **ISKCON Vaishnava Calendar Smriti Engine** that automatically guards Ekadashi and festival fasting days.
+A modern, easy-to-use **Kitchen Management & Prasadam Planning ERP** built for **ISKCON Centers & Temples**. It helps devotees, storekeepers, and temple admins plan 15-day menus, manage recipes and stock, respect Vaishnava fasting rules, and track daily & monthly kitchen costs—on desktop, Android, and iOS (PWA).
 
-Built with **React, TypeScript, Tailwind CSS (Day/Night Dark Mode)** and architected for **100% Free Hosting with Firebase**.
+**Live App:** https://iskcon-ponda-kitchen-erp.web.app
 
 ---
 
-## 🏛️ Multi-Tenant Architecture & Roles
+## Screen-by-Screen Guide & Functionality
 
-### 1. Two Primary Entities: `Center` and `User`
-- **Center Isolation**: All inventory stock, recipes, patterns, menus, and requisitions are strictly isolated by `centerId`. Admins and users cannot view or manipulate data from any other center.
-- **Super Admin (`sadmin`)**: Has an exclusive, centralized **SAdmin HQ Console** allowing supervision, cross-center switching, center approvals, and global administrator assignments.
+> **Screenshots Note:** Add captured screenshots of each screen to `docs/screenshots/` (e.g., `login.png`, `menu-planner.png`, `recipes-patterns.png`, `shopping-list.png`, `stock.png`, `calendar.png`, `admin-analytics.png`, `sadmin-report.png`) to display them inline below.
 
-### 2. User Roles & Hierarchy
-| Role | Capabilities |
+### 1. Sign In, Registration & Center Selection
+![Sign In & Registration](docs/screenshots/login.png)
+- **Sign In**: Log in with Email & Password or **Continue with Google**.
+- **New Registration (Email Verification)**: New email signups receive a verification email valid for **15 minutes**. Once the link is clicked, registration is completed and you are redirected to Sign In.
+- **Google Onboarding**: First-time Google users are guided to **Choose Your Kitchen Center** before entering the dashboard.
+- **Session Protection**: Sessions last **30 minutes** with a **5-minute warning popup** allowing you to extend your session by another 30 minutes with one click.
+
+---
+
+### 2. 15-Day Menu Planner
+![15-Day Menu Planner](docs/screenshots/menu-planner.png)
+- **2-Week Auto-Fill**: Pick a **Start Date** and the planner automatically calculates the 15-day span and fills in menus across Breakfast, Lunch, Dinner, and Brahmacari Ashram meals.
+- **Ekadashi Guard**: Automatically detects Ekadashi days from the Vaishnava Calendar and blocks non-Ekadashi grain/pulse dishes.
+- **Brahmacari Ashram Rotation**: One-click **Auto-Rotate Ashram** applies a 7-day weekly rotation for Ashram meals.
+- **Save & Maker-Checker Approval**: Edit freely in draft mode, then click **Update** to save to Firestore and record the change in the **Audit History**. Admins can approve menus created by devotees or other admins.
+
+---
+
+### 3. Recipes & Meal Patterns
+![Recipes & Patterns](docs/screenshots/recipes-patterns.png)
+- **Create & Edit Recipes**: Add or update recipes with Occasion (`Normal`, `Ekadashi`, `Fasting`), Meal Slot, Dish Type, and **Base Yield & Unit** (`per person`, `piece`, `litre`, `kg`).
+- **Works Without Pre-Existing Stock**: You can add any ingredient—even if your center has zero stock yet. Custom ingredients are automatically added to Stock with `0` quantity so your shopping list stays accurate.
+- **Create & Edit Meal Patterns**: Group multiple recipes into reusable Meal Patterns (e.g., *Classic Raj Bhog Lunch*) for quick menu planning.
+
+---
+
+### 4. Day-Wise Demand & Shopping List
+![Day-Wise & Shopping List](docs/screenshots/shopping-list.png)
+- **Daily Usage & Costs**: See exact ingredient quantities and ₹ costs day-by-day across all 15 days.
+- **Consolidated Shopping List**: Automatically totals 15-day ingredient demand, **subtracts your current stock**, and shows only the net quantities you need to buy.
+- **One-Click CSV Export**: Download a clean Purchase Order spreadsheet for storekeepers.
+
+---
+
+### 5. Stock & Weighted Average Price Adjuster
+![Stock Management](docs/screenshots/stock.png)
+- **KPI Summary Strip**: At-a-glance cards for **Total Inventory Value (₹)**, **Low / Out-of-Stock Items** (click to filter), and **Missing Unit Price (₹0)** (click to filter).
+- **Quick Row Actions**:
+  - **Adjust**: Inline-edit stock counts or unit prices right on the row/card.
+  - **Purchase**: Pre-selects the item and previews the **Purchase Total**, **New Stock Balance**, and **New Moving Weighted Average Price** live before saving.
+- **Moving Weighted Average Formula**:
+  $$\text{New Unit Price} = \frac{(\text{OldStock} \times \text{EffectiveOldPrice}) + (\text{PurchasedQty} \times \text{PurchasedUnitPrice})}{\text{OldStock} + \text{PurchasedQty}}$$
+  *(If `OldPrice` is `₹0`, it uses `PurchasedUnitPrice` so placeholder items don't dilute the average.)*
+
+---
+
+### 6. Vaishnava Calendar
+![Vaishnava Calendar](docs/screenshots/calendar.png)
+- **GCAL / Gaurabda Engine**: Powered by the ISKCON Chowpatty GCAL dataset (2025–2030) with Gaurabda astronomical fallback for other years.
+- **Focused Observances**: Shows **Ekadashi** (with Parana break-fast windows), **Vaishnava Acharya appearances/disappearances**, and **major Vaishnava festivals** (excluding Masik Shivaratri).
+- **Custom `.ics` Import**: Upload `.ics` files from GCAL or vaisnavacalendar.info if needed.
+
+---
+
+### 7. Center Admin Dashboard (Analytics & Devotees)
+![Center Admin Analytics](docs/screenshots/admin-analytics.png)
+- **Monthly & Previous-Days Cost Analytics**: Filter by **Month**, **Yesterday**, **Last 7 Days**, **Last 15 Days**, or **Pick Date** to inspect Menu Cost, Stock Purchase Spend, Avg Daily Cost, Cost/Plate, and Inventory Value by Category—with CSV export.
+- **Devotee Management**: Promote devotees to Center Admin or demote them, and raise requests for new centers.
+
+---
+
+### 8. Super Admin Console (SAdmin HQ)
+![SAdmin HQ Center-Wise Report](docs/screenshots/sadmin-report.png)
+- **Center-Wise Report**: Compare 15-day menu costs, net procurement, stock asset value, workforce, and color-coded **Plan Status** (`approved`, `pending approval`, `rejected`, `draft`) across every ISKCON center—with stacked mobile cards and CSV export.
+- **Governance**: Approve/reject new center requests, activate/pause centers, and switch between centers from the top bar.
+
+---
+
+### 9. First-Time Guided Tour & PWA Install
+- **Interactive Guided Tour**: Automatically launches on a new user's first login and walks through every tab. Replay anytime via the **`?`** button in the header.
+- **Installable App (PWA)**: Install directly from Chrome (Android/Desktop) or Safari (iOS → *Add to Home Screen*) for a full-screen app experience.
+- **Day / Night Theme & Accessibility**: Instant light/dark mode toggle, and all modals close cleanly with **Escape** or **clicking outside**.
+
+---
+
+## Roles & Permissions Summary
+
+| Role | What They Can Do |
 |---|---|
-| **`sadmin`** (Super Admin) | Approves/rejects center creation requests, manages all centers, promotes/demotes admins globally. |
-| **`admin`** (Center Admin) | Manages recipes & patterns, approves user menus, assigns/removes admin role for existing users in their center, raises requests for new centers. |
-| **`user`** (Standard Devotee) | Default role on sign-up. Creates and edits 15-day menu drafts, generates day-wise shopping requisitions. |
-
-### 3. Center Addition & Approval Workflow
-```
-[Center Admin]  ───(Raises Request with Name, Code, City)───► [Center Requests Queue]
-                                                                      │
-                                                        [Super Admin (sadmin) Review]
-                                                                ┌─────┴─────┐
-                                                            [Approved]  [Rejected]
-                                                                │
-                                                  [New Isolated Center Activated]
-                                                  [Open for User Registration]
-```
-
-### 4. Admin Promotion Rule
-- Admins can **only** assign the `admin` role to existing users belonging to their own center.
+| **Devotee (`user`)** | Plan 15-day menus, create/edit recipes & patterns, view shopping lists & stock, view Vaishnava calendar. |
+| **Center Admin (`admin`)** | Everything a Devotee can do + approve center menus (Maker-Checker), manage stock purchases/counts, view Monthly/Daily Cost Analytics, manage center devotees, request new centers. |
+| **Super Admin (`sadmin`)** | Global oversight across all centers, Center-Wise Financial Reports, approve/pause/delete centers, manage global admins. |
 
 ---
 
-## 🍲 Core Domain Modules & Features
+## Local Setup & Deployment
 
-### 1. Recipe Entity
-- **Properties**:
-  - `Name` (e.g. Sabudana Khichdi, Jeera Rice)
-  - `Occasion`: `Normal`, `Ekadashi`, `Fasting`
-  - `Meal Type`: `Breakfast`, `Lunch`, `Dinner`
-  - `Type`: `Beverage`, `Snack`, `Sweet`, `Curry`, `Rice`, `Bread`, `Dal`, `Other`
-  - `Measurable Index`: `per person`, `kg`, `litre`
-  - `List of Ingredients`: Item, quantity, unit, wastage percentage
+### Prerequisites
+- Node.js 18+ and a Firebase project (Auth + Firestore + Hosting) configured in `.env`.
 
-### 2. Menu Patterns (Admin Only)
-- Patterns bundle recipes into repeatable, standard culinary combinations (e.g., `Pattern 1 - Classic Raj Bhog Feast: Jeera Rice, Yellow Dal Tadka, Saffron Sweet Rice`).
-- Admins can create, customize, and edit patterns per meal slot.
-
-### 3. Stock Inventory & Moving Weighted Average Pricing
-- **4 Strict Categories**:
-  - 🌾 `Grocery` (Grains, Pulses, Millets, Spices, Sendha Namak)
-  - 🥬 `Vegetables` (Potatoes, Peas, Tomatoes, Veggies)
-  - 🍎 `Fruits` (Bananas, Apples, Seasonal Fruits)
-  - 🥛 `Dairy` (Pure Cow Ghee, Milk, Fresh Paneer)
-- **Properties**: `Name`, `Brand`, `Measure Index (kg, litre, piece)`, `Price`.
-- **Moving Weighted Average Unit Price Recalibration**:
-  When a stock purchase is received, the price adjusts automatically:
-  $$\text{New Unit Price} = \frac{(\text{Current Stock} \times \text{Current Price}) + (\text{Purchased Qty} \times \text{Purchased Unit Rate})}{\text{Current Stock} + \text{Purchased Qty}}$$
-
-### 4. 15-Day Menu Planning & Maker-Checker Dual Approvals
-- Fixed schedules for **Breakfast, Lunch, and Dinner** with individual headcounts.
-- **Non-Repetition Constraint**: Validates that recipes do not repeat across the 15-day cycle or consecutively between Day 15 and Day 1 of the next cycle.
-- **Maker-Checker Policy**:
-  - If a `user` creates a menu $\to$ any `admin` of that center can approve.
-  - If an `admin` creates a menu $\to$ the creator admin **cannot** approve their own menu. Approval must be granted by **another admin** in the center!
-
-### 5. ISKCON Vaishnava Calendar Smriti Sync
-- Automatically recognizes all **Ekadashi vrata dates** (Utpanna, Mokshada, Saphala, Putrada, Bhaimi, etc.) and major fasting festivals (Janmashtami, Gaura Purnima, Rama Navami).
-- **Dietary Guard**: On Ekadashi, the menu engine strictly blocks grains and pulses, allowing only Ekadashi-approved ingredients (Sama rice, Sabudana, Potato, Fruits, Dairy, Sendha Namak).
-
-### 6. Day-Wise Requirement & Consolidated Shopping List
-- Dynamically derives exact day-by-day ingredient consumption and daily costs.
-- Aggregates the 15-day period demand, **subtracts on-hand inventory stock**, and generates the net items to purchase.
-- One-click CSV export for storekeepers and procurement devotees.
-
----
-
-## 🎨 UI/UX Design System
-
-- **Day / Night Theme Engine**: Instant toggle between crisp light mode and deep cosmic slate dark mode with localStorage persistence.
-- **Visual Language**: Subtle frosted glass effects (`backdrop-blur`), smooth amber/orange gradients, and clear badge indicators.
-- **Role Switcher in Header**: Built-in test toolbar allowing immediate switching between `SAdmin`, `Admin 1 (Krishna - Creator)`, `Admin 2 (Govinda - Approver)`, and `User (Radhika)` to test the Maker-Checker workflow.
-
----
-
-## 💻 Local Setup & Execution
-
+### Run Locally
 ```powershell
-# 1. Open the project directory
-cd C:\Users\Hp\Documents\software\kitchen-management
-
-# 2. Install dependencies
 npm install
-
-# 3. Start development server
 npm run dev
 ```
+Open `http://localhost:3000`.
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-## ☁️ Zero-Cost Firebase Deployment
-
-1. Initialize Firebase:
-   ```bash
-   firebase login
-   firebase init
-   ```
-   *(Select Firestore and Hosting)*
-2. Deploy Firestore Security Rules:
-   ```bash
-   firebase deploy --only firestore:rules
-   ```
-3. Deploy frontend to free Firebase CDN:
-   ```bash
-   npm run firebase:deploy
-   ```
+### Build & Deploy to Firebase
+```powershell
+npm run build ; npx --yes firebase-tools deploy --only hosting
+```
+To also deploy updated Firestore security rules:
+```powershell
+npm run build ; npx --yes firebase-tools deploy --only hosting,firestore:rules
+```
