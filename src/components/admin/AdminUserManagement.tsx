@@ -73,8 +73,8 @@ export const AdminUserManagement: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
+        <div className="toolbar-btn-row">
+          <div className="toolbar-pill-group text-xs font-bold">
             <button
               type="button"
               onClick={() => setAdminSubTab('analytics')}

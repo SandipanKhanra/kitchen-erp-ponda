@@ -138,7 +138,7 @@ export const StockManagement: React.FC = () => {
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         {/* Category Filter Tabs */}
-        <div className="flex flex-wrap gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl text-xs font-bold w-full sm:w-auto">
+        <div className="toolbar-pill-group text-xs font-bold w-full sm:w-auto">
           <button
             onClick={() => handleCatChange('All')}
             className={`px-3 py-1.5 rounded-xl transition-all ${

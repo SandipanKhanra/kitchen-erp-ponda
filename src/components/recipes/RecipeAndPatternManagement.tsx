@@ -215,8 +215,8 @@ export const RecipeAndPatternManagement: React.FC = () => {
         </div>
 
         {/* Tab switch, Audit History & Add buttons */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
-          <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl text-xs font-bold">
+        <div className="toolbar-btn-row">
+          <div className="toolbar-pill-group text-xs font-bold">
             <button
               onClick={() => setActiveTab('recipes')}
               className={`px-3.5 py-1.5 rounded-lg transition-all ${

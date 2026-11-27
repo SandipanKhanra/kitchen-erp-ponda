@@ -76,7 +76,7 @@ export const SAdminDashboard: React.FC = () => {
         </div>
 
         {/* Subtabs */}
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs w-full sm:w-auto overflow-x-auto">
+        <div className="toolbar-pill-group text-xs w-full sm:w-auto overflow-x-auto">
           <button
             onClick={() => {
               setActiveSubTab('analytics');

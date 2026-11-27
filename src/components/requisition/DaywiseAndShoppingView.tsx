@@ -101,8 +101,8 @@ export const DaywiseAndShoppingView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-          <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl text-xs font-bold">
+        <div className="toolbar-btn-row">
+          <div className="toolbar-pill-group text-xs font-bold">
             <button
               onClick={() => {
                 setSubView('shopping');

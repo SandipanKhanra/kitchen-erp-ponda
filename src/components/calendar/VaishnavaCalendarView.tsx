@@ -139,7 +139,7 @@ export const VaishnavaCalendarView: React.FC = () => {
         </div>
 
         {/* Year Selector + Sync & .ics Import Controls */}
-        <div className="flex flex-wrap items-center gap-2 text-xs">
+        <div className="toolbar-btn-row text-xs">
           <select
             value={selectedYear}
             onChange={(e) => {
@@ -209,7 +209,7 @@ export const VaishnavaCalendarView: React.FC = () => {
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="flex flex-wrap gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl text-xs font-bold w-full sm:w-auto">
+        <div className="toolbar-pill-group text-xs font-bold w-full sm:w-auto">
           {types.map((t) => (
             <button
               key={t}

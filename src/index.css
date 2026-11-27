@@ -68,11 +68,19 @@ html[data-theme='light'] body {
   }
 
   .modern-btn-primary {
-    @apply border-t border-t-white/35 border-b-2 border-b-orange-800/45 shadow-md transition-all;
+    @apply border-t border-t-white/35 border-b-2 border-b-orange-800/45 shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-150 cursor-pointer;
   }
 
   .modern-btn-secondary {
-    @apply border-y border-slate-200/80 dark:border-slate-700/80 border-l-2 border-l-orange-500/80 border-r-2 border-r-indigo-400/50 dark:border-r-indigo-500/50 transition-all;
+    @apply bg-white/85 dark:bg-slate-800/85 backdrop-blur-sm border-y border-slate-200/80 dark:border-slate-700/80 border-l-2 border-l-orange-500/80 border-r-2 border-r-indigo-400/50 dark:border-r-indigo-500/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-150 cursor-pointer;
+  }
+
+  .toolbar-pill-group {
+    @apply inline-flex flex-wrap sm:flex-nowrap items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-slate-800/85 border border-slate-200/70 dark:border-slate-700/70 shadow-inner;
+  }
+
+  .toolbar-btn-row {
+    @apply flex flex-wrap items-center gap-2 sm:gap-2.5 w-full lg:w-auto;
   }
 }
 
