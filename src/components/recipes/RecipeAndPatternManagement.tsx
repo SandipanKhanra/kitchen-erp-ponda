@@ -619,42 +619,40 @@ export const RecipeAndPatternManagement: React.FC = () => {
                   </select>
                 </div>
 
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Base Yield</label>
-                  <input
-                    type="number"
-                    min="0.1"
-                    step={measurableIndex === 'piece' || measurableIndex === 'per person' ? '1' : 'any'}
-                    value={baseYield === 0 ? '' : baseYield}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => {
-                      const allowDecimal = measurableIndex === 'kg' || measurableIndex === 'litre';
-                      const { numValue } = sanitizeNumericChange(e, allowDecimal);
-                      setBaseYield(allowDecimal ? numValue : Math.round(numValue));
-                    }}
-                    placeholder="10"
-                    className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white font-semibold"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Yield Unit</label>
-                  <select
-                    value={measurableIndex}
-                    onChange={(e) => {
-                      const nextUnit = e.target.value as MeasurableIndex;
-                      setMeasurableIndex(nextUnit);
-                      if ((nextUnit === 'piece' || nextUnit === 'per person') && baseYield) {
-                        setBaseYield(Math.max(1, Math.round(baseYield)));
-                      }
-                    }}
-                    className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white"
-                  >
-                    <option value="per person">per person</option>
-                    <option value="piece">piece</option>
-                    <option value="litre">litre</option>
-                    <option value="kg">kg</option>
-                  </select>
+                <div className="col-span-2">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Base Yield &amp; Unit</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="number"
+                      min="0.1"
+                      step={measurableIndex === 'piece' || measurableIndex === 'per person' ? '1' : 'any'}
+                      value={baseYield === 0 ? '' : baseYield}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const allowDecimal = measurableIndex === 'kg' || measurableIndex === 'litre';
+                        const { numValue } = sanitizeNumericChange(e, allowDecimal);
+                        setBaseYield(allowDecimal ? numValue : Math.round(numValue));
+                      }}
+                      placeholder="10"
+                      className="flex-1 min-w-0 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white font-semibold"
+                    />
+                    <select
+                      value={measurableIndex}
+                      onChange={(e) => {
+                        const nextUnit = e.target.value as MeasurableIndex;
+                        setMeasurableIndex(nextUnit);
+                        if ((nextUnit === 'piece' || nextUnit === 'per person') && baseYield) {
+                          setBaseYield(Math.max(1, Math.round(baseYield)));
+                        }
+                      }}
+                      className="w-36 p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white font-semibold"
+                    >
+                      <option value="per person">per person</option>
+                      <option value="piece">piece</option>
+                      <option value="litre">litre</option>
+                      <option value="kg">kg</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
