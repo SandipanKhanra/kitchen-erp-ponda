@@ -29,7 +29,7 @@ import {
 import { MealType, Recipe, MenuPattern, Occasion } from '../../types/recipe';
 import { FifteenDayMenuPlan } from '../../types/menu';
 import { sanitizeNumericChange } from '../../utils/numberInput';
-import { generateAshramWeeklyRotation, generateFull15DayMenuFromStartDate, formatDateISO } from '../../core/rotationEngine';
+import { generateAshramWeeklyRotation, generateFull15DayMenuFromStartDate, formatDateISO, addDaysISO } from '../../core/rotationEngine';
 import { resolveCenterLocation } from '../../core/gaurabdaCalendarEngine';
 import { formatDateDDMMYYYY } from '../../utils/formatters';
 import { useModalClose } from '../../hooks/useModalClose';
@@ -71,6 +71,10 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
+  const [newCycleConfirm, setNewCycleConfirm] = useState<{
+    newStartDate: string;
+    newEndDate: string;
+  } | null>(null);
 
   // Day Editing State
   const [addDishModalMeal, setAddDishModalMeal] = useState<MealSlotKey | null>(null);
@@ -100,12 +104,51 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     if (!newStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(newStartDate)) return;
     const year = Number(newStartDate.slice(0, 4));
     if (year < 2000) return;
+
+    // 1. If the current plan is APPROVED, block direct start-date edits and require a "Start New Cycle" confirmation
+    if (isApproved && !isSAdmin) {
+      const previewEnd = addDaysISO(newStartDate, 14);
+      setNewCycleConfirm({ newStartDate, newEndDate: previewEnd });
+      return;
+    }
+
     const centerLocation = resolveCenterLocation(currentCenter);
     const generated = generateFull15DayMenuFromStartDate(newStartDate, recipes, activeMenuPlan, centerLocation);
     saveMenuPlan(generated, { recordAudit: false });
     setHasUnsavedChanges(true);
     showToast(
       `Calculated 2-week cycle (${formatDateDDMMYYYY(generated.startDate)} to ${formatDateDDMMYYYY(generated.endDate)}) and auto-filled menus! Click "Update" to save.`,
+      'info'
+    );
+  };
+
+  const handleAutoFill = () => {
+    const startDate = activeMenuPlan.startDate || formatDateISO(new Date());
+
+    // If the current plan is APPROVED, treat Auto-Fill as a new cycle request too
+    if (isApproved && !isSAdmin) {
+      const previewEnd = addDaysISO(startDate, 14);
+      setNewCycleConfirm({ newStartDate: startDate, newEndDate: previewEnd });
+      return;
+    }
+
+    handleStartDateChange(startDate);
+  };
+
+  const handleConfirmNewCycle = () => {
+    if (!newCycleConfirm) return;
+    const centerLocation = resolveCenterLocation(currentCenter);
+    const generated = generateFull15DayMenuFromStartDate(
+      newCycleConfirm.newStartDate,
+      recipes,
+      activeMenuPlan,
+      centerLocation
+    );
+    saveMenuPlan(generated, { recordAudit: false });
+    setHasUnsavedChanges(true);
+    setNewCycleConfirm(null);
+    showToast(
+      `New cycle started: ${formatDateDDMMYYYY(generated.startDate)} to ${formatDateDDMMYYYY(generated.endDate)}. Click "Update" to save.`,
       'info'
     );
   };
@@ -404,7 +447,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
 
             {/* Start Date Selector -> Auto-Calculates 2 Weeks & Fills Menus */}
             <div className="mt-3 flex flex-wrap items-center gap-2.5 text-xs">
-              <div className="flex items-center space-x-2 bg-white/80 dark:bg-slate-900/70 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+              <div className={`flex items-center space-x-2 bg-white/80 dark:bg-slate-900/70 px-3 py-1.5 rounded-xl border ${isApproved && !isSAdmin ? 'border-emerald-300 dark:border-emerald-700 opacity-70' : 'border-slate-200 dark:border-slate-700'}`}>
                 <CalendarIcon className="w-3.5 h-3.5 text-orange-500" />
                 <label htmlFor="cycle-start-date" className="font-bold text-slate-600 dark:text-slate-300">
                   Start Date:
@@ -414,22 +457,35 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                   type="date"
                   value={activeMenuPlan.startDate}
                   onChange={(e) => handleStartDateChange(e.target.value)}
-                  className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                  disabled={isApproved && !isSAdmin}
+                  className={`bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none ${isApproved && !isSAdmin ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                 />
               </div>
               <span className="text-slate-500 dark:text-slate-400 font-semibold">
                 2-Week Span: <strong className="text-slate-800 dark:text-slate-200">{formatDateDDMMYYYY(activeMenuPlan.startDate)}</strong> to{' '}
                 <strong className="text-slate-800 dark:text-slate-200">{formatDateDDMMYYYY(activeMenuPlan.endDate)}</strong>
               </span>
-              <button
-                type="button"
-                onClick={() => handleStartDateChange(activeMenuPlan.startDate || formatDateISO(new Date()))}
-                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-orange-100/90 hover:bg-orange-200 dark:bg-orange-950/60 dark:hover:bg-orange-900/60 text-orange-700 dark:text-orange-300 font-bold border-y border-orange-200 dark:border-orange-800 border-l-2 border-l-orange-500 border-r-2 border-r-amber-500/60 transition"
-                title="Recalculate 2 weeks from start date and auto-fill menus"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Auto-Fill 2 Weeks</span>
-              </button>
+              {isApproved && !isSAdmin ? (
+                <button
+                  type="button"
+                  onClick={handleAutoFill}
+                  className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-indigo-100/90 hover:bg-indigo-200 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-300 dark:border-indigo-700 transition"
+                  title="Start a new 15-day cycle from this date (replaces the current approved plan)"
+                >
+                  <CalendarIcon className="w-3.5 h-3.5" />
+                  <span>Start New Cycle</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleAutoFill}
+                  className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-orange-100/90 hover:bg-orange-200 dark:bg-orange-950/60 dark:hover:bg-orange-900/60 text-orange-700 dark:text-orange-300 font-bold border-y border-orange-200 dark:border-orange-800 border-l-2 border-l-orange-500 border-r-2 border-r-amber-500/60 transition"
+                  title="Recalculate 2 weeks from start date and auto-fill menus"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Auto-Fill 2 Weeks</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -1202,6 +1258,66 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                 className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition"
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Cycle Confirmation Modal (shown when trying to change start date on an APPROVED plan) */}
+      {newCycleConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-orange-200 dark:border-orange-800 w-full max-w-md p-6 space-y-4">
+            {/* Header */}
+            <div className="flex items-start space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950 flex items-center justify-center flex-shrink-0">
+                <CalendarIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h2 className="font-extrabold text-slate-900 dark:text-white text-base">Start a New 15-Day Cycle?</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  The current plan is <span className="font-bold text-emerald-600 dark:text-emerald-400">Approved & Live</span>. Starting a new cycle will replace it.
+                </p>
+              </div>
+            </div>
+
+            {/* Current plan info */}
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500 dark:text-slate-400 font-semibold">Active Plan</span>
+                <span className="font-bold text-slate-700 dark:text-slate-200">{activeMenuPlan.title}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 dark:text-slate-400 font-semibold">Current Span</span>
+                <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                  {formatDateDDMMYYYY(activeMenuPlan.startDate)} → {formatDateDDMMYYYY(activeMenuPlan.endDate)}
+                </span>
+              </div>
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-1.5 mt-1 flex justify-between">
+                <span className="text-slate-500 dark:text-slate-400 font-semibold">New Cycle</span>
+                <span className="font-bold text-orange-600 dark:text-orange-400">
+                  {formatDateDDMMYYYY(newCycleConfirm.newStartDate)} → {formatDateDDMMYYYY(newCycleConfirm.newEndDate)}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 rounded-xl px-3 py-2 border border-amber-200 dark:border-amber-800">
+              ⚠️ The current approved plan will be <strong>replaced</strong>. The old plan details are preserved in the <strong>Audit Trail</strong>.
+            </p>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-1">
+              <button
+                onClick={() => setNewCycleConfirm(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmNewCycle}
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/20 transition"
+              >
+                Yes, Start New Cycle
               </button>
             </div>
           </div>
