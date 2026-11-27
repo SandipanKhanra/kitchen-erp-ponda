@@ -20,8 +20,9 @@ export const RecipeAndPatternManagement: React.FC = () => {
   const [patternPage, setPatternPage] = useState(1);
   const [patternPageSize, setPatternPageSize] = useState(6);
 
-  // New Recipe Form state
+  // New / Edit Recipe Form state
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
+  const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
   const [recipeName, setRecipeName] = useState('');
   const [occasion, setOccasion] = useState<Occasion>('Normal');
   const [mealType, setMealType] = useState<MealType>('Lunch');
@@ -34,12 +35,69 @@ export const RecipeAndPatternManagement: React.FC = () => {
   const [description, setDescription] = useState('');
   const [ingredientsList, setIngredientsList] = useState<Array<{ ingredientId: string; quantity: number; unit: string; customName?: string }>>([]);
 
-  // New Pattern Form state (Only Admin)
+  // New / Edit Pattern Form state
   const [isPatternModalOpen, setIsPatternModalOpen] = useState(false);
+  const [editingPatternId, setEditingPatternId] = useState<string | null>(null);
   const [patternName, setPatternName] = useState('');
   const [patternMealType, setPatternMealType] = useState<MealType>('Lunch');
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>([]);
   const [patternDesc, setPatternDesc] = useState('');
+
+  const openCreateRecipeModal = () => {
+    setEditingRecipeId(null);
+    setRecipeName('');
+    setOccasion('Normal');
+    setMealType('Lunch');
+    setRecipeType('Rice');
+    setIsAshramSpecific(false);
+    setMeasurableIndex('per person');
+    setBaseYield(10);
+    setPrepTime(15);
+    setCookTime(30);
+    setDescription('');
+    setIngredientsList([]);
+    setIsRecipeModalOpen(true);
+  };
+
+  const openEditRecipeModal = (rec: Recipe) => {
+    setEditingRecipeId(rec.id);
+    setRecipeName(rec.name);
+    setOccasion(rec.occasion);
+    setMealType(rec.mealType);
+    setRecipeType(rec.type);
+    setIsAshramSpecific(Boolean(rec.isAshramSpecific || rec.type === 'Ashram'));
+    setMeasurableIndex(rec.measurableIndex);
+    setBaseYield(rec.baseYield);
+    setPrepTime(rec.prepTimeMinutes || 15);
+    setCookTime(rec.cookTimeMinutes || 30);
+    setDescription(rec.description || '');
+    setIngredientsList(
+      rec.ingredients.map((ing) => ({
+        ingredientId: ing.ingredientId,
+        quantity: ing.quantity,
+        unit: ing.unit,
+      }))
+    );
+    setIsRecipeModalOpen(true);
+  };
+
+  const openCreatePatternModal = () => {
+    setEditingPatternId(null);
+    setPatternName('');
+    setPatternMealType('Lunch');
+    setSelectedRecipeIds([]);
+    setPatternDesc('');
+    setIsPatternModalOpen(true);
+  };
+
+  const openEditPatternModal = (pat: MenuPattern) => {
+    setEditingPatternId(pat.id);
+    setPatternName(pat.name);
+    setPatternMealType(pat.mealType);
+    setSelectedRecipeIds([...pat.recipeIds]);
+    setPatternDesc(pat.description || '');
+    setIsPatternModalOpen(true);
+  };
 
   const handleAddIngredientToRecipe = () => {
     if (stockItems.length === 0) {
@@ -130,8 +188,12 @@ export const RecipeAndPatternManagement: React.FC = () => {
         }
       }
 
+      const existingRecipe = editingRecipeId
+        ? recipes.find((r) => r.id === editingRecipeId)
+        : undefined;
+
       const newRec: Recipe = {
-        id: `rec_${Date.now()}`,
+        id: editingRecipeId || `rec_${Date.now()}`,
         centerId: currentCenter.id,
         name: recipeName.trim(),
         occasion,
@@ -144,13 +206,17 @@ export const RecipeAndPatternManagement: React.FC = () => {
         description,
         isAshramSpecific: isAshramSpecific || recipeType === 'Ashram',
         ingredients: resolvedIngredients,
-        createdAt: new Date().toISOString(),
+        createdAt: existingRecipe?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
       await saveRecipe(newRec);
-      showToast(`Recipe "${newRec.name}" saved!`, 'success');
+      showToast(
+        editingRecipeId ? `Recipe "${newRec.name}" updated!` : `Recipe "${newRec.name}" saved!`,
+        'success'
+      );
       setIsRecipeModalOpen(false);
+      setEditingRecipeId(null);
       setRecipeName('');
       setDescription('');
       setIsAshramSpecific(false);
@@ -161,26 +227,40 @@ export const RecipeAndPatternManagement: React.FC = () => {
   };
 
   const handleSavePattern = async () => {
-    if (!patternName || selectedRecipeIds.length === 0) {
+    if (!patternName.trim() || selectedRecipeIds.length === 0) {
       showToast('Please provide Pattern Name and select at least one recipe.', 'warning');
       return;
     }
 
-    const newPat: MenuPattern = {
-      id: `pat_${Date.now()}`,
-      centerId: currentCenter.id,
-      name: patternName,
-      mealType: patternMealType,
-      recipeIds: selectedRecipeIds,
-      description: patternDesc,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    try {
+      const existingPattern = editingPatternId
+        ? patterns.find((p) => p.id === editingPatternId)
+        : undefined;
 
-    await savePattern(newPat);
-    setIsPatternModalOpen(false);
-    setPatternName('');
-    setSelectedRecipeIds([]);
+      const newPat: MenuPattern = {
+        id: editingPatternId || `pat_${Date.now()}`,
+        centerId: currentCenter.id,
+        name: patternName.trim(),
+        mealType: patternMealType,
+        recipeIds: selectedRecipeIds,
+        description: patternDesc,
+        createdAt: existingPattern?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await savePattern(newPat);
+      showToast(
+        editingPatternId ? `Pattern "${newPat.name}" updated!` : `Pattern "${newPat.name}" saved!`,
+        'success'
+      );
+      setIsPatternModalOpen(false);
+      setEditingPatternId(null);
+      setPatternName('');
+      setPatternDesc('');
+      setSelectedRecipeIds([]);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to save pattern. Please try again.', 'error');
+    }
   };
 
   const filteredRecipes = recipes.filter(
@@ -230,7 +310,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
           </button>
 
           <button
-            onClick={() => (activeTab === 'recipes' ? setIsRecipeModalOpen(true) : setIsPatternModalOpen(true))}
+            onClick={() => (activeTab === 'recipes' ? openCreateRecipeModal() : openCreatePatternModal())}
             className="modern-btn-primary bg-gradient-to-b from-orange-500 to-orange-600 text-white"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -322,6 +402,14 @@ export const RecipeAndPatternManagement: React.FC = () => {
                       </div>
                       <h3 className="font-extrabold text-slate-900 dark:text-white text-base mt-1.5">{rec.name}</h3>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => openEditRecipeModal(rec)}
+                      className="text-slate-400 hover:text-orange-500 p-1.5 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/40 transition flex-shrink-0"
+                      title="Edit recipe"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
                   </div>
 
                   <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{rec.description}</p>
@@ -391,14 +479,25 @@ export const RecipeAndPatternManagement: React.FC = () => {
                         {pat.name}
                       </h3>
                     </div>
-                    {(isAdmin || isSAdmin) && (
+                    <div className="flex items-center space-x-1 flex-shrink-0">
                       <button
-                        onClick={() => deletePattern(pat.id)}
-                        className="text-rose-500 hover:text-rose-700 p-1"
+                        type="button"
+                        onClick={() => openEditPatternModal(pat)}
+                        className="text-slate-400 hover:text-orange-500 p-1.5 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/40 transition"
+                        title="Edit pattern"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Edit3 className="w-4 h-4" />
                       </button>
-                    )}
+                      {(isAdmin || isSAdmin) && (
+                        <button
+                          onClick={() => deletePattern(pat.id)}
+                          className="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                          title="Delete pattern"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <p className="text-xs text-slate-500 dark:text-slate-400">{pat.description}</p>
@@ -703,7 +802,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
                   onClick={handleSaveRecipe}
                   className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition"
                 >
-                  Save Recipe
+                  {editingRecipeId ? 'Update Recipe' : 'Save Recipe'}
                 </button>
               </div>
             </div>
@@ -711,11 +810,13 @@ export const RecipeAndPatternManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Modal: Create Pattern (Admin Only) */}
+      {/* Modal: Create / Edit Pattern */}
       {isPatternModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
-            <h3 className="text-lg font-black text-slate-900 dark:text-white">Create Menu Pattern</h3>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white">
+              {editingPatternId ? 'Edit Menu Pattern' : 'Create Menu Pattern'}
+            </h3>
 
             <div className="space-y-3 text-xs">
               <div>
@@ -772,7 +873,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
                   onClick={handleSavePattern}
                   className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition"
                 >
-                  Save Pattern
+                  {editingPatternId ? 'Update Pattern' : 'Save Pattern'}
                 </button>
               </div>
             </div>
