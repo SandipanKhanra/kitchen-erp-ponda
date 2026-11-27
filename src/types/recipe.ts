@@ -1,7 +1,7 @@
 export type Occasion = 'Normal' | 'Ekadashi' | 'Fasting';
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'High Tea / Snacks' | 'Special Feast' | 'Ashram Breakfast' | 'Ashram Lunch';
 export type RecipeType = 'Beverage' | 'Snack' | 'Sweet' | 'Curry' | 'Rice' | 'Bread' | 'Salad' | 'Dal' | 'Ashram' | 'Other';
-export type MeasurableIndex = 'per person' | 'kg' | 'litre';
+export type MeasurableIndex = 'per person' | 'kg' | 'litre' | 'piece';
 
 export interface RecipeIngredientItem {
   ingredientId: string;
