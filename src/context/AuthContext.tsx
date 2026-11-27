@@ -46,6 +46,9 @@ interface AuthContextType {
   sessionMinutesLeft: number | null;
   sessionExpiredNotice: string | null;
   clearSessionExpiredNotice: () => void;
+  showSessionWarning: boolean;
+  dismissSessionWarning: () => void;
+  extendSession: () => Promise<void>;
   // Auth actions
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: (centerId?: string, centerName?: string, mode?: 'login' | 'signup') => Promise<void>;
@@ -81,8 +84,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentCenter, setCurrentCenter] = useState<Center>(EMPTY_CENTER);
   const [sessionMinutesLeft, setSessionMinutesLeft] = useState<number | null>(null);
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState<string | null>(null);
+  const [showSessionWarning, setShowSessionWarning] = useState<boolean>(false);
+  const [warningDismissedUntil, setWarningDismissedUntil] = useState<number>(0);
 
   const clearSessionExpiredNotice = () => setSessionExpiredNotice(null);
+  const dismissSessionWarning = () => {
+    setShowSessionWarning(false);
+    const current = sessionService.getLocalSession();
+    setWarningDismissedUntil(current?.expiresAt || Date.now());
+  };
 
   // Sync centers, users, requests and listen to Firebase Auth on mount
   useEffect(() => {
@@ -193,10 +203,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 30-Minute Session Timeout Enforcement
+  // 30-Minute Session Timeout Enforcement + 5-Minute Warning Popup
+  const extendSession = async () => {
+    const updated = await sessionService.extendCurrentSession();
+    if (updated) {
+      setSessionMinutesLeft(30);
+      setShowSessionWarning(false);
+      setWarningDismissedUntil(0);
+      showToast('Session extended by 30 minutes!', 'success');
+    }
+  };
+
   useEffect(() => {
     if (!firebaseUser) {
       setSessionMinutesLeft(null);
+      setShowSessionWarning(false);
+      setWarningDismissedUntil(0);
       return;
     }
 
@@ -206,17 +228,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const remainingMs = session.expiresAt - Date.now();
       if (remainingMs <= 0) {
+        setShowSessionWarning(false);
         setSessionExpiredNotice('Your 30-minute session has expired. Please sign in again.');
         logout();
       } else {
         setSessionMinutesLeft(Math.max(1, Math.ceil(remainingMs / 60000)));
+        if (remainingMs <= 5 * 60 * 1000 && warningDismissedUntil !== session.expiresAt) {
+          setShowSessionWarning(true);
+        }
       }
     };
 
     checkSession();
     const interval = setInterval(checkSession, 10000);
     return () => clearInterval(interval);
-  }, [firebaseUser]);
+  }, [firebaseUser, warningDismissedUntil]);
 
   const resetPassword = async (email: string) => {
     await authService.resetPassword(email);
@@ -412,6 +438,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sessionMinutesLeft,
       sessionExpiredNotice,
       clearSessionExpiredNotice,
+      showSessionWarning,
+      dismissSessionWarning,
+      extendSession,
       login,
       loginWithGoogle,
       signUp,
@@ -442,6 +471,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isAuthLoading,
       sessionMinutesLeft,
       sessionExpiredNotice,
+      showSessionWarning,
     ]
   );
 

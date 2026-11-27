@@ -57,6 +57,11 @@ const AuditHistoryModal = lazy(() =>
     default: m.AuditHistoryModal,
   }))
 );
+const SessionExpiryModal = lazy(() =>
+  import('./components/auth/SessionExpiryModal').then((m) => ({
+    default: m.SessionExpiryModal,
+  }))
+);
 import { ChefHat } from 'lucide-react';
 
 function AppContent() {
@@ -190,6 +195,11 @@ function AppContent() {
           />
         </Suspense>
       )}
+
+      {/* Session Expiry 5-Minute Warning Popup */}
+      <Suspense fallback={null}>
+        <SessionExpiryModal />
+      </Suspense>
 
       <footer className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-md border-t-2 border-t-orange-500/25 dark:border-t-orange-500/20 py-5 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">

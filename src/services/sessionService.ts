@@ -198,6 +198,37 @@ export class SessionService {
   }
 
   /**
+   * Extend the current active session by another 30 minutes
+   */
+  async extendCurrentSession(): Promise<UserSession | null> {
+    const current = this.getLocalSession();
+    if (!current) return null;
+
+    const now = Date.now();
+    const updated: UserSession = {
+      ...current,
+      expiresAt: now + SESSION_DURATION_MS,
+      lastActiveAt: now,
+    };
+
+    this.setLocalSession(updated);
+
+    if (isFirebaseConfigured && db && !current.sessionId.startsWith('demo_')) {
+      try {
+        await setDoc(
+          doc(db, 'user_sessions', current.sessionId),
+          { expiresAt: updated.expiresAt, lastActiveAt: updated.lastActiveAt },
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn('[SessionService] Failed to extend session in Firestore:', err);
+      }
+    }
+
+    return updated;
+  }
+
+  /**
    * End current session on logout or expiry
    */
   async endCurrentSession(): Promise<void> {
