@@ -33,6 +33,19 @@ interface CenterReportRow {
   monthlyPurchaseSpend: number;
 }
 
+function getPlanStatusBadgeClass(status: string): string {
+  switch (status) {
+    case 'approved':
+      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800';
+    case 'pending_approval':
+      return 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200 dark:border-amber-800';
+    case 'rejected':
+      return 'bg-rose-100 text-rose-700 dark:bg-rose-950/80 dark:text-rose-300 border border-rose-200 dark:border-rose-800';
+    default:
+      return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800';
+  }
+}
+
 export const SAdminCenterAnalytics: React.FC = () => {
   const { allCenters, allUsers } = useAuth();
   const [reports, setReports] = useState<CenterReportRow[]>([]);
@@ -388,7 +401,11 @@ export const SAdminCenterAnalytics: React.FC = () => {
                       >
                         {r.status}
                       </span>
-                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                      <span
+                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${getPlanStatusBadgeClass(
+                          r.menuStatus
+                        )}`}
+                      >
                         {r.menuStatus.replace('_', ' ')}
                       </span>
                     </div>
@@ -488,7 +505,11 @@ export const SAdminCenterAnalytics: React.FC = () => {
                         ₹{r.avgDailyCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                        <span
+                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap ${getPlanStatusBadgeClass(
+                            r.menuStatus
+                          )}`}
+                        >
                           {r.menuStatus.replace('_', ' ')}
                         </span>
                       </td>

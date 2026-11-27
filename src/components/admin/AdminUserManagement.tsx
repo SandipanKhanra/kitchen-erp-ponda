@@ -144,7 +144,73 @@ export const AdminUserManagement: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700/60 pb-1">
+        {/* Mobile Stacked Devotee Cards */}
+        <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700 rounded-xl border border-slate-100 dark:border-slate-700/60">
+          {paginatedUsers.length === 0 ? (
+            <div className="px-4 py-10 text-center text-xs text-slate-400">
+              No devotees found.
+            </div>
+          ) : (
+            paginatedUsers.map((u) => {
+              const isSelf = u.uid === currentUser.uid;
+              return (
+                <div key={u.uid} className="p-4 space-y-2.5 text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center space-x-1.5">
+                        <span className="truncate">{u.name}</span>
+                        {isSelf && (
+                          <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-normal flex-shrink-0">
+                            You
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-slate-500 dark:text-slate-400 truncate">{u.email}</div>
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded-full font-bold text-[10px] flex-shrink-0 ${
+                        u.role === 'sadmin'
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                          : u.role === 'admin'
+                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'
+                          : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {formatUserRole(u.role)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
+                      Isolated to {currentCenter.code}
+                    </span>
+                    {u.role === 'sadmin' ? (
+                      <span className="text-slate-400 font-bold text-xs">—</span>
+                    ) : u.role === 'admin' ? (
+                      <button
+                        onClick={() => assignUserRole(u.uid, 'user')}
+                        disabled={isSelf}
+                        className="px-3 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-bold disabled:opacity-40"
+                      >
+                        Demote to User
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => assignUserRole(u.uid, 'admin')}
+                        className="px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-bold"
+                      >
+                        Promote to Admin
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700/60 pb-1">
           <table className="w-full text-left text-xs min-w-[550px]">
             <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-700">
               <tr>

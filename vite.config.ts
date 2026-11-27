@@ -12,7 +12,7 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'theme-init.js'],
       manifest: {
         name: 'Ponda Kitchen ERP',
-        short_name: 'Kitchen ERP',
+        short_name: 'Ponda ERP',
         description:
           'ISKCON Kitchen Management ERP: 15-Day Menu Planner, Stock, Recipes & Vaishnava Calendar',
         theme_color: '#f97316',

@@ -455,7 +455,64 @@ export const CenterCostAnalytics: React.FC = () => {
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Mobile Stacked Cards (No Horizontal Scroll) */}
+        <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+          {filteredRows.length === 0 ? (
+            <div className="px-4 py-10 text-center text-xs text-slate-400">
+              No previous day cost entries found for the selected filter.
+            </div>
+          ) : (
+            filteredRows.map((row) => (
+              <div key={row.date} className="p-4 space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="font-bold text-slate-900 dark:text-white text-sm">
+                      {formatDateDDMMYYYY(row.date)}
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {row.dayLabel} {row.headcount > 0 ? `• ${row.headcount} plates` : ''}
+                    </div>
+                  </div>
+                  {row.occasionName && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex-shrink-0">
+                      {row.occasionName}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="bg-slate-50/90 dark:bg-slate-800/60 p-2 rounded-xl border-l-2 border-l-orange-500">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Menu</span>
+                    <span className="font-bold text-orange-600 dark:text-orange-400">
+                      ₹{row.menuCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                  <div className="bg-slate-50/90 dark:bg-slate-800/60 p-2 rounded-xl border-l-2 border-l-emerald-500">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Purchase</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                      ₹{row.purchaseSpend.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                  <div className="bg-slate-50/90 dark:bg-slate-800/60 p-2 rounded-xl border-l-2 border-l-indigo-500">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Total</span>
+                    <span className="font-black text-slate-900 dark:text-white">
+                      ₹{row.totalCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                </div>
+
+                {row.topDishes.length > 0 && (
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                    <span className="font-semibold">Top:</span> {row.topDishes.join(', ')}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs min-w-[680px]">
             <thead className="bg-slate-50/90 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-700">
               <tr>
