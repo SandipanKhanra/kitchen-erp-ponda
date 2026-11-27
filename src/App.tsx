@@ -11,6 +11,7 @@ import { AdminUserManagement } from './components/admin/AdminUserManagement';
 import { SAdminDashboard } from './components/sadmin/SAdminDashboard';
 import { VaishnavaCalendarView } from './components/calendar/VaishnavaCalendarView';
 import { AuthView } from './components/auth/AuthView';
+import { EmailActionView } from './components/auth/EmailActionView';
 import { CenterSelectionView } from './components/auth/CenterSelectionView';
 import { AuditHistoryModal } from './components/audit/AuditHistoryModal';
 import { LoadingScreen, LoadingSpinner } from './components/common/LoadingSpinner';
@@ -41,6 +42,22 @@ function AppContent() {
       navigateToTab('menu_planner');
     }
   }, [isAuthenticated, isAuthLoading, needsCenterSelection, currentUser.uid, activeTab, isSAdmin, isAdmin, navigateToTab]);
+
+  // Custom Firebase Email Action Handler (?mode=verifyEmail|resetPassword&oobCode=...)
+  const actionParams = new URLSearchParams(window.location.search);
+  const isEmailAction =
+    window.location.pathname === '/auth/action' ||
+    (Boolean(actionParams.get('mode')) && Boolean(actionParams.get('oobCode')));
+
+  if (isEmailAction) {
+    return (
+      <EmailActionView
+        onDone={() => {
+          window.location.href = '/login';
+        }}
+      />
+    );
+  }
 
   // Loading Splash Screen while Firebase Auth initializes
   if (isAuthLoading) {
