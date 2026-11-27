@@ -97,7 +97,9 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   };
 
   const handleStartDateChange = (newStartDate: string) => {
-    if (!newStartDate) return;
+    if (!newStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(newStartDate)) return;
+    const year = Number(newStartDate.slice(0, 4));
+    if (year < 2000) return;
     const centerLocation = resolveCenterLocation(currentCenter);
     const generated = generateFull15DayMenuFromStartDate(newStartDate, recipes, activeMenuPlan, centerLocation);
     saveMenuPlan(generated, { recordAudit: false });
@@ -565,6 +567,11 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                 }`}
               >
                 <span className={`text-[10px] font-bold ${isSelected ? 'opacity-95' : 'opacity-75'}`}>D{dayNum}</span>
+                {day?.date && (
+                  <span className={`text-[9px] font-semibold leading-tight mt-0.5 ${isSelected ? 'opacity-95' : 'opacity-70'}`}>
+                    {formatDateDDMMYYYY(day.date).slice(0, 5)}
+                  </span>
+                )}
                 {isEkadashi && (
                   <span
                     className={`text-[8px] font-black uppercase mt-0.5 px-1 rounded ${

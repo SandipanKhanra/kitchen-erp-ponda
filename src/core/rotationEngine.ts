@@ -36,12 +36,31 @@ export function getDateRange(startDate: Date, endDate: Date): Date[] {
 }
 
 /**
- * Format date to YYYY-MM-DD
+ * Format date to YYYY-MM-DD (local calendar components)
  */
 export function formatDateISO(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Adds offsetDays to a YYYY-MM-DD string using UTC calendar arithmetic
+ * so DST or timezone transitions can never shift or skip a day.
+ */
+export function addDaysISO(startDateStr: string, offsetDays: number): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec((startDateStr || '').trim());
+  const baseUtc = match
+    ? new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + offsetDays))
+    : (() => {
+        const now = new Date();
+        return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + offsetDays));
+      })();
+
+  const year = baseUtc.getUTCFullYear();
+  const month = String(baseUtc.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(baseUtc.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
@@ -120,14 +139,11 @@ export function generateAshramWeeklyRotation(
  */
 export function createEmpty15DayMenu(centerId: string, location?: CenterLocation): FifteenDayMenuPlan {
   const days: Record<number, DayMenuSchedule> = {};
-  const start = new Date();
-  const startDate = formatDateISO(start);
+  const startDate = formatDateISO(new Date());
 
   for (let i = 0; i < 15; i++) {
     const dayNum = i + 1;
-    const current = new Date(start);
-    current.setDate(start.getDate() + i);
-    const dateStr = formatDateISO(current);
+    const dateStr = addDaysISO(startDate, i);
     const occasion = getVaishnavaOccasionForDate(dateStr, location);
     const isEkadashi = occasion?.type === 'Ekadashi';
     const isFasting = isEkadashiOrFastingDate(dateStr, location);
@@ -176,9 +192,7 @@ export function generateFull15DayMenuFromStartDate(
   existingPlan: FifteenDayMenuPlan,
   location?: CenterLocation
 ): FifteenDayMenuPlan {
-  const [y, m, d] = startDateStr.split('-').map(Number);
-  const start = y && m && d ? new Date(y, m - 1, d) : new Date();
-  const normalizedStart = formatDateISO(start);
+  const normalizedStart = addDaysISO(startDateStr, 0);
 
   const ashramRecipes = recipes.filter((r) => r.type === 'Ashram' || r.isAshramSpecific);
   const generalRecipes = recipes.filter((r) => r.type !== 'Ashram' && !r.isAshramSpecific);
@@ -200,9 +214,7 @@ export function generateFull15DayMenuFromStartDate(
 
   for (let i = 0; i < 15; i++) {
     const dayNum = i + 1;
-    const current = new Date(start);
-    current.setDate(start.getDate() + i);
-    const dateStr = formatDateISO(current);
+    const dateStr = addDaysISO(normalizedStart, i);
     const occasion = getVaishnavaOccasionForDate(dateStr, location);
     const isEkadashi = occasion?.type === 'Ekadashi';
     const isFasting = isEkadashiOrFastingDate(dateStr, location);
@@ -218,9 +230,7 @@ export function generateFull15DayMenuFromStartDate(
 
   for (let i = 0; i < 15; i++) {
     const dayNum = i + 1;
-    const current = new Date(start);
-    current.setDate(start.getDate() + i);
-    const dateStr = formatDateISO(current);
+    const dateStr = addDaysISO(normalizedStart, i);
     const occasion = getVaishnavaOccasionForDate(dateStr, location);
     const isEkadashi = occasion?.type === 'Ekadashi';
     const isFasting = isEkadashiOrFastingDate(dateStr, location);
