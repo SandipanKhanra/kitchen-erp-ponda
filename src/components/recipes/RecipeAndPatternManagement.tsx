@@ -10,7 +10,7 @@ import { sanitizeNumericChange } from '../../utils/numberInput';
 
 export const RecipeAndPatternManagement: React.FC = () => {
   const { currentCenter, isAdmin, isSAdmin } = useAuth();
-  const { recipes, patterns, stockItems, saveRecipe, deleteRecipe, savePattern, deletePattern, openAuditModal } = useKitchen();
+  const { recipes, patterns, stockItems, saveRecipe, deleteRecipe, savePattern, deletePattern, addNewStockItem, openAuditModal } = useKitchen();
   const { showToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'recipes' | 'patterns'>('recipes');
@@ -32,7 +32,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
   const [prepTime, setPrepTime] = useState<number>(15);
   const [cookTime, setCookTime] = useState<number>(30);
   const [description, setDescription] = useState('');
-  const [ingredientsList, setIngredientsList] = useState<Array<{ ingredientId: string; quantity: number; unit: string }>>([]);
+  const [ingredientsList, setIngredientsList] = useState<Array<{ ingredientId: string; quantity: number; unit: string; customName?: string }>>([]);
 
   // New Pattern Form state (Only Admin)
   const [isPatternModalOpen, setIsPatternModalOpen] = useState(false);
@@ -43,10 +43,15 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
   const handleAddIngredientToRecipe = () => {
     if (stockItems.length === 0) {
-      showToast(
-        'No stock items found for this center. Please add items in Stock & Price Adjuster first.',
-        'warning'
-      );
+      setIngredientsList((prev) => [
+        ...prev,
+        {
+          ingredientId: '__custom__',
+          quantity: 1,
+          unit: 'kg',
+          customName: '',
+        },
+      ]);
       return;
     }
     const defaultStock = stockItems[0];
@@ -69,8 +74,58 @@ export const RecipeAndPatternManagement: React.FC = () => {
       showToast('Please click "+ Add Item" to add at least one ingredient.', 'warning');
       return;
     }
+    for (const ing of ingredientsList) {
+      if (ing.ingredientId === '__custom__' && !ing.customName?.trim()) {
+        showToast('Please enter a name for every custom ingredient.', 'warning');
+        return;
+      }
+    }
 
     try {
+      const resolvedIngredients: Array<{ ingredientId: string; quantity: number; unit: string }> = [];
+      for (const ing of ingredientsList) {
+        if (ing.ingredientId === '__custom__') {
+          const cleanName = (ing.customName || '').trim();
+          const existing = stockItems.find(
+            (s) => s.name.toLowerCase() === cleanName.toLowerCase()
+          );
+          if (existing) {
+            resolvedIngredients.push({
+              ingredientId: existing.id,
+              quantity: ing.quantity,
+              unit: ing.unit,
+            });
+          } else {
+            const measureIndex =
+              ing.unit === 'litre' || ing.unit === 'ml'
+                ? 'litre'
+                : ing.unit === 'piece'
+                ? 'piece'
+                : 'kg';
+            const created = await addNewStockItem({
+              name: cleanName,
+              brand: 'Generic',
+              category: 'Grocery',
+              measureIndex,
+              price: 0,
+              currentStock: 0,
+              reorderLevel: 10,
+            });
+            resolvedIngredients.push({
+              ingredientId: created.id,
+              quantity: ing.quantity,
+              unit: ing.unit,
+            });
+          }
+        } else {
+          resolvedIngredients.push({
+            ingredientId: ing.ingredientId,
+            quantity: ing.quantity,
+            unit: ing.unit,
+          });
+        }
+      }
+
       const newRec: Recipe = {
         id: `rec_${Date.now()}`,
         centerId: currentCenter.id,
@@ -84,7 +139,7 @@ export const RecipeAndPatternManagement: React.FC = () => {
         cookTimeMinutes: cookTime,
         description,
         isAshramSpecific: isAshramSpecific || recipeType === 'Ashram',
-        ingredients: ingredientsList,
+        ingredients: resolvedIngredients,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -490,33 +545,68 @@ export const RecipeAndPatternManagement: React.FC = () => {
 
                 {ingredientsList.length === 0 && (
                   <p className="text-[11px] text-slate-400 italic py-1">
-                    {stockItems.length === 0
-                      ? 'No stock items available in this center yet. Add stock items in Stock & Price Adjuster first.'
-                      : 'Click "+ Add Item" to add ingredients from your stock.'}
+                    Click "+ Add Item" to add ingredients to this recipe.
                   </p>
                 )}
 
                 {ingredientsList.map((ing, idx) => (
                   <div key={idx} className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
-                    <select
-                      value={ing.ingredientId}
-                      onChange={(e) => {
-                        const copy = [...ingredientsList];
-                        const chosen = stockItems.find((s) => s.id === e.target.value);
-                        copy[idx].ingredientId = e.target.value;
-                        if (chosen && !copy[idx].unit) {
-                          copy[idx].unit = chosen.measureIndex || 'kg';
-                        }
-                        setIngredientsList(copy);
-                      }}
-                      className="flex-1 min-w-[130px] p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white text-xs"
-                    >
-                      {stockItems.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.category})
-                        </option>
-                      ))}
-                    </select>
+                    {ing.ingredientId === '__custom__' ? (
+                      <div className="flex-1 min-w-[130px] flex items-center gap-1">
+                        <input
+                          type="text"
+                          placeholder="Ingredient name (e.g. Basmati Rice)"
+                          value={ing.customName || ''}
+                          onChange={(e) => {
+                            const copy = [...ingredientsList];
+                            copy[idx].customName = e.target.value;
+                            setIngredientsList(copy);
+                          }}
+                          className="w-full p-2 border border-orange-300 dark:border-orange-700 rounded-xl dark:bg-slate-900 dark:text-white text-xs"
+                        />
+                        {stockItems.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const copy = [...ingredientsList];
+                              copy[idx].ingredientId = stockItems[0].id;
+                              copy[idx].customName = undefined;
+                              setIngredientsList(copy);
+                            }}
+                            className="text-[10px] font-bold text-slate-500 hover:text-orange-500 px-1.5"
+                            title="Switch to existing stock item"
+                          >
+                            List
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <select
+                        value={ing.ingredientId}
+                        onChange={(e) => {
+                          const copy = [...ingredientsList];
+                          if (e.target.value === '__custom__') {
+                            copy[idx].ingredientId = '__custom__';
+                            copy[idx].customName = '';
+                          } else {
+                            const chosen = stockItems.find((s) => s.id === e.target.value);
+                            copy[idx].ingredientId = e.target.value;
+                            if (chosen && !copy[idx].unit) {
+                              copy[idx].unit = chosen.measureIndex || 'kg';
+                            }
+                          }
+                          setIngredientsList(copy);
+                        }}
+                        className="flex-1 min-w-[130px] p-2 border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 dark:text-white text-xs"
+                      >
+                        {stockItems.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.category})
+                          </option>
+                        ))}
+                        <option value="__custom__">+ Type New Ingredient...</option>
+                      </select>
+                    )}
 
                     <input
                       type="number"

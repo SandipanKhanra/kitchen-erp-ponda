@@ -27,7 +27,7 @@ interface KitchenContextType {
   }) => Promise<void>;
   updateStockPrice: (id: string, newPrice: number) => Promise<void>;
   updateStockCount: (id: string, newCount: number) => Promise<void>;
-  addNewStockItem: (item: Omit<IngredientStockItem, 'id' | 'centerId' | 'updatedAt'>) => Promise<void>;
+  addNewStockItem: (item: Omit<IngredientStockItem, 'id' | 'centerId' | 'updatedAt'>) => Promise<IngredientStockItem>;
   // Recipes (Isolated by Center, synced with Firebase)
   recipes: Recipe[];
   recipeMap: Map<string, Recipe>;
@@ -371,6 +371,7 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
 
     setAuditLogs((prev) => [log, ...prev]);
+    return newItem;
   };
 
   // Recipe Operations (Synced with Firebase per Center)
