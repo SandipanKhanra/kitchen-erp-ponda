@@ -20,6 +20,10 @@ export interface DayMenuSchedule {
   brahmacariBreakfast?: DayMealSlot; // Brahmacari Ashram section for breakfast
   brahmacariLunch?: DayMealSlot;     // Brahmacari Ashram section for lunch
   notes?: string;
+  stockDeducted?: boolean;
+  stockDeductedAt?: string;
+  stockDeductedBy?: string;
+  deductedItems?: Array<{ ingredientId: string; quantity: number; cost: number }>;
 }
 
 export interface FifteenDayMenuPlan {

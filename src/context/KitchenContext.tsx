@@ -7,7 +7,7 @@ import { PeriodRequirementSummary } from '../types/requisition';
 import { AuditLogEntry, AuditCategory } from '../types/audit';
 import { kitchenDbService } from '../services/kitchenDbService';
 import { createEmpty15DayMenu } from '../core/rotationEngine';
-import { calculateWeightedAveragePrice } from '../core/stockEngine';
+import { calculateWeightedAveragePrice, deductStock } from '../core/stockEngine';
 import { calculateDayWiseAndShoppingRequirements } from '../core/daywiseRequirementCalculator';
 import { validateMenuRepetition, RepetitionViolation } from '../core/repetitionValidator';
 import { formatUserRole } from '../utils/formatters';
@@ -47,8 +47,13 @@ interface KitchenContextType {
   rejectMenuPlan: (planId: string, reason: string) => Promise<void>;
   canApproveActiveMenu: boolean;
   repetitionCheck: { isValid: boolean; violations: RepetitionViolation[] };
-  // Requisition Summary
+  // Requisition Summary & Daily Stock Deduction
   requisitionSummary: PeriodRequirementSummary;
+  confirmDayStockUsage: (
+    dayNumber: number,
+    items: Array<{ ingredientId: string; actualQty: number }>
+  ) => Promise<void>;
+  revertDayStockUsage: (dayNumber: number) => Promise<void>;
   // Audit Trail & Logging
   auditLogs: AuditLogEntry[];
   isAuditModalOpen: boolean;
@@ -652,6 +657,133 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [activeMenuPlan, recipeMap, stockMap]
   );
 
+  const confirmDayStockUsage = async (
+    dayNumber: number,
+    items: Array<{ ingredientId: string; actualQty: number }>
+  ) => {
+    const targetDay = activeMenuPlan.days[dayNumber];
+    if (!targetDay || targetDay.stockDeducted) return;
+
+    const now = new Date().toISOString();
+    const deductedItems: Array<{ ingredientId: string; quantity: number; cost: number }> = [];
+    let totalConsumedCost = 0;
+
+    const updatedStockMap = new Map(stockItems.map((s) => [s.id, s]));
+
+    for (const entry of items) {
+      if (entry.actualQty <= 0) continue;
+      const current = updatedStockMap.get(entry.ingredientId);
+      if (!current) continue;
+
+      const updated = deductStock(current, entry.actualQty);
+      updatedStockMap.set(current.id, updated);
+      const itemCost = Math.round(entry.actualQty * current.price * 100) / 100;
+      totalConsumedCost += itemCost;
+      deductedItems.push({
+        ingredientId: current.id,
+        quantity: entry.actualQty,
+        cost: itemCost,
+      });
+      await kitchenDbService.saveCenterStockItem(currentCenter.id, updated);
+    }
+
+    setStockItems(Array.from(updatedStockMap.values()));
+
+    const updatedPlan: FifteenDayMenuPlan = {
+      ...activeMenuPlan,
+      days: {
+        ...activeMenuPlan.days,
+        [dayNumber]: {
+          ...targetDay,
+          stockDeducted: true,
+          stockDeductedAt: now,
+          stockDeductedBy: currentUser.name,
+          deductedItems,
+        },
+      },
+      updatedAt: now,
+    };
+
+    setActiveMenuPlan(updatedPlan);
+    await kitchenDbService.saveCenterMenuPlan(currentCenter.id, updatedPlan);
+
+    const log = await kitchenDbService.logAuditAction({
+      centerId: currentCenter.id,
+      centerName: currentCenter.name,
+      category: 'stock',
+      actionType: 'STOCK_USAGE',
+      entityId: activeMenuPlan.id,
+      entityName: `Day ${dayNumber} (${targetDay.date})`,
+      performedByUid: currentUser.uid,
+      performedByName: currentUser.name,
+      performedByRole: currentUser.role,
+      details: {
+        dayNumber,
+        totalCost: Math.round(totalConsumedCost * 100) / 100,
+        summary: `Confirmed kitchen usage for Day ${dayNumber} (${targetDay.date}): deducted ${deductedItems.length} ingredient(s), total value ₹${totalConsumedCost.toFixed(2)}`,
+      },
+    });
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
+  const revertDayStockUsage = async (dayNumber: number) => {
+    const targetDay = activeMenuPlan.days[dayNumber];
+    if (!targetDay || !targetDay.stockDeducted) return;
+
+    const now = new Date().toISOString();
+    const toRestore = targetDay.deductedItems || [];
+    const updatedStockMap = new Map(stockItems.map((s) => [s.id, s]));
+
+    for (const entry of toRestore) {
+      const current = updatedStockMap.get(entry.ingredientId);
+      if (!current) continue;
+      const restored = {
+        ...current,
+        currentStock: Math.round((current.currentStock + entry.quantity) * 1000) / 1000,
+        updatedAt: now,
+      };
+      updatedStockMap.set(current.id, restored);
+      await kitchenDbService.saveCenterStockItem(currentCenter.id, restored);
+    }
+
+    setStockItems(Array.from(updatedStockMap.values()));
+
+    const updatedPlan: FifteenDayMenuPlan = {
+      ...activeMenuPlan,
+      days: {
+        ...activeMenuPlan.days,
+        [dayNumber]: {
+          ...targetDay,
+          stockDeducted: false,
+          stockDeductedAt: undefined,
+          stockDeductedBy: undefined,
+          deductedItems: undefined,
+        },
+      },
+      updatedAt: now,
+    };
+
+    setActiveMenuPlan(updatedPlan);
+    await kitchenDbService.saveCenterMenuPlan(currentCenter.id, updatedPlan);
+
+    const log = await kitchenDbService.logAuditAction({
+      centerId: currentCenter.id,
+      centerName: currentCenter.name,
+      category: 'stock',
+      actionType: 'STOCK_USAGE_REVERT',
+      entityId: activeMenuPlan.id,
+      entityName: `Day ${dayNumber} (${targetDay.date})`,
+      performedByUid: currentUser.uid,
+      performedByName: currentUser.name,
+      performedByRole: currentUser.role,
+      details: {
+        dayNumber,
+        summary: `Reverted kitchen usage deduction for Day ${dayNumber} (${targetDay.date}): restored ${toRestore.length} ingredient(s) to stock.`,
+      },
+    });
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
   return (
     <KitchenContext.Provider
       value={{
@@ -677,6 +809,8 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
         canApproveActiveMenu,
         repetitionCheck,
         requisitionSummary,
+        confirmDayStockUsage,
+        revertDayStockUsage,
         auditLogs,
         isAuditModalOpen,
         auditModalCategory,

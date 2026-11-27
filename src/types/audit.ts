@@ -5,6 +5,8 @@ export type AuditActionType =
   | 'STOCK_PURCHASE'      // Recorded purchase & updated moving average price
   | 'STOCK_COUNT_UPDATE'  // Stock physical count adjustment
   | 'STOCK_PRICE_UPDATE'  // Unit price update
+  | 'STOCK_USAGE'         // Daily kitchen usage deduction confirmed
+  | 'STOCK_USAGE_REVERT'  // Reverted a previously confirmed day usage
   | 'RECIPE_CREATE'       // New recipe added
   | 'RECIPE_UPDATE'       // Recipe edited
   | 'RECIPE_DELETE'       // Recipe removed

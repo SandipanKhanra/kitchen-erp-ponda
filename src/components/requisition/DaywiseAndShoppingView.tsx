@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { useKitchen } from '../../context/KitchenContext';
+import { useToast } from '../../context/ToastContext';
+import { useModalClose } from '../../hooks/useModalClose';
+import { LoadingSpinner } from '../common/LoadingSpinner';
 import {
   Download,
   ShoppingBag,
@@ -13,18 +16,82 @@ import {
   Utensils,
   Eye,
   EyeOff,
+  CheckCircle2,
+  RotateCcw,
+  X,
 } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
 import { formatDateDDMMYYYY } from '../../utils/formatters';
 
 export const DaywiseAndShoppingView: React.FC = () => {
-  const { requisitionSummary } = useKitchen();
+  const { requisitionSummary, activeMenuPlan, stockMap, confirmDayStockUsage, revertDayStockUsage } = useKitchen();
+  const { showToast } = useToast();
   const [subView, setSubView] = useState<'shopping' | 'daywise'>('shopping');
   const [searchQuery, setSearchQuery] = useState('');
   const [shoppingPage, setShoppingPage] = useState(1);
   const [shoppingPageSize, setShoppingPageSize] = useState(10);
   const [dayPage, setDayPage] = useState(1);
   const [dayPageSize, setDayPageSize] = useState(5);
+
+  // Confirm Day Usage modal state
+  const [usageModalDay, setUsageModalDay] = useState<number | null>(null);
+  const [usageEdits, setUsageEdits] = useState<
+    Array<{ ingredientId: string; name: string; unit: string; unitPrice: number; currentStock: number; actualQty: number }>
+  >([]);
+  const [isConfirmingUsage, setIsConfirmingUsage] = useState(false);
+
+  useModalClose(usageModalDay !== null, () => setUsageModalDay(null));
+
+  const openConfirmUsageModal = (dayNum: number) => {
+    const dayReq = requisitionSummary.dailyRequirements.find((d) => d.dayNumber === dayNum);
+    if (!dayReq || dayReq.ingredients.length === 0) {
+      showToast('No ingredients calculated for this day yet.', 'warning');
+      return;
+    }
+    setUsageEdits(
+      dayReq.ingredients.map((ing) => {
+        const stock = stockMap.get(ing.ingredientId);
+        return {
+          ingredientId: ing.ingredientId,
+          name: ing.name,
+          unit: stock?.measureIndex || ing.measureIndex,
+          unitPrice: stock?.price ?? ing.unitPrice,
+          currentStock: stock?.currentStock ?? 0,
+          actualQty: ing.requiredQty,
+        };
+      })
+    );
+    setUsageModalDay(dayNum);
+  };
+
+  const handleConfirmUsage = async () => {
+    if (usageModalDay === null) return;
+    setIsConfirmingUsage(true);
+    try {
+      await confirmDayStockUsage(
+        usageModalDay,
+        usageEdits.map((u) => ({ ingredientId: u.ingredientId, actualQty: u.actualQty }))
+      );
+      showToast(`Day ${usageModalDay} stock usage confirmed & deducted!`, 'success');
+      setUsageModalDay(null);
+    } catch {
+      showToast('Failed to confirm day usage. Please try again.', 'error');
+    } finally {
+      setIsConfirmingUsage(false);
+    }
+  };
+
+  const handleRevertUsage = async (dayNum: number) => {
+    if (!window.confirm(`Revert stock deduction for Day ${dayNum}? All deducted quantities will be restored to stock.`)) {
+      return;
+    }
+    try {
+      await revertDayStockUsage(dayNum);
+      showToast(`Reverted Day ${dayNum} stock deduction.`, 'info');
+    } catch {
+      showToast('Failed to revert day usage.', 'error');
+    }
+  };
 
   // Expanded individual item cost breakdown per recipe
   const [expandedRecipeIds, setExpandedRecipeIds] = useState<Record<string, boolean>>({});
@@ -280,6 +347,8 @@ export const DaywiseAndShoppingView: React.FC = () => {
         <div className="space-y-5">
           {paginatedDays.map((day) => {
             const currentMode = dayViewMode[day.dayNumber] || 'recipes';
+            const daySchedule = activeMenuPlan.days[day.dayNumber];
+            const isDeducted = Boolean(daySchedule?.stockDeducted);
 
             return (
               <div
@@ -309,7 +378,37 @@ export const DaywiseAndShoppingView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-end">
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                    {/* Confirm / Revert Day Stock Usage */}
+                    {isDeducted ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Stock Deducted</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRevertUsage(day.dayNumber)}
+                          className="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 inline-flex items-center gap-1 transition"
+                          title="Restore deducted stock for this day"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Revert</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openConfirmUsageModal(day.dayNumber)}
+                        disabled={day.ingredients.length === 0}
+                        className="h-9 px-3 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 bg-gradient-to-b from-emerald-500 to-emerald-600 text-white border border-emerald-600/80 shadow-sm hover:brightness-105 disabled:opacity-40 transition cursor-pointer"
+                        title="Confirm & deduct actual kitchen usage from stock"
+                      >
+                        <PackageCheck className="w-3.5 h-3.5" />
+                        <span>Confirm Day Usage</span>
+                      </button>
+                    )}
+
                     {/* View Switcher: Per-Recipe Cost vs Consolidated All Items Cost */}
                     <div className="flex bg-slate-100 dark:bg-slate-700/60 p-1 rounded-xl text-xs font-bold">
                       <button
@@ -510,6 +609,101 @@ export const DaywiseAndShoppingView: React.FC = () => {
             }}
             pageSizeOptions={[3, 5, 15]}
           />
+        </div>
+      )}
+
+      {/* Confirm Day Usage Modal */}
+      {usageModalDay !== null && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setUsageModalDay(null)}
+        >
+          <div
+            className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 space-y-4 max-h-[88vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                  Confirm Kitchen Usage — Day {usageModalDay}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Adjust actual quantities issued from store. Stock will be deducted at current Weighted Average Price.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUsageModalDay(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 pr-1">
+              {usageEdits.map((row, idx) => {
+                const isShortfall = row.actualQty > row.currentStock;
+                return (
+                  <div key={row.ingredientId} className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <div>
+                      <div className="font-bold text-slate-900 dark:text-white">{row.name}</div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                        In Stock: <strong>{row.currentStock} {row.unit}</strong> &bull; Rate: ₹{row.unitPrice.toFixed(2)}/{row.unit}
+                        {isShortfall && (
+                          <span className="ml-2 text-amber-600 dark:text-amber-400 font-bold">
+                            (Exceeds stock — clamps to 0)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step={row.unit === 'piece' ? '1' : 'any'}
+                        value={row.actualQty}
+                        onChange={(e) => {
+                          const val = Math.max(0, Number(e.target.value) || 0);
+                          setUsageEdits((prev) =>
+                            prev.map((item, i) => (i === idx ? { ...item, actualQty: val } : item))
+                          );
+                        }}
+                        className="w-24 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 font-bold text-slate-900 dark:text-white text-right"
+                      />
+                      <span className="w-10 text-slate-500 font-semibold">{row.unit}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+              <span className="text-slate-500 dark:text-slate-400">
+                Total Issued Value:{' '}
+                <strong className="text-slate-900 dark:text-white">
+                  ₹{usageEdits.reduce((sum, r) => sum + r.actualQty * r.unitPrice, 0).toFixed(2)}
+                </strong>
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setUsageModalDay(null)}
+                  className="modern-btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmUsage}
+                  disabled={isConfirmingUsage}
+                  className="modern-btn-primary bg-gradient-to-b from-emerald-500 to-emerald-600 border-emerald-600/80 text-white disabled:opacity-60"
+                >
+                  {isConfirmingUsage ? <LoadingSpinner size="xs" /> : <PackageCheck className="w-3.5 h-3.5" />}
+                  <span>{isConfirmingUsage ? 'Deducting...' : 'Confirm & Deduct Stock'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
