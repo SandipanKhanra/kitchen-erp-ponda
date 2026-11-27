@@ -2,7 +2,7 @@ import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../../config/firebase';
 import { FifteenDayMenuPlan } from '../../types/menu';
 import { IMenuRepository } from '../../types/repositories';
-import { createEmpty15DayMenu } from '../../core/rotationEngine';
+import { addDaysISO, createEmpty15DayMenu } from '../../core/rotationEngine';
 import { SafeStorage } from '../../utils/safeStorage';
 
 function stripUndefined<T>(value: T): T {
@@ -19,6 +19,30 @@ function stripUndefined<T>(value: T): T {
     return result as T;
   }
   return value;
+}
+
+function normalizeMenuPlanDates(plan: FifteenDayMenuPlan): FifteenDayMenuPlan {
+  if (!plan?.startDate || !/^\d{4}-\d{2}-\d{2}$/.test(plan.startDate.trim())) {
+    return plan;
+  }
+  const startDate = addDaysISO(plan.startDate, 0);
+  const endDate = addDaysISO(startDate, 14);
+  const normalizedDays = { ...plan.days };
+  for (let i = 1; i <= 15; i++) {
+    if (normalizedDays[i]) {
+      normalizedDays[i] = {
+        ...normalizedDays[i],
+        dayNumber: i,
+        date: addDaysISO(startDate, i - 1),
+      };
+    }
+  }
+  return {
+    ...plan,
+    startDate,
+    endDate,
+    days: normalizedDays,
+  };
 }
 
 export class MenuRepository implements IMenuRepository {
@@ -53,7 +77,7 @@ export class MenuRepository implements IMenuRepository {
               if (aExact !== bExact) return bExact - aExact;
               return (b.updatedAt || '').localeCompare(a.updatedAt || '');
             });
-            const docData = candidates[0];
+            const docData = normalizeMenuPlanDates(candidates[0]);
             SafeStorage.setItem(this.getLocalKey(centerId), docData);
             return docData;
           }
@@ -64,18 +88,20 @@ export class MenuRepository implements IMenuRepository {
     }
 
     const cached = SafeStorage.getItem<FifteenDayMenuPlan | null>(this.getLocalKey(centerId), null);
-    if (cached) return cached;
+    if (cached) return normalizeMenuPlanDates(cached);
 
     return createEmpty15DayMenu(centerId);
   }
 
   async saveCenterMenuPlan(centerId: string, plan: FifteenDayMenuPlan): Promise<void> {
     if (!centerId) return;
-    const planWithCenter = stripUndefined<FifteenDayMenuPlan>({
-      ...plan,
-      centerId,
-      updatedAt: new Date().toISOString(),
-    });
+    const planWithCenter = stripUndefined<FifteenDayMenuPlan>(
+      normalizeMenuPlanDates({
+        ...plan,
+        centerId,
+        updatedAt: new Date().toISOString(),
+      })
+    );
     SafeStorage.setItem(this.getLocalKey(centerId), planWithCenter);
 
     if (isFirebaseConfigured && db) {
