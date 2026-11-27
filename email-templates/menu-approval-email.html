@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Menu Approval Request - Ponda Kitchen ERP</title>
+</head>
+<body style="margin:0;padding:0;background-color:#fff7ed;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(135deg,#fffbf2 0%,#fff1df 45%,#fdf2f8 100%);padding:36px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:540px;background-color:#ffffff;border-radius:20px;overflow:hidden;border-top:4px solid #f97316;border-bottom:4px solid #6366f1;box-shadow:0 12px 32px rgba(15,23,42,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,#f97316,#f59e0b);padding:26px 32px;text-align:center;">
+              <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#ffedd5;margin-bottom:6px;">
+                Maker-Checker Menu Governance
+              </div>
+              <h1 style="margin:0;font-size:22px;font-weight:800;color:#ffffff;">
+                Ponda Kitchen ERP
+              </h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 32px;">
+              <p style="margin:0 0 10px;font-size:15px;font-weight:700;color:#ea580c;">
+                Hare Krishna {{to_name}}!
+              </p>
+              <h2 style="margin:0 0 14px;font-size:19px;font-weight:800;color:#0f172a;">
+                15-Day Menu Awaiting Your Approval
+              </h2>
+              <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#475569;">
+                <strong>{{submitter_name}}</strong> has submitted an updated 15-day Prasadam menu plan for <strong>{{center_name}}</strong>.
+              </p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#fff7ed;border-left:4px solid #f97316;border-radius:10px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:14px 16px;font-size:13px;line-height:1.7;color:#7c2d12;">
+                    <div><strong>Menu Plan:</strong> {{plan_title}}</div>
+                    <div><strong>Cycle Dates:</strong> {{cycle_dates}}</div>
+                    <div><strong>Status:</strong> Pending Admin Approval</div>
+                  </td>
+                </tr>
+              </table>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center" style="padding:4px 0 22px;">
+                    <a href="{{app_url}}" style="display:inline-block;background:linear-gradient(90deg,#f97316,#f59e0b);color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:13px 28px;border-radius:12px;">
+                      Review &amp; Approve Menu
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0;font-size:12px;color:#64748b;">
+                Under Maker-Checker policy, another Center Admin must review and approve this menu before it is locked.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#f8fafc;padding:16px 32px;text-align:center;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;">
+              Ponda Kitchen ERP &bull; {{center_name}}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

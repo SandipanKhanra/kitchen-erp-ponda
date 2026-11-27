@@ -6,6 +6,7 @@ import { FifteenDayMenuPlan } from '../types/menu';
 import { PeriodRequirementSummary } from '../types/requisition';
 import { AuditLogEntry, AuditCategory } from '../types/audit';
 import { kitchenDbService } from '../services/kitchenDbService';
+import { emailNotificationService } from '../services/emailNotificationService';
 import { createEmpty15DayMenu } from '../core/rotationEngine';
 import { calculateWeightedAveragePrice, deductStock } from '../core/stockEngine';
 import { calculateDayWiseAndShoppingRequirements } from '../core/daywiseRequirementCalculator';
@@ -523,6 +524,19 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
       setAuditLogs((prev) => [log, ...prev]);
+
+      // Notify eligible Center Admins (all admins if user submitted, or all OTHER admins if admin updated)
+      if (!isEditedBySAdmin) {
+        emailNotificationService
+          .notifyAdminsForMenuApproval({
+            allUsers,
+            centerId: currentCenter.id,
+            centerName: currentCenter.name,
+            submitter: currentUser,
+            plan: updatedPlan,
+          })
+          .catch((err) => console.warn('[EmailNotification] Notice:', err));
+      }
     }
   };
 
