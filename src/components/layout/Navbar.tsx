@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   ChevronDown,
+  HelpCircle,
 } from 'lucide-react';
 
 export type NavTab =
@@ -34,9 +35,10 @@ interface NavbarProps {
   activeTab: NavTab;
   setActiveTab: (tab: NavTab) => void;
   onOpenAuth?: (tab?: 'login' | 'signup') => void;
+  onStartTour?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenAuth }) => {
+export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenAuth, onStartTour }) => {
   const {
     currentUser,
     firebaseUser,
@@ -312,6 +314,19 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
               </div>
             )}
 
+            {/* Guided Tour Button */}
+            {onStartTour && (
+              <button
+                type="button"
+                onClick={onStartTour}
+                className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                title="Start Guided Tour"
+                aria-label="Start Guided Tour"
+              >
+                <HelpCircle className="w-4 h-4 text-orange-500" />
+              </button>
+            )}
+
             {/* Dark / Light Mode Toggle */}
             <button
               type="button"
@@ -324,8 +339,19 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
             </button>
           </div>
 
-          {/* Mobile Actions: Dark/Light Mode & Hamburger Menu Button */}
+          {/* Mobile Actions: Tour, Dark/Light Mode & Hamburger Menu Button */}
           <div className="flex items-center space-x-1.5 md:hidden">
+            {onStartTour && (
+              <button
+                type="button"
+                onClick={onStartTour}
+                className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                title="Start Guided Tour"
+                aria-label="Start Guided Tour"
+              >
+                <HelpCircle className="w-4 h-4 text-orange-500" />
+              </button>
+            )}
             <button
               type="button"
               onClick={toggleTheme}

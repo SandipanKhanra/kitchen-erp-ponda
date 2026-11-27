@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { KitchenProvider, useKitchen } from './context/KitchenContext';
 import { ToastProvider } from './context/ToastContext';
@@ -6,6 +6,7 @@ import { Navbar } from './components/layout/Navbar';
 import { AuthView } from './components/auth/AuthView';
 import { LoadingScreen, LoadingSpinner } from './components/common/LoadingSpinner';
 import { useAppNavigation } from './hooks/useAppNavigation';
+import { SafeStorage } from './utils/safeStorage';
 
 const FifteenDayMenuPlanner = lazy(() =>
   import('./components/menu/FifteenDayMenuPlanner').then((m) => ({
@@ -62,6 +63,11 @@ const SessionExpiryModal = lazy(() =>
     default: m.SessionExpiryModal,
   }))
 );
+const GuidedTourModal = lazy(() =>
+  import('./components/common/GuidedTourModal').then((m) => ({
+    default: m.GuidedTourModal,
+  }))
+);
 import { ChefHat } from 'lucide-react';
 
 function AppContent() {
@@ -69,6 +75,7 @@ function AppContent() {
   const isAuthenticated = Boolean(firebaseUser);
   const needsCenterSelection = Boolean(firebaseUser && currentUser.needsCenterSelection && !isSAdmin);
   const { isAuditModalOpen, auditModalCategory, closeAuditModal, isSyncing } = useKitchen();
+  const [isTourOpen, setIsTourOpen] = useState(false);
   const {
     activeTab,
     navigateToTab,
@@ -78,6 +85,23 @@ function AppContent() {
     switchAuthTab,
     closeAuth,
   } = useAppNavigation(isAuthenticated, needsCenterSelection);
+
+  // Auto-launch Guided Tour once for first-time authenticated users
+  useEffect(() => {
+    if (!isAuthenticated || isAuthLoading || needsCenterSelection || !currentUser.uid) return;
+    const tourKey = `kitchen_tour_seen_${currentUser.uid}`;
+    const alreadySeen = SafeStorage.getItem<boolean>(tourKey, false);
+    if (!alreadySeen) {
+      setIsTourOpen(true);
+    }
+  }, [isAuthenticated, isAuthLoading, needsCenterSelection, currentUser.uid]);
+
+  const handleCloseTour = () => {
+    setIsTourOpen(false);
+    if (currentUser.uid) {
+      SafeStorage.setItem(`kitchen_tour_seen_${currentUser.uid}`, true);
+    }
+  };
 
   // Redirect away from role-restricted tabs if role doesn't match
   useEffect(() => {
@@ -147,6 +171,7 @@ function AppContent() {
         activeTab={activeTab}
         setActiveTab={navigateToTab}
         onOpenAuth={(tab) => openAuth(tab || 'login')}
+        onStartTour={() => setIsTourOpen(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
@@ -200,6 +225,17 @@ function AppContent() {
       <Suspense fallback={null}>
         <SessionExpiryModal />
       </Suspense>
+
+      {/* First-Time User Guided Tour */}
+      {isTourOpen && (
+        <Suspense fallback={null}>
+          <GuidedTourModal
+            isOpen={isTourOpen}
+            onClose={handleCloseTour}
+            onNavigateTab={navigateToTab}
+          />
+        </Suspense>
+      )}
 
       <footer className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-md border-t-2 border-t-orange-500/25 dark:border-t-orange-500/20 py-5 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
