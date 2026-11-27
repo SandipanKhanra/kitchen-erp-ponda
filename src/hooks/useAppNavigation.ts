@@ -118,8 +118,15 @@ export function useAppNavigation(isAuthenticated = false, needsCenterSelection =
     } else {
       // Close auth modal automatically once authenticated & center selection is complete
       setAuthModalState((prev) => (prev.isOpen ? { ...prev, isOpen: false } : prev));
-      // If authenticated and on login/signup/select-center/root, navigate to active tab route
-      if (path === '/' || path === '' || path === '/login' || path === '/signup' || path === '/select-center') {
+      // If authenticated and on login/signup/select-center/root or an unknown route, navigate to active tab route
+      if (
+        path === '/' ||
+        path === '' ||
+        path === '/login' ||
+        path === '/signup' ||
+        path === '/select-center' ||
+        !ROUTE_TO_TAB[path]
+      ) {
         const targetUrl = TAB_ROUTES[activeTab] || '/menu-planner';
         if (window.location.pathname !== targetUrl) {
           window.history.replaceState({ tab: activeTab }, '', targetUrl);

@@ -22,10 +22,7 @@ service cloud.firestore {
       return isAuthenticated() && (
         (request.auth.token.role != null && request.auth.token.role == 'sadmin') ||
         (hasUserDoc() && getUserData().role == 'sadmin') ||
-        (request.auth.token.email != null && (
-          request.auth.token.email == 'sadmin@iskcon.org' || 
-          request.auth.token.email.matches('.*sadmin.*')
-        ))
+        (request.auth.token.email != null && request.auth.token.email == 'sadmin@iskcon.org')
       );
     }
     
@@ -48,8 +45,7 @@ service cloud.firestore {
       
       // Center Subcollections (e.g. legacy fallback)
       match /{allSubcollections=**} {
-        allow read: if true;
-        allow write: if isAuthenticated();
+        allow read, write: if isAuthenticated();
       }
     }
 
@@ -57,51 +53,52 @@ service cloud.firestore {
     // 2. Standardized Core Entities
     // ==========================================
     
-    // Recipes: readable by everyone, modifiable by admins and sadmins
+    // Recipes: authenticated kitchen users only
     match /recipes/{recipeId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+      allow read, write: if isAuthenticated();
     }
 
-    // Menus: readable by everyone, modifiable by authenticated staff
+    // Menus: authenticated kitchen users only
     match /menus/{menuId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+      allow read, write: if isAuthenticated();
     }
 
-    // Ingredients & Stock: readable by everyone, updated by staff
+    // Ingredients & Stock: authenticated kitchen users only
     match /ingredients/{ingredientId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+      allow read, write: if isAuthenticated();
     }
 
-    // Meal Patterns: read by devotees, configured by admins
+    // Meal Patterns: authenticated kitchen users only
     match /patterns/{patternId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+      allow read, write: if isAuthenticated();
     }
 
     // ==========================================
     // 3. Center Addition Requests (Maker-Checker)
     // ==========================================
     match /center_requests/{requestId} {
-      // SAdmin can read all requests; requesting admin can read their own
       allow read: if isAuthenticated();
-      // Admins can submit requests
-      allow create: if isAuthenticated();
+      // Only Center Admins or Super Admins can submit requests
+      allow create: if isAdmin();
       // Only Super Admin can approve or reject center requests
       allow update, delete: if isSAdmin();
     }
 
     // ==========================================
-    // 4. User Profiles & RBAC
+    // 4. User Profiles & RBAC (Anti-Privilege-Escalation)
     // ==========================================
     match /users/{userId} {
       allow read: if isAuthenticated();
-      // Users can register their own profile document
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      // Users can update their profile; Admins and SAdmins can manage roles
-      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin() || isSAdmin());
+      // Users can create their own profile (only as 'user' unless SAdmin)
+      allow create: if isAuthenticated() && request.auth.uid == userId && (
+        request.resource.data.role == 'user' || isSAdmin()
+      );
+      // Users can update their own non-role fields; only Admins/SAdmins can change roles
+      allow update: if isAuthenticated() && (
+        isSAdmin() ||
+        (isAdmin() && request.resource.data.role != 'sadmin') ||
+        (request.auth.uid == userId && request.resource.data.role == resource.data.role)
+      );
       // Only SAdmin can delete users
       allow delete: if isSAdmin();
     }
@@ -110,8 +107,7 @@ service cloud.firestore {
     // 5. Global Vaishnava Calendar
     // ==========================================
     match /vaishnava_calendar/{occasionId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+      allow read, write: if isAuthenticated();
     }
 
     // ==========================================
@@ -131,7 +127,11 @@ service cloud.firestore {
     // 7. Session Management (Max 2 Devices, 30-Min TTL)
     // ==========================================
     match /user_sessions/{sessionId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid ||
+        (request.auth.token.email != null && resource.data.emailLower == request.auth.token.email.lower()) ||
+        isSAdmin()
+      );
       allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
       allow update: if isAuthenticated() && (resource.data.uid == request.auth.uid || isSAdmin());
       allow delete: if isAuthenticated() && (

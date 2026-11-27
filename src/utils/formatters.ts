@@ -60,3 +60,13 @@ export function formatTimestampDDMMYYYY(isoString?: string | null): string {
     return String(isoString);
   }
 }
+
+/**
+ * Sanitize a CSV cell value to prevent formula injection (=, +, -, @, \t, \r)
+ * and properly quote embedded quotes/commas.
+ */
+export function sanitizeCsvCell(value: string | number | undefined | null): string {
+  const str = String(value ?? '');
+  const safe = /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+  return `"${safe.replace(/"/g, '""')}"`;
+}

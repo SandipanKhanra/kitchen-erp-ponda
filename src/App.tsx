@@ -93,8 +93,8 @@ function AppContent() {
         {activeTab === 'daywise_shopping' && <DaywiseAndShoppingView />}
         {activeTab === 'stock' && <StockManagement />}
         {activeTab === 'recipes_patterns' && <RecipeAndPatternManagement />}
-        {activeTab === 'admin_users' && <AdminUserManagement />}
-        {activeTab === 'sadmin_dashboard' && <SAdminDashboard />}
+        {activeTab === 'admin_users' && isAdmin && !isSAdmin && <AdminUserManagement />}
+        {activeTab === 'sadmin_dashboard' && isSAdmin && <SAdminDashboard />}
         {activeTab === 'vaishnava_calendar' && <VaishnavaCalendarView />}
       </main>
 

@@ -145,7 +145,7 @@ export class AuthService {
       trimmedPasscode === 'SADMIN' ||
       trimmedPasscode === 'PONDA-SADMIN' ||
       trimmedPasscode === 'ISKCON-SADMIN' ||
-      normalizedEmail.includes('sadmin')
+      normalizedEmail === 'sadmin@iskcon.org'
     ) {
       role = 'sadmin';
     } else if (
@@ -651,9 +651,7 @@ export class AuthService {
           }
 
           const isGoogleUser = firebaseUser.providerData?.some((p) => p.providerId === 'google.com');
-          const isSAdminEmail = Boolean(
-            normalizedEmail && (normalizedEmail.includes('sadmin') || normalizedEmail === 'sadmin@iskcon.org')
-          );
+          const isSAdminEmail = Boolean(normalizedEmail && normalizedEmail === 'sadmin@iskcon.org');
           const role: UserRole = isSAdminEmail ? 'sadmin' : 'user';
 
           const fallbackProfile: UserProfile = {

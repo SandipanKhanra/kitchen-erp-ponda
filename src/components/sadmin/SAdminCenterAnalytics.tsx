@@ -4,6 +4,7 @@ import { CenterStatus } from '../../types/center';
 import { kitchenDbService } from '../../services/kitchenDbService';
 import { calculateDayWiseAndShoppingRequirements } from '../../core/daywiseRequirementCalculator';
 import { LoadingSpinner } from '../common/LoadingSpinner';
+import { sanitizeCsvCell } from '../../utils/formatters';
 import {
   Building2,
   Users,
@@ -162,10 +163,10 @@ export const SAdminCenterAnalytics: React.FC = () => {
     ];
     const lines = reports.map((r) =>
       [
-        `"${r.centerName}"`,
-        r.centerCode,
-        `"${r.city}"`,
-        r.status,
+        sanitizeCsvCell(r.centerName),
+        sanitizeCsvCell(r.centerCode),
+        sanitizeCsvCell(r.city),
+        sanitizeCsvCell(r.status),
         r.devoteeCount,
         r.adminCount,
         r.recipeCount,
@@ -175,7 +176,7 @@ export const SAdminCenterAnalytics: React.FC = () => {
         r.netToProcure.toFixed(2),
         r.avgDailyCost.toFixed(2),
         r.monthlyPurchaseSpend.toFixed(2),
-        r.menuStatus,
+        sanitizeCsvCell(r.menuStatus),
       ].join(',')
     );
     const csv = [headers.join(','), ...lines].join('\n');

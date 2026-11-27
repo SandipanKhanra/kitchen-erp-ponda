@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useKitchen } from '../../context/KitchenContext';
 import { useAuth } from '../../context/AuthContext';
-import { formatDateDDMMYYYY } from '../../utils/formatters';
+import { formatDateDDMMYYYY, sanitizeCsvCell } from '../../utils/formatters';
 import {
   TrendingUp,
   Calendar,
@@ -211,9 +211,9 @@ export const CenterCostAnalytics: React.FC = () => {
     const headers = ['Date', 'Day/Source', 'Occasion', 'Headcount', 'Menu Cost (INR)', 'Purchase Spend (INR)', 'Total Cost (INR)'];
     const lines = filteredRows.map((r) =>
       [
-        formatDateDDMMYYYY(r.date),
-        `"${r.dayLabel}"`,
-        `"${r.occasionName || (r.isEkadashi ? 'Ekadashi' : 'Normal')}"`,
+        sanitizeCsvCell(formatDateDDMMYYYY(r.date)),
+        sanitizeCsvCell(r.dayLabel),
+        sanitizeCsvCell(r.occasionName || (r.isEkadashi ? 'Ekadashi' : 'Normal')),
         r.headcount,
         r.menuCost.toFixed(2),
         r.purchaseSpend.toFixed(2),
