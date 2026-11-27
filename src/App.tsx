@@ -191,8 +191,15 @@ function AppContent() {
         </Suspense>
       )}
 
-      <footer className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-md border-t-2 border-t-orange-500/25 dark:border-t-orange-500/20 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
-        Ponda Kitchen ERP
+      <footer className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-md border-t-2 border-t-orange-500/25 dark:border-t-orange-500/20 py-5 px-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <div className="font-semibold text-slate-700 dark:text-slate-300">
+            &copy; {new Date().getFullYear()} Ponda Kitchen. All rights reserved.
+          </div>
+          <div className="text-[11px] text-slate-400 dark:text-slate-500">
+            ISKCON Kitchen Management ERP &bull; Prasadam Planning &amp; Inventory
+          </div>
+        </div>
       </footer>
     </div>
   );
