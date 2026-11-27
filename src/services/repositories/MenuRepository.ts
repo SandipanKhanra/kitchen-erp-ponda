@@ -5,6 +5,22 @@ import { IMenuRepository } from '../../types/repositories';
 import { createEmpty15DayMenu } from '../../core/rotationEngine';
 import { SafeStorage } from '../../utils/safeStorage';
 
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripUndefined(item)) as unknown as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v !== undefined) {
+        result[k] = stripUndefined(v);
+      }
+    }
+    return result as T;
+  }
+  return value;
+}
+
 export class MenuRepository implements IMenuRepository {
   private getLocalKey(centerId: string): string {
     return `kitchen_menu_${centerId}`;
@@ -21,14 +37,23 @@ export class MenuRepository implements IMenuRepository {
         }
 
         if (!snap.empty) {
-          let docData: FifteenDayMenuPlan | null = null;
+          const candidates: FifteenDayMenuPlan[] = [];
           snap.forEach((d) => {
             const data = d.data() as FifteenDayMenuPlan;
-            if (!docData && (data.centerId === centerId || data.centerId === 'all')) {
-              docData = data;
+            if (data.centerId === centerId || data.centerId === 'all') {
+              candidates.push({ ...data, id: data.id || d.id });
             }
           });
-          if (docData) {
+
+          if (candidates.length > 0) {
+            // Prefer exact centerId match and latest updatedAt
+            candidates.sort((a, b) => {
+              const aExact = a.centerId === centerId ? 1 : 0;
+              const bExact = b.centerId === centerId ? 1 : 0;
+              if (aExact !== bExact) return bExact - aExact;
+              return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+            });
+            const docData = candidates[0];
             SafeStorage.setItem(this.getLocalKey(centerId), docData);
             return docData;
           }
@@ -46,19 +71,15 @@ export class MenuRepository implements IMenuRepository {
 
   async saveCenterMenuPlan(centerId: string, plan: FifteenDayMenuPlan): Promise<void> {
     if (!centerId) return;
-    const planWithCenter: FifteenDayMenuPlan = {
+    const planWithCenter = stripUndefined<FifteenDayMenuPlan>({
       ...plan,
       centerId,
       updatedAt: new Date().toISOString(),
-    };
+    });
     SafeStorage.setItem(this.getLocalKey(centerId), planWithCenter);
 
     if (isFirebaseConfigured && db) {
-      try {
-        await setDoc(doc(db, 'menus', plan.id), planWithCenter, { merge: true });
-      } catch (err) {
-        console.warn('[MenuRepository] Failed to save menu plan in Firestore:', err);
-      }
+      await setDoc(doc(db, 'menus', plan.id), planWithCenter);
     }
   }
 }

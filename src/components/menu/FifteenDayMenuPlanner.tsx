@@ -114,6 +114,9 @@ export const FifteenDayMenuPlanner: React.FC = () => {
       await saveMenuPlan(activeMenuPlan, { recordAudit: true });
       setHasUnsavedChanges(false);
       showToast('15-Day Menu Plan updated & recorded in Audit Trail!', 'success');
+    } catch (err) {
+      console.error('[FifteenDayMenuPlanner] Failed to update menu plan:', err);
+      showToast('Failed to save menu plan to Firestore. Please try again.', 'error');
     } finally {
       setIsUpdating(false);
     }
