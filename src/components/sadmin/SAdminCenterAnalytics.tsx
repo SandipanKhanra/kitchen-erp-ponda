@@ -295,7 +295,7 @@ export const SAdminCenterAnalytics: React.FC = () => {
         <>
           {/* Center-Wise Visual Comparison */}
           <div className="modern-card p-5 rounded-2xl space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white text-sm flex items-center space-x-2">
                   <BarChart3 className="w-4 h-4 text-purple-500" />
@@ -320,7 +320,7 @@ export const SAdminCenterAnalytics: React.FC = () => {
             <div className="space-y-3">
               {reports.map((r) => (
                 <div key={r.centerId} className="space-y-1.5">
-                  <div className="flex justify-between text-xs">
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 text-xs">
                     <span className="font-bold text-slate-800 dark:text-slate-100">
                       {r.centerName}{' '}
                       <span className="text-[10px] font-mono text-slate-400">({r.centerCode})</span>
@@ -364,7 +364,76 @@ export const SAdminCenterAnalytics: React.FC = () => {
               </span>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile & Small Screen Stacked Cards (No Horizontal Scroll) */}
+            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {reports.map((r) => (
+                <div key={r.centerId} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-slate-900 dark:text-white text-sm">
+                        {r.centerName}
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {r.centerCode} &bull; {r.city}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span
+                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          r.status === 'active'
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                            : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                        }`}
+                      >
+                        {r.status}
+                      </span>
+                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                        {r.menuStatus.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-slate-50/90 dark:bg-slate-800/60 p-2.5 rounded-xl border-l-2 border-l-orange-500">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">15-Day Cost</span>
+                      <span className="font-black text-orange-600 dark:text-orange-400">
+                        ₹{r.menuCost15Days.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                    <div className="bg-slate-50/90 dark:bg-slate-800/60 p-2.5 rounded-xl border-l-2 border-l-emerald-500">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Stock Value</span>
+                      <span className="font-black text-emerald-600 dark:text-emerald-400">
+                        ₹{r.stockAssetValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                    <div className="bg-slate-50/90 dark:bg-slate-800/60 p-2.5 rounded-xl border-l-2 border-l-indigo-500">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Net Procure</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        ₹{r.netToProcure.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                    <div className="bg-slate-50/90 dark:bg-slate-800/60 p-2.5 rounded-xl border-l-2 border-l-amber-500">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Avg / Day</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        ₹{r.avgDailyCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1">
+                    <span>
+                      Workforce: <strong className="text-slate-700 dark:text-slate-200">{r.devoteeCount}</strong> ({r.adminCount} Admin)
+                    </span>
+                    <span>
+                      Recipes: <strong className="text-slate-700 dark:text-slate-200">{r.recipeCount}</strong> &bull; Stock: <strong className="text-slate-700 dark:text-slate-200">{r.stockItemCount}</strong>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs min-w-[820px]">
                 <thead className="bg-slate-50/90 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-700">
                   <tr>
