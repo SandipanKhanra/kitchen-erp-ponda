@@ -3,10 +3,12 @@ import {
   doc,
   setDoc,
   updateDoc,
+  deleteDoc,
   arrayUnion,
   query,
   where,
   onSnapshot,
+  getDocs,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../../config/firebase';
 import { AppNotification } from '../../types/notification';
@@ -76,6 +78,39 @@ export class NotificationRepository {
     }
 
     return item;
+  }
+
+  /**
+   * Deletes all notifications for a center that were created before the current calendar month.
+   * Called once on login / center switch so old notifications never pile up.
+   */
+  async deleteOldNotifications(centerId: string): Promise<void> {
+    if (!centerId) return;
+
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+    // Purge from local cache
+    const cached = SafeStorage.getItem<AppNotification[]>(this.getLocalKey(centerId), []);
+    const kept = cached.filter((n) => n.createdAt >= thisMonthStart);
+    SafeStorage.setItem(this.getLocalKey(centerId), kept);
+
+    if (!isFirebaseConfigured || !db) return;
+
+    try {
+      const q = query(collection(db, 'notifications'), where('centerId', '==', centerId));
+      const snap = await getDocs(q);
+      const deletes: Promise<void>[] = [];
+      snap.forEach((d) => {
+        const n = d.data() as AppNotification;
+        if (n.createdAt < thisMonthStart) {
+          deletes.push(deleteDoc(doc(db!, 'notifications', d.id)));
+        }
+      });
+      await Promise.allSettled(deletes);
+    } catch (err) {
+      console.warn('[NotificationRepository] Failed to delete old notifications:', err);
+    }
   }
 
   async markAsRead(centerId: string, notificationId: string, uid: string): Promise<void> {

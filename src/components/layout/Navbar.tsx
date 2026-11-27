@@ -429,7 +429,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                               onClick={() => {
                                 markNotificationRead(n.id);
                                 setNotifDropdownOpen(false);
+                                // Navigate to the correct tab, then scroll to top so the content is visible
                                 handleTabClick(n.actionTab);
+                                setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 80);
                               }}
                               className={`w-full text-left p-2.5 rounded-xl transition space-y-1 ${
                                 isUnread

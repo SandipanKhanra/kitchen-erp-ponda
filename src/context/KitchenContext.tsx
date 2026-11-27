@@ -159,6 +159,9 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     notifInitializedRef.current = false;
     seenNotifIdsRef.current = new Set();
 
+    // Purge notifications older than current month (fire and forget)
+    notificationRepository.deleteOldNotifications(currentCenter.id).catch(() => {});
+
     const unsub = notificationRepository.subscribeToCenterNotifications(
       currentCenter.id,
       (items) => {
