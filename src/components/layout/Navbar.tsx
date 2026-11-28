@@ -27,6 +27,7 @@ import {
 import { pushNotificationService } from '../../services/pushNotificationService';
 import { useToast } from '../../context/ToastContext';
 import { formatTimestampDDMMYYYY } from '../../utils/formatters';
+import { useModalClose } from '../../hooks/useModalClose';
 
 export type NavTab =
   | 'menu_planner'
@@ -86,6 +87,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   const mobileNotifRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const activeTabRef = useRef<HTMLButtonElement>(null);
+
+  useModalClose(notifDropdownOpen, () => setNotifDropdownOpen(false));
+  useModalClose(profileDropdownOpen, () => setProfileDropdownOpen(false));
+  useModalClose(mobileMenuOpen, () => setMobileMenuOpen(false));
 
   const handleTogglePush = async () => {
     if (pushEnabled) {
@@ -225,8 +230,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   if (n.planId) {
                     selectMenuPlan(n.planId);
                   }
-                  handleTabClick(n.actionTab);
-                  setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 80);
+                  // Allow the dropdown's modal history cleanup popstate to settle before tab navigation
+                  window.setTimeout(() => {
+                    handleTabClick(n.actionTab);
+                  }, 30);
                 }}
                 className={`w-full text-left p-2.5 rounded-xl transition space-y-1 ${
                   isUnread

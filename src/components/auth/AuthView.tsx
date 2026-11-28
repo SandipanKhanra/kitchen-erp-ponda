@@ -4,6 +4,7 @@ import { SignupForm } from './SignupForm';
 import { ChefHat, X, Sun, Moon } from 'lucide-react';
 import { useKitchen } from '../../context/KitchenContext';
 import { useToast } from '../../context/ToastContext';
+import { useModalClose } from '../../hooks/useModalClose';
 
 interface AuthViewProps {
   initialTab?: 'login' | 'signup';
@@ -45,15 +46,8 @@ export const AuthView: React.FC<AuthViewProps> = ({
     }
   }, [initialTab]);
 
-  // Close on Escape key
-  useEffect(() => {
-    if (!isModal || !onClose) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isModal, onClose]);
+  // Close on Escape key or mobile Back button
+  useModalClose(Boolean(isModal && onClose), () => onClose?.());
 
   const containerClasses = isModal
     ? 'fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto overscroll-contain'
