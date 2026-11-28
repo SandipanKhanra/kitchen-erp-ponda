@@ -60,10 +60,10 @@ export const SAdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <div className="flex items-center space-x-2">
-            <span className="bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 text-xs font-black px-2.5 py-1 rounded-md border border-purple-200 dark:border-purple-900">
+          <div className="flex items-center flex-wrap gap-2">
+            <span className="bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 text-[10px] sm:text-xs font-black px-2.5 py-1 rounded-md border border-purple-200 dark:border-purple-900">
               SUPER ADMIN CONSOLE
             </span>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -73,13 +73,14 @@ export const SAdminDashboard: React.FC = () => {
         </div>
 
         {/* Subtabs */}
-        <div className="toolbar-pill-group text-xs w-full sm:w-auto overflow-x-auto">
+        <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 text-xs w-full lg:w-auto">
           <button
+            type="button"
             onClick={() => {
               setActiveSubTab('analytics');
               setSearchQuery('');
             }}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
               activeSubTab === 'analytics'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -89,11 +90,12 @@ export const SAdminDashboard: React.FC = () => {
             <span>Center-Wise Report</span>
           </button>
           <button
+            type="button"
             onClick={() => {
               setActiveSubTab('requests');
               setSearchQuery('');
             }}
-            className={`px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center justify-center px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
               activeSubTab === 'requests'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -102,12 +104,13 @@ export const SAdminDashboard: React.FC = () => {
             Pending Requests ({pendingRequests.length})
           </button>
           <button
+            type="button"
             onClick={() => {
               setActiveSubTab('centers');
               setSearchQuery('');
               setCentersPage(1);
             }}
-            className={`px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center justify-center px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
               activeSubTab === 'centers'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -116,12 +119,13 @@ export const SAdminDashboard: React.FC = () => {
             Centers ({allCenters.length})
           </button>
           <button
+            type="button"
             onClick={() => {
               setActiveSubTab('users');
               setSearchQuery('');
               setUsersPage(1);
             }}
-            className={`px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center justify-center px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
               activeSubTab === 'users'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -297,10 +301,11 @@ export const SAdminDashboard: React.FC = () => {
                   </div>
 
                   {/* Super Admin Center Actions: Deactivate / Activate and Delete */}
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between gap-2">
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center gap-2">
                     <button
+                      type="button"
                       onClick={() => toggleCenterStatus(center.id)}
-                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+                      className={`flex-1 flex items-center justify-center space-x-1.5 h-9 px-3 rounded-xl text-xs font-bold transition border ${
                         center.status === 'active'
                           ? 'border-amber-300 dark:border-amber-800/80 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
                           : 'border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
@@ -321,6 +326,7 @@ export const SAdminDashboard: React.FC = () => {
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => {
                         if (
                           window.confirm(
@@ -330,7 +336,7 @@ export const SAdminDashboard: React.FC = () => {
                           deleteCenter(center.id);
                         }
                       }}
-                      className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900 transition"
+                      className="flex-1 flex items-center justify-center space-x-1.5 h-9 px-3 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900 transition"
                       title="Permanently delete center"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -379,7 +385,61 @@ export const SAdminDashboard: React.FC = () => {
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto pb-1">
+            {/* Mobile Stacked Cards */}
+            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700">
+              {paginatedUsers.length === 0 ? (
+                <div className="px-4 py-10 text-center text-xs text-slate-400">
+                  No devotees found matching your search.
+                </div>
+              ) : (
+                paginatedUsers.map((u) => (
+                  <div key={u.uid} className="p-4 space-y-2.5 text-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 dark:text-white truncate">{u.name}</div>
+                        <div className="text-slate-500 dark:text-slate-400 truncate">{u.email}</div>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 rounded-full font-bold text-[10px] flex-shrink-0 ${
+                          u.role === 'sadmin'
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                            : u.role === 'admin'
+                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {formatUserRole(u.role)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <span className="text-slate-500 dark:text-slate-400 truncate">{u.centerName}</span>
+                      {u.role === 'sadmin' ? (
+                        <span className="text-slate-400 font-bold">—</span>
+                      ) : u.role === 'admin' ? (
+                        <button
+                          type="button"
+                          onClick={() => assignUserRole(u.uid, 'user')}
+                          className="px-3 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-bold flex-shrink-0"
+                        >
+                          Demote
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => assignUserRole(u.uid, 'admin')}
+                          className="px-3 py-1 rounded-lg bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 font-bold flex-shrink-0"
+                        >
+                          Make Admin
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto pb-1">
               <table className="w-full text-left text-xs min-w-[550px]">
                 <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-700">
                   <tr>
@@ -425,16 +485,18 @@ export const SAdminDashboard: React.FC = () => {
                             <>
                               {u.role !== 'admin' && (
                                 <button
+                                  type="button"
                                   onClick={() => assignUserRole(u.uid, 'admin')}
-                                  className="text-orange-600 dark:text-orange-400 font-bold hover:underline"
+                                  className="px-3 py-1 rounded-lg bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50 font-bold transition"
                                 >
                                   Make Admin
                                 </button>
                               )}
                               {u.role === 'admin' && (
                                 <button
+                                  type="button"
                                   onClick={() => assignUserRole(u.uid, 'user')}
-                                  className="text-slate-500 hover:text-slate-800 dark:hover:text-white font-medium"
+                                  className="px-3 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 font-bold transition"
                                 >
                                   Demote
                                 </button>
