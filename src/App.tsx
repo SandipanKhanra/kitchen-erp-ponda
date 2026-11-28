@@ -260,7 +260,7 @@ function AppContent() {
             &copy; {new Date().getFullYear()} Ponda Kitchen. All rights reserved.
           </div>
           <div className="text-[11px] text-slate-400 dark:text-slate-500">
-            ISKCON Kitchen Management ERP &bull; Prasadam Planning &amp; Inventory
+            ISKCON Kitchen Management ERP
           </div>
         </div>
       </footer>
