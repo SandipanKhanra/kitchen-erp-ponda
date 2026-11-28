@@ -70,9 +70,6 @@ export const SAdminDashboard: React.FC = () => {
               Global Center Management
             </h1>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Features c, e & 1: Review center creation requests, supervise isolated centers, and manage cross-center administrators.
-          </p>
         </div>
 
         {/* Subtabs */}
