@@ -190,7 +190,7 @@ function AppContent() {
         tourHighlightedTab={tourTab}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-3 pb-2 sm:py-8">
         {isSyncing && (
           <div className="mb-4 px-4 py-2.5 rounded-2xl bg-orange-50/90 dark:bg-orange-950/40 border border-orange-200/80 dark:border-orange-900/60 border-l-4 border-l-orange-500 flex items-center space-x-2.5 text-xs font-bold text-orange-700 dark:text-orange-300 shadow-sm">
             <LoadingSpinner size="xs" className="text-orange-500" />
@@ -254,12 +254,12 @@ function AppContent() {
         </Suspense>
       )}
 
-      <footer className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-md border-t-2 border-t-orange-500/25 dark:border-t-orange-500/20 py-5 pb-24 md:pb-5 px-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-          <div className="font-semibold text-slate-700 dark:text-slate-300">
+      <footer className="bg-transparent md:bg-white/75 dark:bg-transparent md:dark:bg-slate-900/75 md:backdrop-blur-md border-t border-slate-200/40 dark:border-slate-800/40 md:border-t-2 md:border-t-orange-500/25 md:dark:border-t-orange-500/20 pt-2 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:py-5 md:pb-5 px-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-0.5 sm:gap-2 text-[10px] md:text-xs text-slate-400/80 dark:text-slate-500/80 md:text-slate-500 md:dark:text-slate-400">
+          <div className="font-medium md:font-semibold text-slate-400/90 dark:text-slate-500/90 md:text-slate-700 md:dark:text-slate-300">
             &copy; {new Date().getFullYear()} Ponda Kitchen. All rights reserved.
           </div>
-          <div className="text-[11px] text-slate-400 dark:text-slate-500">
+          <div className="hidden sm:block text-[11px] text-slate-400 dark:text-slate-500">
             ISKCON Kitchen Management ERP
           </div>
         </div>
