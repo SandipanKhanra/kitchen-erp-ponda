@@ -1036,7 +1036,6 @@ export const FifteenDayMenuPlanner: React.FC = () => {
       <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-2">
         <div className="flex justify-between items-center text-xs">
           <span className="font-bold text-slate-500 dark:text-slate-400 uppercase">Select Day (1 — 15)</span>
-          <span className="text-slate-400 dark:text-slate-500">Fixed 3 Meals &bull; Ekadashi Auto-Guarded</span>
         </div>
         <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {Array.from({ length: 15 }, (_, i) => i + 1).map((dayNum) => {
@@ -1349,7 +1348,6 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                       {/* Ashram Header & Pax */}
                       <div className="flex justify-between items-center">
                         <div className="flex items-center space-x-1.5">
-                          <span className="text-sm">🕉️</span>
                           <span className="text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
                             Brahmacari Ashram {mealKey === 'breakfast' ? 'Breakfast' : 'Lunch'}
                           </span>
