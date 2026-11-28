@@ -102,6 +102,8 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [showPastPlans, setShowPastPlans] = useState<boolean>(false);
+  const [focusedTopSectionMobile, setFocusedTopSectionMobile] = useState<'schedule' | 'banner' | null>('banner');
+  const [focusedMealMobile, setFocusedMealMobile] = useState<'breakfast' | 'lunch' | 'dinner'>('breakfast');
   const [startDateConflict, setStartDateConflict] = useState<{
     attemptedStartDate: string;
     reason: string;
@@ -597,43 +599,65 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     [todayISO, horizonEndISO]
   );
 
+  const isScheduleOpenMobile = focusedTopSectionMobile === 'schedule';
+  const isBannerOpenMobile = focusedTopSectionMobile === 'banner';
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Multi-Plan Advance Scheduler Bar (Up to 6 Plans / 3 Months Horizon) */}
-      <div className="modern-card p-4 sm:p-5 rounded-3xl space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div>
-            <div className="flex items-center flex-wrap gap-2">
-              <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
-                Advance 15-Day Menu Schedule
-              </h1>
-              <span
-                className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
-                  activeUpcomingPlans.length >= MAX_ADVANCE_PLANS
-                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border-rose-300 dark:border-rose-800'
-                    : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
-                }`}
-              >
-                {activeUpcomingPlans.length} / {MAX_ADVANCE_PLANS} Active Plans &bull; {MAX_ADVANCE_MONTHS}-Month Horizon
-              </span>
-              {pendingPlans.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => handleSelectPlanCard(pendingPlans[0])}
-                  className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-700 transition cursor-pointer"
-                  title="Jump to plan awaiting approval"
+      <div className="modern-card p-4 sm:p-5 rounded-3xl space-y-3 sm:space-y-4">
+        <div
+          onClick={() =>
+            setFocusedTopSectionMobile((prev) => (prev === 'schedule' ? null : 'schedule'))
+          }
+          className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 cursor-pointer md:cursor-default"
+        >
+          <div className="w-full sm:w-auto flex items-start justify-between gap-2">
+            <div>
+              <div className="flex items-center flex-wrap gap-2">
+                <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                  Advance 15-Day Menu Schedule
+                </h1>
+                <span
+                  className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                    activeUpcomingPlans.length >= MAX_ADVANCE_PLANS
+                      ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border-rose-300 dark:border-rose-800'
+                      : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                  }`}
                 >
-                  {pendingPlans.length} Pending Approval
-                </button>
-              )}
+                  {activeUpcomingPlans.length} / {MAX_ADVANCE_PLANS} Active Plans &bull; {MAX_ADVANCE_MONTHS}-Month Horizon
+                </span>
+                {pendingPlans.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectPlanCard(pendingPlans[0]);
+                    }}
+                    className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-700 transition cursor-pointer"
+                    title="Jump to plan awaiting approval"
+                  >
+                    {pendingPlans.length} Pending Approval
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Plan up to {MAX_ADVANCE_PLANS} non-overlapping cycles ({MAX_ADVANCE_MONTHS} months in advance up to{' '}
+                <strong>{formatDateDDMMYYYY(maxAdvanceStartDate)}</strong>).
+              </p>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Plan up to {MAX_ADVANCE_PLANS} non-overlapping cycles ({MAX_ADVANCE_MONTHS} months in advance up to{' '}
-              <strong>{formatDateDDMMYYYY(maxAdvanceStartDate)}</strong>).
-            </p>
+
+            <ChevronDown
+              className={`w-4 h-4 text-slate-400 md:hidden flex-shrink-0 mt-1 transition-transform ${
+                isScheduleOpenMobile ? 'rotate-180 text-orange-500' : ''
+              }`}
+            />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-xs w-full sm:w-auto justify-end">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`${isScheduleOpenMobile ? 'flex' : 'hidden md:flex'} flex-wrap items-center gap-2 text-xs w-full sm:w-auto justify-end`}
+          >
             {pastPlans.length > 0 && (
               <button
                 type="button"
@@ -660,7 +684,8 @@ export const FifteenDayMenuPlanner: React.FC = () => {
           </div>
         </div>
 
-        {/* Visual 3-Month Horizon Timeline Strip */}
+        {/* Visual 3-Month Horizon Timeline Strip + Scrollable Plan Cards (auto-collapsed on mobile when out of focus) */}
+        <div className={`${isScheduleOpenMobile ? 'block' : 'hidden md:block'} space-y-4`}>
         <div className="bg-slate-50/90 dark:bg-slate-900/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/70 space-y-1.5">
           <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 dark:text-slate-400">
             <span>3-Month Occupancy Timeline (Click a block to switch)</span>
@@ -800,11 +825,12 @@ export const FifteenDayMenuPlanner: React.FC = () => {
             );
           })}
         </div>
+        </div>
       </div>
 
       {/* Top Banner: Maker-Checker Approval Status */}
       <div
-        className={`p-5 rounded-3xl transition-all backdrop-blur-md ${
+        className={`p-4 sm:p-5 rounded-3xl transition-all backdrop-blur-md ${
           isApproved
             ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-x border-emerald-200/80 dark:border-emerald-800/70 border-t-2 border-t-emerald-500 border-b-2 border-b-teal-500/50'
             : isPending
@@ -815,25 +841,39 @@ export const FifteenDayMenuPlanner: React.FC = () => {
         }`}
       >
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          <div>
-            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-              <span
-                className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
-                  isApproved
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
-                    : isPending
-                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700'
-                    : isRejected
-                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-300 border-rose-300 dark:border-rose-700'
-                    : 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600'
+          <div className="w-full lg:w-auto">
+            <div
+              onClick={() =>
+                setFocusedTopSectionMobile((prev) => (prev === 'banner' ? null : 'banner'))
+              }
+              className="flex items-center justify-between gap-2 cursor-pointer md:cursor-default"
+            >
+              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                <span
+                  className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                    isApproved
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                      : isPending
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                      : isRejected
+                      ? 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-300 border-rose-300 dark:border-rose-700'
+                      : 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600'
+                  }`}
+                >
+                  {activeMenuPlan.status.replace('_', ' ').toUpperCase()}
+                </span>
+                <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                  {activeMenuPlan.title}
+                </h2>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-slate-400 md:hidden flex-shrink-0 transition-transform ${
+                  isBannerOpenMobile ? 'rotate-180 text-orange-500' : ''
                 }`}
-              >
-                {activeMenuPlan.status.replace('_', ' ').toUpperCase()}
-              </span>
-              <h2 className="text-lg font-black text-slate-900 dark:text-white">
-                {activeMenuPlan.title}
-              </h2>
+              />
             </div>
+
+            <div className={`${isBannerOpenMobile ? 'block' : 'hidden md:block'}`}>
             <div className="text-xs text-slate-600 dark:text-slate-300 mt-1 flex flex-wrap gap-2 items-center">
               <span>
                 Created by: <strong>{activeMenuPlan.createdByName || 'Pending Update'}</strong>
@@ -910,10 +950,11 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                 </button>
               </div>
             )}
+            </div>
           </div>
 
           {/* Maker-Checker Action Buttons & Audit Trail */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className={`${isBannerOpenMobile ? 'flex' : 'hidden md:flex'} flex-wrap items-center gap-2 text-xs`}>
             {/* Update button: hidden for regular users when menu is approved */}
             {!isLockedForUser && (
             <button
@@ -1046,7 +1087,10 @@ export const FifteenDayMenuPlanner: React.FC = () => {
             return (
               <button
                 key={dayNum}
-                onClick={() => setSelectedDay(dayNum)}
+                onClick={() => {
+                  setSelectedDay(dayNum);
+                  setFocusedTopSectionMobile(null);
+                }}
                 className={`flex-1 min-w-[52px] sm:min-w-[60px] py-2.5 rounded-xl font-black text-xs transition-all flex flex-col items-center relative ${
                   isSelected
                     ? isEkadashi
@@ -1196,22 +1240,45 @@ export const FifteenDayMenuPlanner: React.FC = () => {
               ? activeDay[ashramSlotKey] || { recipeIds: [], headcount: 20 }
               : null;
 
+            const isMealFocusedMobile = focusedMealMobile === mealKey;
+
             return (
               <div
                 key={mealKey}
-                className="bg-slate-50/70 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4 flex flex-col justify-between"
+                className="bg-slate-50/70 dark:bg-slate-900/50 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4 flex flex-col justify-between"
               >
                 <div className="space-y-4">
-                  {/* Meal Header & Pax */}
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-extrabold uppercase tracking-wider text-orange-600 dark:text-orange-400">
-                      General {title}
-                    </span>
-                    <div className="flex items-center space-x-1.5 text-xs">
+                  {/* Meal Header & Pax (clickable on mobile to focus & auto-collapse other meals) */}
+                  <div
+                    onClick={() => {
+                      setFocusedMealMobile(mealKey);
+                      setFocusedTopSectionMobile(null);
+                    }}
+                    className="flex justify-between items-center cursor-pointer md:cursor-default"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs font-extrabold uppercase tracking-wider text-orange-600 dark:text-orange-400">
+                        General {title}
+                      </span>
+                      {!isMealFocusedMobile && (
+                        <span className="md:hidden text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                          &bull; {slot.recipeIds.length} dish{slot.recipeIds.length === 1 ? '' : 'es'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-1.5 text-xs flex-shrink-0">
                       <Users className="w-3.5 h-3.5 text-slate-400" />
                       <span className="font-bold text-slate-800 dark:text-white">{slot.headcount} Pax</span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-400 md:hidden transition-transform ${
+                          isMealFocusedMobile ? 'rotate-180 text-orange-500' : ''
+                        }`}
+                      />
                     </div>
                   </div>
+
+                  {/* Meal Body (auto-collapsed on mobile when another meal is focused) */}
+                  <div className={`${isMealFocusedMobile ? 'block' : 'hidden md:block'} space-y-4`}>
 
                   {/* Headcount Input */}
                   <div>
@@ -1490,6 +1557,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                       )}
                     </div>
                   )}
+                  </div>
                 </div>
               </div>
             );

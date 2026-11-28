@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useKitchen } from '../../context/KitchenContext';
 import { useToast } from '../../context/ToastContext';
-import { Plus, Trash2, Layers, Utensils, Sparkles, Check, Edit3, Search, History, Building2 } from 'lucide-react';
+import { Plus, Trash2, Layers, Utensils, Sparkles, Check, Edit3, Search, History, Building2, ChevronDown } from 'lucide-react';
 import { Recipe, MenuPattern, Occasion, MealType, RecipeType, MeasurableIndex } from '../../types/recipe';
 import { MEAL_TYPES } from '../../config/constants';
 import { Pagination } from '../common/Pagination';
@@ -20,6 +20,8 @@ export const RecipeAndPatternManagement: React.FC = () => {
   const [recipePageSize, setRecipePageSize] = useState(6);
   const [patternPage, setPatternPage] = useState(1);
   const [patternPageSize, setPatternPageSize] = useState(6);
+  const [focusedRecipeIdMobile, setFocusedRecipeIdMobile] = useState<string | null>(null);
+  const [focusedPatternIdMobile, setFocusedPatternIdMobile] = useState<string | null>(null);
 
   // New / Edit Recipe Form state
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
@@ -372,12 +374,16 @@ export const RecipeAndPatternManagement: React.FC = () => {
                 No recipes found matching your search.
               </div>
             ) : (
-              paginatedRecipes.map((rec) => (
+              paginatedRecipes.map((rec, idx) => {
+                const isMobileExpanded =
+                  focusedRecipeIdMobile === rec.id || (focusedRecipeIdMobile === null && idx === 0);
+                return (
                 <div
                   key={rec.id}
-                  className="modern-card p-5 rounded-2xl space-y-3 hover:-translate-y-0.5 hover:shadow-lg"
+                  onClick={() => setFocusedRecipeIdMobile(rec.id)}
+                  className="modern-card p-4 sm:p-5 rounded-2xl space-y-3 hover:-translate-y-0.5 hover:shadow-lg cursor-pointer md:cursor-default"
                 >
-                  <div className="flex justify-between items-start">
+                  <div className="flex justify-between items-start gap-2">
                     <div>
                       <div className="flex items-center space-x-1.5 flex-wrap gap-1">
                         <span
@@ -405,16 +411,27 @@ export const RecipeAndPatternManagement: React.FC = () => {
                       </div>
                       <h3 className="font-extrabold text-slate-900 dark:text-white text-base mt-1.5">{rec.name}</h3>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => openEditRecipeModal(rec)}
-                      className="text-slate-400 hover:text-orange-500 p-1.5 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/40 transition flex-shrink-0"
-                      title="Edit recipe"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditRecipeModal(rec);
+                        }}
+                        className="text-slate-400 hover:text-orange-500 p-1.5 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/40 transition flex-shrink-0"
+                        title="Edit recipe"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-400 md:hidden transition-transform ${
+                          isMobileExpanded ? 'rotate-180 text-orange-500' : ''
+                        }`}
+                      />
+                    </div>
                   </div>
 
+                  <div className={`${isMobileExpanded ? 'block' : 'hidden md:block'} space-y-3`}>
                   <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{rec.description}</p>
 
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 text-xs space-y-1.5">
@@ -440,8 +457,10 @@ export const RecipeAndPatternManagement: React.FC = () => {
                       </div>
                     )}
                   </div>
+                  </div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
 
@@ -468,12 +487,16 @@ export const RecipeAndPatternManagement: React.FC = () => {
                 No patterns found matching your search.
               </div>
             ) : (
-              paginatedPatterns.map((pat) => (
+              paginatedPatterns.map((pat, idx) => {
+                const isMobileExpanded =
+                  focusedPatternIdMobile === pat.id || (focusedPatternIdMobile === null && idx === 0);
+                return (
                 <div
                   key={pat.id}
-                  className="modern-card p-5 rounded-2xl space-y-3 hover:-translate-y-0.5 hover:shadow-lg"
+                  onClick={() => setFocusedPatternIdMobile(pat.id)}
+                  className="modern-card p-4 sm:p-5 rounded-2xl space-y-3 hover:-translate-y-0.5 hover:shadow-lg cursor-pointer md:cursor-default"
                 >
-                  <div className="flex justify-between items-start">
+                  <div className="flex justify-between items-start gap-2">
                     <div>
                       <span className="text-[10px] font-black uppercase bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-400 px-2 py-0.5 rounded">
                         {pat.mealType} Pattern
@@ -485,7 +508,10 @@ export const RecipeAndPatternManagement: React.FC = () => {
                     <div className="flex items-center space-x-1 flex-shrink-0">
                       <button
                         type="button"
-                        onClick={() => openEditPatternModal(pat)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditPatternModal(pat);
+                        }}
                         className="text-slate-400 hover:text-orange-500 p-1.5 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/40 transition"
                         title="Edit pattern"
                       >
@@ -493,16 +519,25 @@ export const RecipeAndPatternManagement: React.FC = () => {
                       </button>
                       {(isAdmin || isSAdmin) && (
                         <button
-                          onClick={() => deletePattern(pat.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deletePattern(pat.id);
+                          }}
                           className="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
                           title="Delete pattern"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-400 md:hidden transition-transform ${
+                          isMobileExpanded ? 'rotate-180 text-orange-500' : ''
+                        }`}
+                      />
                     </div>
                   </div>
 
+                  <div className={`${isMobileExpanded ? 'block' : 'hidden md:block'} space-y-3`}>
                   <p className="text-xs text-slate-500 dark:text-slate-400">{pat.description}</p>
 
                   <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-700">
@@ -521,8 +556,10 @@ export const RecipeAndPatternManagement: React.FC = () => {
                       })}
                     </div>
                   </div>
+                  </div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
 

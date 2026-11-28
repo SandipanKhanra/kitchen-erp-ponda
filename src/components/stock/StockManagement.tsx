@@ -14,6 +14,7 @@ import {
   X,
   AlertTriangle,
   IndianRupee,
+  ChevronDown,
 } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
 import { sanitizeNumericChange } from '../../utils/numberInput';
@@ -31,6 +32,7 @@ export const StockManagement: React.FC = () => {
 
   // Inline quick edit states
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [focusedStockIdMobile, setFocusedStockIdMobile] = useState<string | null>(null);
   const [editStockQty, setEditStockQty] = useState<number>(0);
   const [editUnitPrice, setEditUnitPrice] = useState<number>(0);
 
@@ -337,37 +339,59 @@ export const StockManagement: React.FC = () => {
               No items found matching your filters.
             </div>
           ) : (
-            paginatedItems.map((item) => {
+            paginatedItems.map((item, idx) => {
               const isEditing = editingItemId === item.id;
               const isOut = item.currentStock <= 0;
               const isLow = !isOut && item.currentStock <= (item.reorderLevel ?? 10);
+              const isMobileExpanded =
+                isEditing ||
+                focusedStockIdMobile === item.id ||
+                (focusedStockIdMobile === null && idx === 0);
+
               return (
-                <div key={item.id} className="p-4 space-y-3 text-xs">
+                <div
+                  key={item.id}
+                  onClick={() => setFocusedStockIdMobile(item.id)}
+                  className="p-4 space-y-3 text-xs cursor-pointer"
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="font-bold text-slate-900 dark:text-white text-sm">{item.name}</div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400">
                         {item.brand || 'Generic'} &bull; {item.category}
+                        {!isMobileExpanded && (
+                          <span> &bull; {item.currentStock} {item.measureIndex} &bull; ₹{item.price.toFixed(0)}</span>
+                        )}
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-1 justify-end">
-                      {isOut && (
-                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                          Out of Stock
-                        </span>
-                      )}
-                      {isLow && (
-                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                          Low Stock
-                        </span>
-                      )}
-                      {item.price <= 0 && (
-                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
-                          No Price
-                        </span>
-                      )}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        {isOut && (
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                            Out of Stock
+                          </span>
+                        )}
+                        {isLow && (
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                            Low Stock
+                          </span>
+                        )}
+                        {item.price <= 0 && (
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                            No Price
+                          </span>
+                        )}
+                      </div>
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-400 transition-transform ${
+                          isMobileExpanded ? 'rotate-180 text-orange-500' : ''
+                        }`}
+                      />
                     </div>
                   </div>
+
+                  {isMobileExpanded && (
+                  <div onClick={(e) => e.stopPropagation()} className="space-y-3">
 
                   {isEditing ? (
                     <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-xl">
@@ -456,6 +480,8 @@ export const StockManagement: React.FC = () => {
                       </>
                     )}
                   </div>
+                  </div>
+                  )}
                 </div>
               );
             })

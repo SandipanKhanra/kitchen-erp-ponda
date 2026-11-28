@@ -46,6 +46,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
   const [shoppingPageSize, setShoppingPageSize] = useState(10);
   const [dayPage, setDayPage] = useState(1);
   const [dayPageSize, setDayPageSize] = useState(5);
+  const [focusedDayMobile, setFocusedDayMobile] = useState<string | null>(null);
 
   const effectiveSelectedPlans = useMemo(() => {
     if (scopeMode === 'single') return [activeMenuPlan];
@@ -537,40 +538,61 @@ export const DaywiseAndShoppingView: React.FC = () => {
               Showing combined daily breakdown across {effectiveSelectedPlans.length} plan(s). Switch to &ldquo;Single 15-Day Plan&rdquo; above to confirm or revert daily stock deductions.
             </div>
           )}
-          {paginatedDays.map((day) => {
+          {paginatedDays.map((day, idx) => {
             const currentMode = dayViewMode[day.dayNumber] || 'recipes';
             const daySchedule = scopeMode === 'single' ? activeMenuPlan.days[day.dayNumber] : undefined;
             const isDeducted = Boolean(daySchedule?.stockDeducted);
+            const dayKey = `${day.date}-${day.dayNumber}`;
+            const isMobileExpanded =
+              focusedDayMobile === dayKey || (focusedDayMobile === null && idx === 0);
 
             return (
               <div
-                key={`${day.date}-${day.dayNumber}`}
-                className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 p-5 sm:p-6 shadow-sm space-y-4"
+                key={dayKey}
+                className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 p-4 sm:p-6 shadow-sm space-y-4"
               >
                 {/* Day Header with Cost Summary and View Switcher */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 dark:border-slate-700/80 pb-4 gap-3">
-                  <div>
-                    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                      <span className="bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-400 text-xs font-black px-2.5 py-1 rounded-md">
-                        DAY {day.dayNumber}
-                      </span>
-                      <span className="font-extrabold text-slate-900 dark:text-white text-base">
-                        {formatDateDDMMYYYY(day.date)}
-                      </span>
-                      {day.isEkadashi && (
-                        <span className="bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-purple-300">
-                          ✨ {day.occasionName || 'Ekadashi Fasting'}
+                <div
+                  onClick={() => setFocusedDayMobile(dayKey)}
+                  className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 dark:border-slate-700/80 pb-3 sm:pb-4 gap-3 cursor-pointer md:cursor-default"
+                >
+                  <div className="w-full sm:w-auto flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                        <span className="bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-400 text-xs font-black px-2.5 py-1 rounded-md">
+                          DAY {day.dayNumber}
                         </span>
-                      )}
+                        <span className="font-extrabold text-slate-900 dark:text-white text-base">
+                          {formatDateDDMMYYYY(day.date)}
+                        </span>
+                        {day.isEkadashi && (
+                          <span className="bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-purple-300">
+                            ✨ {day.occasionName || 'Ekadashi Fasting'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1 flex items-center space-x-2">
+                        <span>{day.totalHeadcount} Total Meals Served</span>
+                        <span>&bull;</span>
+                        <span>Avg ₹{(day.costPerPerson || 0).toFixed(2)} / meal portion</span>
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-400 mt-1 flex items-center space-x-2">
-                      <span>{day.totalHeadcount} Total Meals Served</span>
-                      <span>&bull;</span>
-                      <span>Avg ₹{(day.costPerPerson || 0).toFixed(2)} / meal portion</span>
+                    <div className="md:hidden flex items-center gap-2 flex-shrink-0">
+                      <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                        ₹{day.dayTotalCost.toFixed(0)}
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-400 transition-transform ${
+                          isMobileExpanded ? 'rotate-180 text-orange-500' : ''
+                        }`}
+                      />
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className={`${isMobileExpanded ? 'flex' : 'hidden md:flex'} flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end`}
+                  >
                     {/* Confirm / Revert Day Stock Usage (available in Single Plan mode) */}
                     {scopeMode === 'single' && (isDeducted ? (
                       <div className="flex items-center gap-1.5">
@@ -635,6 +657,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
                 </div>
 
                 {/* Mode 1: Per-Recipe Cost with Option to Expand Individual Item Costs */}
+                <div className={`${isMobileExpanded ? 'block' : 'hidden md:block'} space-y-4`}>
                 {currentMode === 'recipes' && (
                   <div className="space-y-3">
                     {(!day.recipes || day.recipes.length === 0) ? (
@@ -786,6 +809,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
                     </table>
                   </div>
                 )}
+                </div>
               </div>
             );
           })}

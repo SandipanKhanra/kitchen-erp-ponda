@@ -13,6 +13,7 @@ import {
   Download,
   Filter,
   Sparkles,
+  ChevronDown,
 } from 'lucide-react';
 
 type DayRangeMode = 'month' | 'yesterday' | 'last7' | 'last15' | 'custom_date';
@@ -90,6 +91,9 @@ export const CenterCostAnalytics: React.FC = () => {
     availableMonths[0] || currentYM
   );
   const [rangeMode, setRangeMode] = useState<DayRangeMode>('month');
+  const [focusedCycleMobileId, setFocusedCycleMobileId] = useState<string | null>(
+    () => perPlanSummaries[0]?.plan.id || null
+  );
   const [customDate, setCustomDate] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
@@ -398,49 +402,70 @@ export const CenterCostAnalytics: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {perPlanSummaries.map(({ plan, timing, summary }) => (
-            <div
-              key={plan.id}
-              className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white/70 dark:bg-slate-800/50 space-y-2 text-xs"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span
-                  className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                    timing === 'current'
-                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/70 dark:text-emerald-300'
-                      : timing === 'upcoming'
-                      ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/70 dark:text-indigo-300'
-                      : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  {timing === 'current' ? 'Live Now' : timing === 'upcoming' ? 'Upcoming' : 'Completed'}
-                </span>
-                <span
-                  className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                    plan.status === 'approved'
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                      : plan.status === 'pending_approval'
-                      ? 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                  }`}
-                >
-                  {plan.status.replace('_', ' ')}
-                </span>
+          {perPlanSummaries.map(({ plan, timing, summary }, idx) => {
+            const isMobileExpanded =
+              focusedCycleMobileId === plan.id || (focusedCycleMobileId === null && idx === 0);
+            return (
+              <div
+                key={plan.id}
+                onClick={() => setFocusedCycleMobileId(plan.id)}
+                className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white/70 dark:bg-slate-800/50 space-y-2 text-xs cursor-pointer md:cursor-default"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        timing === 'current'
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/70 dark:text-emerald-300'
+                          : timing === 'upcoming'
+                          ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/70 dark:text-indigo-300'
+                          : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {timing === 'current' ? 'Live Now' : timing === 'upcoming' ? 'Upcoming' : 'Completed'}
+                    </span>
+                    <span
+                      className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        plan.status === 'approved'
+                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                          : plan.status === 'pending_approval'
+                          ? 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                          : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                      }`}
+                    >
+                      {plan.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-400 md:hidden transition-transform ${
+                      isMobileExpanded ? 'rotate-180 text-orange-500' : ''
+                    }`}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-extrabold text-slate-900 dark:text-white truncate">
+                    {plan.title}
+                  </div>
+                  {!isMobileExpanded && (
+                    <span className="md:hidden font-black text-orange-600 dark:text-orange-400 flex-shrink-0">
+                      ₹{summary.totalMenuCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </span>
+                  )}
+                </div>
+                <div className={`${isMobileExpanded ? 'block' : 'hidden md:block'} space-y-2`}>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {formatDateDDMMYYYY(plan.startDate)} → {formatDateDDMMYYYY(plan.endDate)}
+                  </div>
+                  <div className="pt-1.5 border-t border-slate-100 dark:border-slate-700/70 flex justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Menu Cost:</span>
+                    <span className="font-black text-orange-600 dark:text-orange-400">
+                      ₹{summary.totalMenuCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="font-extrabold text-slate-900 dark:text-white truncate">
-                {plan.title}
-              </div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                {formatDateDDMMYYYY(plan.startDate)} → {formatDateDDMMYYYY(plan.endDate)}
-              </div>
-              <div className="pt-1.5 border-t border-slate-100 dark:border-slate-700/70 flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Menu Cost:</span>
-                <span className="font-black text-orange-600 dark:text-orange-400">
-                  ₹{summary.totalMenuCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
