@@ -5,6 +5,7 @@ import { ToastProvider } from './context/ToastContext';
 import { Navbar, NavTab } from './components/layout/Navbar';
 import { AuthView } from './components/auth/AuthView';
 import { LoadingScreen, LoadingSpinner } from './components/common/LoadingSpinner';
+import { ScrollToTopButton } from './components/common/ScrollToTopButton';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { SafeStorage } from './utils/safeStorage';
 
@@ -253,6 +254,9 @@ function AppContent() {
           />
         </Suspense>
       )}
+
+      {/* Scroll to Top Floating Button */}
+      <ScrollToTopButton hidden={isTourOpen || authModalOpen || isAuditModalOpen} />
 
       <footer className="bg-transparent md:bg-white/75 dark:bg-transparent md:dark:bg-slate-900/75 md:backdrop-blur-md border-t border-slate-200/40 dark:border-slate-800/40 md:border-t-2 md:border-t-orange-500/25 md:dark:border-t-orange-500/20 pt-2 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:py-5 md:pb-5 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-0.5 sm:gap-2 text-[10px] md:text-xs text-slate-400/80 dark:text-slate-500/80 md:text-slate-500 md:dark:text-slate-400">
