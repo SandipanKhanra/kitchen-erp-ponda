@@ -1,19 +1,24 @@
 /**
- * Format any date input (ISO string, YYYY-MM-DD, or Date object) to DD-MM-YYYY
- * e.g. "2026-11-20" -> "20-11-2026"
+ * Format any date input (ISO string, YYYY-MM-DD, DD-MM-YYYY, or Date object) to DD/MM/YYYY
+ * e.g. "2026-11-20" -> "20/11/2026"
  */
 export function formatDateDDMMYYYY(dateInput: string | Date | number | undefined | null): string {
   if (!dateInput) return '';
 
-  // Already DD-MM-YYYY format
-  if (typeof dateInput === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(dateInput.trim())) {
+  // Already DD/MM/YYYY format
+  if (typeof dateInput === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dateInput.trim())) {
     return dateInput.trim();
+  }
+
+  // DD-MM-YYYY format -> convert to DD/MM/YYYY
+  if (typeof dateInput === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(dateInput.trim())) {
+    return dateInput.trim().replace(/-/g, '/');
   }
 
   // YYYY-MM-DD format
   if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateInput.trim())) {
     const [y, m, d] = dateInput.trim().slice(0, 10).split('-');
-    return `${d}-${m}-${y}`;
+    return `${d}/${m}/${y}`;
   }
 
   const d = new Date(dateInput);
@@ -22,7 +27,7 @@ export function formatDateDDMMYYYY(dateInput: string | Date | number | undefined
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const year = d.getFullYear();
-  return `${day}-${month}-${year}`;
+  return `${day}/${month}/${year}`;
 }
 
 /**
@@ -40,7 +45,7 @@ export function formatUserRole(role?: string): string {
 }
 
 /**
- * Format full timestamp to DD-MM-YYYY, hh:mm A
+ * Format full timestamp to DD/MM/YYYY, hh:mm A
  */
 export function formatTimestampDDMMYYYY(isoString?: string | null): string {
   if (!isoString) return '';
@@ -55,7 +60,7 @@ export function formatTimestampDDMMYYYY(isoString?: string | null): string {
       minute: '2-digit',
       hour12: true,
     });
-    return `${day}-${month}-${year}, ${time}`;
+    return `${day}/${month}/${year}, ${time}`;
   } catch {
     return String(isoString);
   }
