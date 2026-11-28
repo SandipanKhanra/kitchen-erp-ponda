@@ -9,5 +9,6 @@ export interface AppNotification {
   createdByUid: string;
   createdByName: string;
   actionTab: 'menu_planner' | 'stock' | 'daywise_shopping';
+  planId?: string;
   createdAt: string;
 }

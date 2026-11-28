@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useKitchen } from '../../context/KitchenContext';
 import { useToast } from '../../context/ToastContext';
 import { useModalClose } from '../../hooks/useModalClose';
 import { LoadingSpinner } from '../common/LoadingSpinner';
+import { calculateMultiPlanRequirements, getPlanTimingStatus } from '../../core/menuPlanUtils';
 import {
   Download,
   ShoppingBag,
@@ -24,14 +25,46 @@ import { Pagination } from '../common/Pagination';
 import { formatDateDDMMYYYY } from '../../utils/formatters';
 
 export const DaywiseAndShoppingView: React.FC = () => {
-  const { requisitionSummary, activeMenuPlan, stockMap, confirmDayStockUsage, revertDayStockUsage } = useKitchen();
+  const {
+    menuPlans,
+    activeMenuPlan,
+    selectMenuPlan,
+    requisitionSummary,
+    recipeMap,
+    stockMap,
+    confirmDayStockUsage,
+    revertDayStockUsage,
+  } = useKitchen();
   const { showToast } = useToast();
   const [subView, setSubView] = useState<'shopping' | 'daywise'>('shopping');
+  const [scopeMode, setScopeMode] = useState<'single' | 'multi'>('single');
+  const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>(() =>
+    menuPlans.map((p) => p.id)
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [shoppingPage, setShoppingPage] = useState(1);
   const [shoppingPageSize, setShoppingPageSize] = useState(10);
   const [dayPage, setDayPage] = useState(1);
   const [dayPageSize, setDayPageSize] = useState(5);
+
+  const effectiveSelectedPlans = useMemo(() => {
+    if (scopeMode === 'single') return [activeMenuPlan];
+    const matched = menuPlans.filter((p) => selectedPlanIds.includes(p.id));
+    return matched.length > 0 ? matched : [activeMenuPlan];
+  }, [scopeMode, menuPlans, selectedPlanIds, activeMenuPlan]);
+
+  const activeSummary = useMemo(() => {
+    if (scopeMode === 'single') return requisitionSummary;
+    return calculateMultiPlanRequirements(effectiveSelectedPlans, recipeMap, stockMap);
+  }, [scopeMode, requisitionSummary, effectiveSelectedPlans, recipeMap, stockMap]);
+
+  const toggleMultiPlanId = (planId: string) => {
+    setSelectedPlanIds((prev) =>
+      prev.includes(planId) ? prev.filter((id) => id !== planId) : [...prev, planId]
+    );
+    setShoppingPage(1);
+    setDayPage(1);
+  };
 
   // Confirm Day Usage modal state
   const [usageModalDay, setUsageModalDay] = useState<number | null>(null);
@@ -43,7 +76,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
   useModalClose(usageModalDay !== null, () => setUsageModalDay(null));
 
   const openConfirmUsageModal = (dayNum: number) => {
-    const dayReq = requisitionSummary.dailyRequirements.find((d) => d.dayNumber === dayNum);
+    const dayReq = activeSummary.dailyRequirements.find((d) => d.dayNumber === dayNum);
     if (!dayReq || dayReq.ingredients.length === 0) {
       showToast('No ingredients calculated for this day yet.', 'warning');
       return;
@@ -119,8 +152,8 @@ export const DaywiseAndShoppingView: React.FC = () => {
    */
   const handleExportCSV = () => {
     const headers = ['S.No.,Category,Item Name,Brand,Quantity to Purchase,Unit'];
-    const itemsToPurchase = requisitionSummary.shoppingList.filter((item) => item.netToPurchase > 0);
-    const exportList = itemsToPurchase.length > 0 ? itemsToPurchase : requisitionSummary.shoppingList;
+    const itemsToPurchase = activeSummary.shoppingList.filter((item) => item.netToPurchase > 0);
+    const exportList = itemsToPurchase.length > 0 ? itemsToPurchase : activeSummary.shoppingList;
 
     const rows = exportList.map((item, idx) =>
       `"${idx + 1}","${item.category}","${item.name}","${item.brand || '-'}",${item.netToPurchase},"${item.measureIndex}"`
@@ -132,14 +165,14 @@ export const DaywiseAndShoppingView: React.FC = () => {
     link.setAttribute('href', encodedUri);
     link.setAttribute(
       'download',
-      `ponda_kitchen_purchase_order_${requisitionSummary.startDate}_to_${requisitionSummary.endDate}.csv`
+      `ponda_kitchen_purchase_order_${activeSummary.startDate}_to_${activeSummary.endDate}.csv`
     );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const filteredShopping = requisitionSummary.shoppingList.filter(
+  const filteredShopping = activeSummary.shoppingList.filter(
     (item) =>
       !searchQuery.trim() ||
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -151,7 +184,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
     shoppingPage * shoppingPageSize
   );
 
-  const paginatedDays = requisitionSummary.dailyRequirements.slice(
+  const paginatedDays = activeSummary.dailyRequirements.slice(
     (dayPage - 1) * dayPageSize,
     dayPage * dayPageSize
   );
@@ -181,7 +214,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Shopping List ({requisitionSummary.shoppingList.length})
+              Shopping List ({activeSummary.shoppingList.length})
             </button>
             <button
               onClick={() => {
@@ -194,7 +227,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Daily Usage & Costs ({requisitionSummary.dailyRequirements.length} Days)
+              Daily Usage & Costs ({activeSummary.dailyRequirements.length} Days)
             </button>
           </div>
 
@@ -209,20 +242,174 @@ export const DaywiseAndShoppingView: React.FC = () => {
         </div>
       </div>
 
+      {/* Multi-Plan Procurement Selector Bar */}
+      <div className="modern-card p-4 rounded-2xl space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2 text-xs">
+            <Calendar className="w-4 h-4 text-orange-500 flex-shrink-0" />
+            <span className="font-extrabold text-slate-800 dark:text-white">
+              Menu Cycle Scope ({menuPlans.length} Scheduled):
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setScopeMode('single');
+                  setShoppingPage(1);
+                  setDayPage(1);
+                }}
+                className={`px-3 py-1 rounded-lg transition ${
+                  scopeMode === 'single'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                Single 15-Day Plan
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setScopeMode('multi');
+                  setSelectedPlanIds((prev) =>
+                    prev.length > 0 ? prev : menuPlans.map((p) => p.id)
+                  );
+                  setShoppingPage(1);
+                  setDayPage(1);
+                }}
+                className={`px-3 py-1 rounded-lg transition ${
+                  scopeMode === 'multi'
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                Combine Multiple Plans
+              </button>
+            </div>
+
+            {scopeMode === 'multi' && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPlanIds(
+                      menuPlans
+                        .filter((p) => getPlanTimingStatus(p) !== 'past')
+                        .map((p) => p.id)
+                    );
+                    setShoppingPage(1);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-slate-700 dark:text-slate-200"
+                >
+                  All Upcoming
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPlanIds(
+                      menuPlans.filter((p) => p.status === 'approved').map((p) => p.id)
+                    );
+                    setShoppingPage(1);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 font-bold text-emerald-700 dark:text-emerald-300"
+                >
+                  Approved Only
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {menuPlans.map((plan) => {
+            const timing = getPlanTimingStatus(plan);
+            const isSelected =
+              scopeMode === 'single'
+                ? plan.id === activeMenuPlan.id
+                : selectedPlanIds.includes(plan.id);
+            return (
+              <button
+                key={plan.id}
+                type="button"
+                onClick={() => {
+                  if (scopeMode === 'single') {
+                    selectMenuPlan(plan.id);
+                    setShoppingPage(1);
+                    setDayPage(1);
+                  } else {
+                    toggleMultiPlanId(plan.id);
+                  }
+                }}
+                className={`flex-shrink-0 text-left px-3 py-2 rounded-xl border text-xs transition ${
+                  isSelected
+                    ? 'bg-orange-50/90 dark:bg-orange-950/40 border-orange-400 dark:border-orange-600 ring-1 ring-orange-400/50'
+                    : 'bg-white/80 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 hover:border-orange-300'
+                }`}
+              >
+                <div className="flex items-center gap-1.5">
+                  {scopeMode === 'multi' && (
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      readOnly
+                      className="accent-orange-500 rounded pointer-events-none"
+                    />
+                  )}
+                  <span
+                    className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                      timing === 'current'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/70 dark:text-emerald-300'
+                        : timing === 'upcoming'
+                        ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/70 dark:text-indigo-300'
+                        : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    {timing === 'current' ? 'LIVE' : timing === 'upcoming' ? 'UPCOMING' : 'PAST'}
+                  </span>
+                  <span
+                    className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                      plan.status === 'approved'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                        : plan.status === 'pending_approval'
+                        ? 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                    }`}
+                  >
+                    {plan.status.replace('_', ' ')}
+                  </span>
+                </div>
+                <div className="font-extrabold text-slate-900 dark:text-white mt-1 truncate max-w-[180px]">
+                  {plan.title}
+                </div>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                  {formatDateDDMMYYYY(plan.startDate)} → {formatDateDDMMYYYY(plan.endDate)}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <div className="modern-card p-4 sm:p-5 rounded-2xl">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Total Menu Cost</span>
           <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">
-            ₹{requisitionSummary.totalMenuCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            ₹{activeSummary.totalMenuCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">Gross 15-day value</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+            {scopeMode === 'multi'
+              ? `Across ${effectiveSelectedPlans.length} plan(s)`
+              : 'Gross 15-day value'}
+          </span>
         </div>
 
         <div className="bg-white/85 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border-x border-slate-200/60 dark:border-slate-800/70 border-t-2 border-t-emerald-500/75 border-b-2 border-b-teal-500/40 shadow-sm">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Net To Procure</span>
           <div className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
-            ₹{requisitionSummary.totalNetProcurementCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            ₹{activeSummary.totalNetProcurementCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <span className="text-[11px] text-slate-500 dark:text-slate-400">After deducting stock</span>
         </div>
@@ -230,8 +417,8 @@ export const DaywiseAndShoppingView: React.FC = () => {
         <div className="bg-white/85 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border-x border-slate-200/60 dark:border-slate-800/70 border-t-2 border-t-amber-500/75 border-b-2 border-b-rose-500/40 shadow-sm">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Items To Purchase</span>
           <div className="text-xl sm:text-2xl font-black text-orange-600 dark:text-orange-400 mt-1">
-            {requisitionSummary.shoppingList.filter((i) => i.netToPurchase > 0).length} of{' '}
-            {requisitionSummary.shoppingList.length}
+            {activeSummary.shoppingList.filter((i) => i.netToPurchase > 0).length} of{' '}
+            {activeSummary.shoppingList.length}
           </div>
           <span className="text-[11px] text-slate-500 dark:text-slate-400">In Shopping Sheet</span>
         </div>
@@ -239,10 +426,10 @@ export const DaywiseAndShoppingView: React.FC = () => {
         <div className="bg-white/85 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border-x border-slate-200/60 dark:border-slate-800/70 border-t-2 border-t-indigo-500/75 border-b-2 border-b-purple-500/40 shadow-sm">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Operational Span</span>
           <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">
-            15 Days
+            {activeSummary.dailyRequirements.length || 15} Days
           </div>
           <span className="text-[11px] text-slate-500 dark:text-slate-400">
-            {formatDateDDMMYYYY(requisitionSummary.startDate)} to {formatDateDDMMYYYY(requisitionSummary.endDate)}
+            {formatDateDDMMYYYY(activeSummary.startDate)} to {formatDateDDMMYYYY(activeSummary.endDate)}
           </span>
         </div>
       </div>
@@ -345,14 +532,19 @@ export const DaywiseAndShoppingView: React.FC = () => {
       {/* SubView 2: Day-by-Day Itemized Usage & Cost Breakdown */}
       {subView === 'daywise' && (
         <div className="space-y-5">
+          {scopeMode === 'multi' && (
+            <div className="px-4 py-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-800 dark:text-indigo-200 font-semibold">
+              Showing combined daily breakdown across {effectiveSelectedPlans.length} plan(s). Switch to &ldquo;Single 15-Day Plan&rdquo; above to confirm or revert daily stock deductions.
+            </div>
+          )}
           {paginatedDays.map((day) => {
             const currentMode = dayViewMode[day.dayNumber] || 'recipes';
-            const daySchedule = activeMenuPlan.days[day.dayNumber];
+            const daySchedule = scopeMode === 'single' ? activeMenuPlan.days[day.dayNumber] : undefined;
             const isDeducted = Boolean(daySchedule?.stockDeducted);
 
             return (
               <div
-                key={day.dayNumber}
+                key={`${day.date}-${day.dayNumber}`}
                 className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 p-5 sm:p-6 shadow-sm space-y-4"
               >
                 {/* Day Header with Cost Summary and View Switcher */}
@@ -379,8 +571,8 @@ export const DaywiseAndShoppingView: React.FC = () => {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                    {/* Confirm / Revert Day Stock Usage */}
-                    {isDeducted ? (
+                    {/* Confirm / Revert Day Stock Usage (available in Single Plan mode) */}
+                    {scopeMode === 'single' && (isDeducted ? (
                       <div className="flex items-center gap-1.5">
                         <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold">
                           <CheckCircle2 className="w-3.5 h-3.5" />
@@ -407,7 +599,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
                         <PackageCheck className="w-3.5 h-3.5" />
                         <span>Confirm Day Usage</span>
                       </button>
-                    )}
+                    ))}
 
                     {/* View Switcher: Per-Recipe Cost vs Consolidated All Items Cost */}
                     <div className="flex bg-slate-100 dark:bg-slate-700/60 p-1 rounded-xl text-xs font-bold">
@@ -600,7 +792,7 @@ export const DaywiseAndShoppingView: React.FC = () => {
 
           <Pagination
             currentPage={dayPage}
-            totalItems={requisitionSummary.dailyRequirements.length}
+            totalItems={activeSummary.dailyRequirements.length}
             pageSize={dayPageSize}
             onPageChange={setDayPage}
             onPageSizeChange={(size) => {

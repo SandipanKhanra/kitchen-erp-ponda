@@ -11,7 +11,14 @@ import { emailNotificationService } from '../services/emailNotificationService';
 import { workerNotificationService } from '../services/workerNotificationService';
 import { notificationRepository } from '../services/repositories/NotificationRepository';
 import { pushNotificationService } from '../services/pushNotificationService';
-import { createEmpty15DayMenu } from '../core/rotationEngine';
+import { createEmpty15DayMenu, formatDateISO } from '../core/rotationEngine';
+import {
+  buildNewMenuPlan,
+  selectDefaultActivePlan,
+  sortMenuPlansChronologically,
+  validatePlanSchedule,
+} from '../core/menuPlanUtils';
+import { resolveCenterLocation } from '../core/gaurabdaCalendarEngine';
 import { calculateWeightedAveragePrice, deductStock } from '../core/stockEngine';
 import { calculateDayWiseAndShoppingRequirements } from '../core/daywiseRequirementCalculator';
 import { validateMenuRepetition, RepetitionViolation } from '../core/repetitionValidator';
@@ -42,23 +49,35 @@ interface KitchenContextType {
   patterns: MenuPattern[];
   savePattern: (pattern: MenuPattern) => Promise<void>;
   deletePattern: (id: string) => Promise<void>;
-  // 15-Day Menu & Maker-Checker Workflow
+  // 15-Day Menu Plans (Multi-Plan Advance Scheduling) & Maker-Checker Workflow
+  menuPlans: FifteenDayMenuPlan[];
   activeMenuPlan: FifteenDayMenuPlan;
+  selectedPlanId: string;
+  selectMenuPlan: (planId: string) => void;
+  createMenuPlan: (params: {
+    startDate: string;
+    title?: string;
+    mode: 'autofill' | 'copy' | 'blank';
+    sourcePlanId?: string;
+  }) => Promise<{ success: boolean; plan?: FifteenDayMenuPlan; error?: string }>;
+  deleteMenuPlan: (planId: string) => Promise<{ success: boolean; error?: string }>;
   saveMenuPlan: (
     plan: FifteenDayMenuPlan,
     options?: { recordAudit?: boolean; auditSummary?: string }
   ) => Promise<void>;
   approveMenuPlan: (planId: string) => Promise<{ success: boolean; error?: string }>;
   rejectMenuPlan: (planId: string, reason: string) => Promise<void>;
+  canApprovePlan: (plan: FifteenDayMenuPlan) => boolean;
   canApproveActiveMenu: boolean;
   repetitionCheck: { isValid: boolean; violations: RepetitionViolation[] };
   // Requisition Summary & Daily Stock Deduction
   requisitionSummary: PeriodRequirementSummary;
   confirmDayStockUsage: (
     dayNumber: number,
-    items: Array<{ ingredientId: string; actualQty: number }>
+    items: Array<{ ingredientId: string; actualQty: number }>,
+    planId?: string
   ) => Promise<void>;
-  revertDayStockUsage: (dayNumber: number) => Promise<void>;
+  revertDayStockUsage: (dayNumber: number, planId?: string) => Promise<void>;
   // Audit Trail & Logging
   auditLogs: AuditLogEntry[];
   isAuditModalOpen: boolean;
@@ -139,10 +158,26 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Center-scoped Patterns
   const [patterns, setPatterns] = useState<MenuPattern[]>([]);
 
-  // 15-Day Menu Plan with Maker-Checker
-  const [activeMenuPlan, setActiveMenuPlan] = useState<FifteenDayMenuPlan>(() =>
-    createEmpty15DayMenu(currentCenter.id || 'default')
-  );
+  // Multi-Plan 15-Day Menu Schedule with Maker-Checker
+  const [menuPlans, setMenuPlans] = useState<FifteenDayMenuPlan[]>(() => [
+    createEmpty15DayMenu(currentCenter.id || 'default'),
+  ]);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
+
+  const activeMenuPlan = useMemo(() => {
+    if (menuPlans.length === 0) {
+      return createEmpty15DayMenu(currentCenter.id || 'default');
+    }
+    return (
+      menuPlans.find((p) => p.id === selectedPlanId) ||
+      selectDefaultActivePlan(menuPlans, formatDateISO(new Date())) ||
+      menuPlans[0]
+    );
+  }, [menuPlans, selectedPlanId, currentCenter.id]);
+
+  const selectMenuPlan = (planId: string) => {
+    setSelectedPlanId(planId);
+  };
 
   // Audit Logs (Center-Specific)
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
@@ -239,37 +274,46 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const loadCenterData = async () => {
       setIsSyncing(true);
       try {
-        const [centerStock, centerRecipes, centerPatterns, centerPlan, centerLogs] =
+        const [centerStock, centerRecipes, centerPatterns, centerPlans, centerLogs] =
           await Promise.all([
             kitchenDbService.fetchCenterStock(currentCenter.id),
             kitchenDbService.fetchCenterRecipes(currentCenter.id),
             kitchenDbService.fetchCenterPatterns(currentCenter.id),
-            kitchenDbService.fetchCenterMenuPlan(currentCenter.id),
+            kitchenDbService.fetchCenterMenuPlans(currentCenter.id),
             kitchenDbService.fetchCenterAuditLogs(currentCenter.id),
           ]);
 
         if (isMounted) {
-          let sanitizedPlan = centerPlan;
-          if (sanitizedPlan && sanitizedPlan.approvedByName) {
-            const approverUid = sanitizedPlan.approvedBy;
-            const approverUser =
-              allUsers?.find((u) => u.uid === approverUid) ||
-              (currentUser.uid === approverUid ? currentUser : null);
-            if (
-              approverUser?.role === 'sadmin' ||
-              sanitizedPlan.approvedByName.toLowerCase().includes('sandipan')
-            ) {
-              sanitizedPlan = {
-                ...sanitizedPlan,
-                approvedByName: sanitizedPlan.approvedByName.replace(/\(Admin\)/i, '(Super Admin)'),
-              };
-            }
-          }
+          const sanitizedPlans = sortMenuPlansChronologically(
+            centerPlans.map((plan) => {
+              if (!plan.approvedByName) return plan;
+              const approverUid = plan.approvedBy;
+              const approverUser =
+                allUsers?.find((u) => u.uid === approverUid) ||
+                (currentUser.uid === approverUid ? currentUser : null);
+              if (approverUser) {
+                const baseName = plan.approvedByName.replace(/\s*\((Super Admin|Admin|Devotee|User)\)\s*$/i, '').trim();
+                return {
+                  ...plan,
+                  approvedByName: `${baseName || approverUser.name} (${formatUserRole(approverUser.role)})`,
+                };
+              }
+              return plan;
+            })
+          );
 
           setStockItems(centerStock);
           setRecipes(centerRecipes);
           setPatterns(centerPatterns);
-          setActiveMenuPlan(sanitizedPlan);
+          setMenuPlans(sanitizedPlans);
+          setSelectedPlanId((prevId) => {
+            if (prevId && sanitizedPlans.some((p) => p.id === prevId)) return prevId;
+            return (
+              selectDefaultActivePlan(sanitizedPlans, formatDateISO(new Date()))?.id ||
+              sanitizedPlans[0]?.id ||
+              ''
+            );
+          });
           setAuditLogs(centerLogs);
 
           // Asynchronously ensure all entities and center document are created in Firestore
@@ -566,11 +610,152 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setPatterns((prev) => prev.filter((p) => p.id !== id));
   };
 
+  // Create a new advance 15-Day Menu Plan (up to 6 active/upcoming plans / 3 months ahead, zero overlap)
+  const createMenuPlan = async (params: {
+    startDate: string;
+    title?: string;
+    mode: 'autofill' | 'copy' | 'blank';
+    sourcePlanId?: string;
+  }): Promise<{ success: boolean; plan?: FifteenDayMenuPlan; error?: string }> => {
+    const validation = validatePlanSchedule({
+      startDate: params.startDate,
+      plans: menuPlans,
+      isNewPlan: true,
+    });
+    if (!validation.isValid) {
+      return { success: false, error: validation.reason || 'Invalid schedule dates.' };
+    }
+
+    const isCreatedBySAdmin = currentUser.role === 'sadmin' || isSAdmin;
+    const centerLocation = resolveCenterLocation(currentCenter);
+    const sourcePlan = params.sourcePlanId
+      ? menuPlans.find((p) => p.id === params.sourcePlanId)
+      : undefined;
+
+    const newPlan = buildNewMenuPlan({
+      centerId: currentCenter.id,
+      startDate: params.startDate,
+      title: params.title,
+      createdBy: currentUser.uid,
+      createdByName: `${currentUser.name} (${formatUserRole(currentUser.role)})`,
+      createdByRole: currentUser.role === 'sadmin' ? 'sadmin' : currentUser.role === 'admin' ? 'admin' : 'user',
+      mode: params.mode,
+      recipes,
+      location: centerLocation,
+      sourcePlan,
+    });
+
+    const finalizedPlan: FifteenDayMenuPlan = isCreatedBySAdmin
+      ? {
+          ...newPlan,
+          status: 'approved',
+          approvedBy: currentUser.uid,
+          approvedByName: `${currentUser.name} (Super Admin)`,
+          approvedAt: new Date().toISOString(),
+        }
+      : newPlan;
+
+    setMenuPlans((prev) => sortMenuPlansChronologically([...prev, finalizedPlan]));
+    setSelectedPlanId(finalizedPlan.id);
+
+    await kitchenDbService.saveCenterMenuPlan(currentCenter.id, finalizedPlan);
+
+    const log = await kitchenDbService.logAuditAction({
+      centerId: currentCenter.id,
+      centerName: currentCenter.name,
+      category: 'menu_planner',
+      actionType: 'MENU_PLAN_CREATE',
+      entityId: finalizedPlan.id,
+      entityName: finalizedPlan.title,
+      performedByUid: currentUser.uid,
+      performedByName: currentUser.name,
+      performedByRole: currentUser.role,
+      details: {
+        summary: `Created advance 15-day menu plan "${finalizedPlan.title}" (${finalizedPlan.startDate} to ${finalizedPlan.endDate}) via ${params.mode} mode.`,
+      },
+    });
+    setAuditLogs((prev) => [log, ...prev]);
+
+    return { success: true, plan: finalizedPlan };
+  };
+
+  // Delete an unneeded advance plan
+  const deleteMenuPlan = async (
+    planId: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const target = menuPlans.find((p) => p.id === planId);
+    if (!target) {
+      return { success: false, error: 'Menu plan not found.' };
+    }
+
+    const hasStockDeduction = Object.values(target.days || {}).some((d) => Boolean(d?.stockDeducted));
+    if (hasStockDeduction) {
+      return {
+        success: false,
+        error: 'Cannot delete a plan with confirmed daily stock deductions. Revert stock usage first.',
+      };
+    }
+
+    const canUserDelete =
+      isSAdmin ||
+      isAdmin ||
+      (target.createdBy === currentUser.uid &&
+        (target.status === 'draft' || target.status === 'rejected'));
+    if (!canUserDelete) {
+      return {
+        success: false,
+        error: 'Only Center Admins can delete submitted or approved plans.',
+      };
+    }
+
+    const remaining = menuPlans.filter((p) => p.id !== planId);
+    const nextList =
+      remaining.length > 0 ? remaining : [createEmpty15DayMenu(currentCenter.id || 'default')];
+    setMenuPlans(sortMenuPlansChronologically(nextList));
+    if (selectedPlanId === planId || activeMenuPlan.id === planId) {
+      const nextActive = selectDefaultActivePlan(nextList, formatDateISO(new Date())) || nextList[0];
+      setSelectedPlanId(nextActive.id);
+    }
+
+    await kitchenDbService.deleteCenterMenuPlan(currentCenter.id, planId);
+
+    const log = await kitchenDbService.logAuditAction({
+      centerId: currentCenter.id,
+      centerName: currentCenter.name,
+      category: 'menu_planner',
+      actionType: 'MENU_PLAN_DELETE',
+      entityId: target.id,
+      entityName: target.title,
+      performedByUid: currentUser.uid,
+      performedByName: currentUser.name,
+      performedByRole: currentUser.role,
+      details: {
+        summary: `Deleted menu plan "${target.title}" (${target.startDate} to ${target.endDate}, status: ${target.status}).`,
+        previousValue: { id: target.id, title: target.title, startDate: target.startDate, endDate: target.endDate, status: target.status },
+      },
+    });
+    setAuditLogs((prev) => [log, ...prev]);
+
+    return { success: true };
+  };
+
   // 15-Day Menu Plan Save (Only persists to Firestore & records Audit Trail when recordAudit is true)
   const saveMenuPlan = async (
     plan: FifteenDayMenuPlan,
     options?: { recordAudit?: boolean; auditSummary?: string }
   ) => {
+    if (options?.recordAudit) {
+      const validation = validatePlanSchedule({
+        startDate: plan.startDate,
+        plans: menuPlans,
+        excludePlanId: plan.id,
+        isNewPlan: false,
+      });
+      if (validation.conflicts.length > 0 || validation.exceedsHorizonLimit) {
+        throw new Error(validation.reason || 'Menu plan dates conflict with another scheduled cycle.');
+      }
+    }
+
     // If edited by sadmin, the menu is immediately approved and does NOT need approval again.
     // If edited by any other user or normal admin, reset status to pending_approval under Maker-Checker.
     const isEditedBySAdmin = currentUser.role === 'sadmin' || isSAdmin;
@@ -588,7 +773,14 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updatedAt: new Date().toISOString(),
     };
 
-    setActiveMenuPlan(updatedPlan);
+    setMenuPlans((prev) => {
+      const exists = prev.some((p) => p.id === updatedPlan.id);
+      const next = exists
+        ? prev.map((p) => (p.id === updatedPlan.id ? updatedPlan : p))
+        : [...prev, updatedPlan];
+      return sortMenuPlansChronologically(next);
+    });
+    setSelectedPlanId(updatedPlan.id);
 
     // Only sync to Firestore and record Audit Trail when explicitly requested (e.g. clicking "Update")
     if (options?.recordAudit) {
@@ -635,6 +827,7 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
             createdByUid: currentUser.uid,
             createdByName: currentUser.name,
             actionTab: 'menu_planner',
+            planId: updatedPlan.id,
           })
           .catch((err) => console.warn('[InAppNotification] Notice:', err));
 
@@ -689,17 +882,21 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Maker-Checker Dual-Approval Rule
   // If created by admin A -> Only admin B (different admin in same center) can approve!
-  const canApproveActiveMenu = useMemo(() => {
+  const canApprovePlan = (plan: FifteenDayMenuPlan): boolean => {
     if (isSAdmin) return true; // Super admin can override
     if (!isAdmin) return false; // Normal users can never approve
-    if (activeMenuPlan.status === 'approved') return false; // Already approved
+    if (plan.status === 'approved') return false; // Already approved
+    return plan.createdBy !== currentUser.uid;
+  };
 
-    // MAKER-CHECKER RULE: The person who created/edited the menu CANNOT approve it!
-    return activeMenuPlan.createdBy !== currentUser.uid;
-  }, [activeMenuPlan, currentUser.uid, isAdmin, isSAdmin]);
+  const canApproveActiveMenu = useMemo(
+    () => canApprovePlan(activeMenuPlan),
+    [activeMenuPlan, currentUser.uid, isAdmin, isSAdmin]
+  );
 
   const approveMenuPlan = async (planId: string): Promise<{ success: boolean; error?: string }> => {
-    if (!canApproveActiveMenu) {
+    const targetPlan = menuPlans.find((p) => p.id === planId) || activeMenuPlan;
+    if (!canApprovePlan(targetPlan)) {
       return {
         success: false,
         error: 'Maker-Checker policy violation: You cannot approve a menu plan created or modified by yourself. Another admin must review and approve it.',
@@ -709,7 +906,7 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const approverRoleTitle = currentUser.role === 'sadmin' || isSAdmin ? 'Super Admin' : 'Admin';
 
     const approvedPlan: FifteenDayMenuPlan = {
-      ...activeMenuPlan,
+      ...targetPlan,
       status: 'approved',
       approvedBy: currentUser.uid,
       approvedByName: `${currentUser.name} (${approverRoleTitle})`,
@@ -717,7 +914,9 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updatedAt: new Date().toISOString(),
     };
 
-    setActiveMenuPlan(approvedPlan);
+    setMenuPlans((prev) =>
+      sortMenuPlansChronologically(prev.map((p) => (p.id === approvedPlan.id ? approvedPlan : p)))
+    );
 
     // Sync to Firestore
     await kitchenDbService.saveCenterMenuPlan(currentCenter.id, approvedPlan);
@@ -728,13 +927,13 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       centerName: currentCenter.name,
       category: 'menu_planner',
       actionType: 'MENU_PLAN_APPROVE',
-      entityId: planId,
+      entityId: approvedPlan.id,
       entityName: approvedPlan.title,
       performedByUid: currentUser.uid,
       performedByName: currentUser.name,
       performedByRole: currentUser.role,
       details: {
-        summary: `Maker-Checker approval: Officially approved 15-day menu plan by ${currentUser.name} (${approverRoleTitle}). Menu is live and approved.`,
+        summary: `Maker-Checker approval: Officially approved 15-day menu plan "${approvedPlan.title}" by ${currentUser.name} (${approverRoleTitle}). Menu is live and approved.`,
       },
     });
 
@@ -745,14 +944,17 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const rejectMenuPlan = async (planId: string, reason: string) => {
     if (!isAdmin && !isSAdmin) return;
+    const targetPlan = menuPlans.find((p) => p.id === planId) || activeMenuPlan;
     const rejectedPlan: FifteenDayMenuPlan = {
-      ...activeMenuPlan,
+      ...targetPlan,
       status: 'rejected',
       rejectionReason: reason,
       updatedAt: new Date().toISOString(),
     };
 
-    setActiveMenuPlan(rejectedPlan);
+    setMenuPlans((prev) =>
+      sortMenuPlansChronologically(prev.map((p) => (p.id === rejectedPlan.id ? rejectedPlan : p)))
+    );
 
     // Sync to Firestore
     await kitchenDbService.saveCenterMenuPlan(currentCenter.id, rejectedPlan);
@@ -763,13 +965,13 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       centerName: currentCenter.name,
       category: 'menu_planner',
       actionType: 'MENU_PLAN_REJECT',
-      entityId: planId,
+      entityId: rejectedPlan.id,
       entityName: rejectedPlan.title,
       performedByUid: currentUser.uid,
       performedByName: currentUser.name,
       performedByRole: currentUser.role,
       details: {
-        summary: `Maker-Checker rejection: Menu plan rejected by ${currentUser.name}. Reason: "${reason}"`,
+        summary: `Maker-Checker rejection: Menu plan "${rejectedPlan.title}" rejected by ${currentUser.name}. Reason: "${reason}"`,
         notes: reason,
       },
     });
@@ -795,16 +997,16 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsSyncing(true);
     try {
       await kitchenDbService.syncAllEntitiesToFirestore(currentCenter.id, currentCenter);
-      const [centerStock, centerRecipes, centerPatterns, centerPlan] = await Promise.all([
+      const [centerStock, centerRecipes, centerPatterns, centerPlans] = await Promise.all([
         kitchenDbService.fetchCenterStock(currentCenter.id),
         kitchenDbService.fetchCenterRecipes(currentCenter.id),
         kitchenDbService.fetchCenterPatterns(currentCenter.id),
-        kitchenDbService.fetchCenterMenuPlan(currentCenter.id),
+        kitchenDbService.fetchCenterMenuPlans(currentCenter.id),
       ]);
       setStockItems(centerStock);
       setRecipes(centerRecipes);
       setPatterns(centerPatterns);
-      setActiveMenuPlan(centerPlan);
+      setMenuPlans(sortMenuPlansChronologically(centerPlans));
     } catch (err) {
       console.warn('Manual sync with Firestore error:', err);
     } finally {
@@ -820,9 +1022,11 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const confirmDayStockUsage = async (
     dayNumber: number,
-    items: Array<{ ingredientId: string; actualQty: number }>
+    items: Array<{ ingredientId: string; actualQty: number }>,
+    planId?: string
   ) => {
-    const targetDay = activeMenuPlan.days[dayNumber];
+    const targetPlan = menuPlans.find((p) => p.id === (planId || activeMenuPlan.id)) || activeMenuPlan;
+    const targetDay = targetPlan.days[dayNumber];
     if (!targetDay || targetDay.stockDeducted) return;
 
     const now = new Date().toISOString();
@@ -851,9 +1055,9 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setStockItems(Array.from(updatedStockMap.values()));
 
     const updatedPlan: FifteenDayMenuPlan = {
-      ...activeMenuPlan,
+      ...targetPlan,
       days: {
-        ...activeMenuPlan.days,
+        ...targetPlan.days,
         [dayNumber]: {
           ...targetDay,
           stockDeducted: true,
@@ -865,7 +1069,9 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updatedAt: now,
     };
 
-    setActiveMenuPlan(updatedPlan);
+    setMenuPlans((prev) =>
+      sortMenuPlansChronologically(prev.map((p) => (p.id === updatedPlan.id ? updatedPlan : p)))
+    );
     await kitchenDbService.saveCenterMenuPlan(currentCenter.id, updatedPlan);
 
     const log = await kitchenDbService.logAuditAction({
@@ -873,7 +1079,7 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       centerName: currentCenter.name,
       category: 'stock',
       actionType: 'STOCK_USAGE',
-      entityId: activeMenuPlan.id,
+      entityId: targetPlan.id,
       entityName: `Day ${dayNumber} (${targetDay.date})`,
       performedByUid: currentUser.uid,
       performedByName: currentUser.name,
@@ -881,14 +1087,15 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       details: {
         dayNumber,
         totalCost: Math.round(totalConsumedCost * 100) / 100,
-        summary: `Confirmed kitchen usage for Day ${dayNumber} (${targetDay.date}): deducted ${deductedItems.length} ingredient(s), total value ₹${totalConsumedCost.toFixed(2)}`,
+        summary: `Confirmed kitchen usage for Day ${dayNumber} (${targetDay.date}) in "${targetPlan.title}": deducted ${deductedItems.length} ingredient(s), total value ₹${totalConsumedCost.toFixed(2)}`,
       },
     });
     setAuditLogs((prev) => [log, ...prev]);
   };
 
-  const revertDayStockUsage = async (dayNumber: number) => {
-    const targetDay = activeMenuPlan.days[dayNumber];
+  const revertDayStockUsage = async (dayNumber: number, planId?: string) => {
+    const targetPlan = menuPlans.find((p) => p.id === (planId || activeMenuPlan.id)) || activeMenuPlan;
+    const targetDay = targetPlan.days[dayNumber];
     if (!targetDay || !targetDay.stockDeducted) return;
 
     const now = new Date().toISOString();
@@ -910,9 +1117,9 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setStockItems(Array.from(updatedStockMap.values()));
 
     const updatedPlan: FifteenDayMenuPlan = {
-      ...activeMenuPlan,
+      ...targetPlan,
       days: {
-        ...activeMenuPlan.days,
+        ...targetPlan.days,
         [dayNumber]: {
           ...targetDay,
           stockDeducted: false,
@@ -924,7 +1131,9 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updatedAt: now,
     };
 
-    setActiveMenuPlan(updatedPlan);
+    setMenuPlans((prev) =>
+      sortMenuPlansChronologically(prev.map((p) => (p.id === updatedPlan.id ? updatedPlan : p)))
+    );
     await kitchenDbService.saveCenterMenuPlan(currentCenter.id, updatedPlan);
 
     const log = await kitchenDbService.logAuditAction({
@@ -932,14 +1141,14 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       centerName: currentCenter.name,
       category: 'stock',
       actionType: 'STOCK_USAGE_REVERT',
-      entityId: activeMenuPlan.id,
+      entityId: targetPlan.id,
       entityName: `Day ${dayNumber} (${targetDay.date})`,
       performedByUid: currentUser.uid,
       performedByName: currentUser.name,
       performedByRole: currentUser.role,
       details: {
         dayNumber,
-        summary: `Reverted kitchen usage deduction for Day ${dayNumber} (${targetDay.date}): restored ${toRestore.length} ingredient(s) to stock.`,
+        summary: `Reverted kitchen usage deduction for Day ${dayNumber} (${targetDay.date}) in "${targetPlan.title}": restored ${toRestore.length} ingredient(s) to stock.`,
       },
     });
     setAuditLogs((prev) => [log, ...prev]);
@@ -963,10 +1172,16 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
         patterns,
         savePattern,
         deletePattern,
+        menuPlans,
         activeMenuPlan,
+        selectedPlanId: activeMenuPlan.id,
+        selectMenuPlan,
+        createMenuPlan,
+        deleteMenuPlan,
         saveMenuPlan,
         approveMenuPlan,
         rejectMenuPlan,
+        canApprovePlan,
         canApproveActiveMenu,
         repetitionCheck,
         requisitionSummary,

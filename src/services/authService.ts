@@ -215,6 +215,7 @@ export class AuthService {
           centerName: role === 'sadmin' ? 'Global Administration' : centerName,
           authProviders: ['password'],
           needsCenterSelection: false,
+          hasSeenTour: false,
           emailVerified: false,
           registrationStatus: 'pending_verification',
           verificationExpiresAt,
@@ -439,6 +440,7 @@ export class AuthService {
           avatarUrl: user.photoURL || undefined,
           authProviders: ['google.com'],
           needsCenterSelection: requiresCenterPick,
+          hasSeenTour: false,
           createdAt: now,
           updatedAt: now,
         };
@@ -536,6 +538,25 @@ export class AuthService {
       await setDoc(doc(db, 'center_requests', req.id), req, { merge: true });
     } catch (err) {
       console.warn('Failed to save center request in Firestore:', err);
+    }
+  }
+
+  /**
+   * Persist that user has completed/seen the first-login guided tour
+   */
+  async markTourSeen(uid: string): Promise<void> {
+    if (!isFirebaseConfigured || !db || !uid) return;
+    try {
+      await setDoc(
+        doc(db, 'users', uid),
+        {
+          hasSeenTour: true,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn('Failed to persist tour seen flag in Firestore:', err);
     }
   }
 
@@ -653,6 +674,12 @@ export class AuthService {
           const isGoogleUser = firebaseUser.providerData?.some((p) => p.providerId === 'google.com');
           const isSAdminEmail = Boolean(normalizedEmail && normalizedEmail === 'sadmin@iskcon.org');
           const role: UserRole = isSAdminEmail ? 'sadmin' : 'user';
+          const createdMs = Date.parse(firebaseUser.metadata?.creationTime || '');
+          const lastSignInMs = Date.parse(firebaseUser.metadata?.lastSignInTime || '');
+          const isBrandNewAuth =
+            !Number.isNaN(createdMs) &&
+            !Number.isNaN(lastSignInMs) &&
+            Math.abs(lastSignInMs - createdMs) < 120_000;
 
           const fallbackProfile: UserProfile = {
             uid: firebaseUser.uid,
@@ -665,6 +692,7 @@ export class AuthService {
             avatarUrl: firebaseUser.photoURL || undefined,
             authProviders: isGoogleUser ? ['google.com'] : ['password'],
             needsCenterSelection: Boolean(isGoogleUser && role !== 'sadmin'),
+            hasSeenTour: !isBrandNewAuth,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };

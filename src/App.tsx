@@ -71,7 +71,7 @@ const GuidedTourModal = lazy(() =>
 import { ChefHat } from 'lucide-react';
 
 function AppContent() {
-  const { firebaseUser, currentUser, isSAdmin, isAdmin, isAuthLoading } = useAuth();
+  const { firebaseUser, currentUser, isSAdmin, isAdmin, isAuthLoading, markTourSeen } = useAuth();
   const isAuthenticated = Boolean(firebaseUser);
   const needsCenterSelection = Boolean(firebaseUser && currentUser.needsCenterSelection && !isSAdmin);
   const { isAuditModalOpen, auditModalCategory, closeAuditModal, isSyncing } = useKitchen();
@@ -87,21 +87,31 @@ function AppContent() {
     closeAuth,
   } = useAppNavigation(isAuthenticated, needsCenterSelection);
 
-  // Auto-launch Guided Tour once for first-time authenticated users
+  // Auto-launch Guided Tour ONLY once on the very first login after registration
   useEffect(() => {
     if (!isAuthenticated || isAuthLoading || needsCenterSelection || !currentUser.uid) return;
+    if (currentUser.hasSeenTour !== false) return;
+
     const tourKey = `kitchen_tour_seen_${currentUser.uid}`;
-    const alreadySeen = SafeStorage.getItem<boolean>(tourKey, false);
-    if (!alreadySeen) {
+    const alreadySeenLocally = SafeStorage.getItem<boolean>(tourKey, false);
+
+    // Mark as seen immediately in both localStorage and Firestore so subsequent logins never re-trigger it
+    SafeStorage.setItem(tourKey, true);
+    markTourSeen();
+
+    if (!alreadySeenLocally) {
       setIsTourOpen(true);
     }
-  }, [isAuthenticated, isAuthLoading, needsCenterSelection, currentUser.uid]);
+  }, [isAuthenticated, isAuthLoading, needsCenterSelection, currentUser.uid, currentUser.hasSeenTour]);
 
   const handleCloseTour = () => {
     setIsTourOpen(false);
     setTourTab(null);
     if (currentUser.uid) {
       SafeStorage.setItem(`kitchen_tour_seen_${currentUser.uid}`, true);
+      if (currentUser.hasSeenTour === false) {
+        markTourSeen();
+      }
     }
   };
 
@@ -244,7 +254,7 @@ function AppContent() {
         </Suspense>
       )}
 
-      <footer className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-md border-t-2 border-t-orange-500/25 dark:border-t-orange-500/20 py-5 px-4">
+      <footer className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-md border-t-2 border-t-orange-500/25 dark:border-t-orange-500/20 py-5 pb-24 md:pb-5 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
           <div className="font-semibold text-slate-700 dark:text-slate-300">
             &copy; {new Date().getFullYear()} Ponda Kitchen. All rights reserved.

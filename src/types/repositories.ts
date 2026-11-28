@@ -26,8 +26,10 @@ export interface IPatternRepository {
 }
 
 export interface IMenuRepository {
+  fetchCenterMenuPlans(centerId: string): Promise<FifteenDayMenuPlan[]>;
   fetchCenterMenuPlan(centerId: string): Promise<FifteenDayMenuPlan>;
   saveCenterMenuPlan(centerId: string, plan: FifteenDayMenuPlan): Promise<void>;
+  deleteCenterMenuPlan(centerId: string, planId: string): Promise<void>;
 }
 
 export interface IAuditRepository {

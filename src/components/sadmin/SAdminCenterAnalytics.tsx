@@ -3,6 +3,11 @@ import { useAuth } from '../../context/AuthContext';
 import { CenterStatus } from '../../types/center';
 import { kitchenDbService } from '../../services/kitchenDbService';
 import { calculateDayWiseAndShoppingRequirements } from '../../core/daywiseRequirementCalculator';
+import {
+  getActiveOrUpcomingPlans,
+  MAX_ADVANCE_PLANS,
+  selectDefaultActivePlan,
+} from '../../core/menuPlanUtils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { sanitizeCsvCell } from '../../utils/formatters';
 import {
@@ -30,6 +35,9 @@ interface CenterReportRow {
   netToProcure: number;
   avgDailyCost: number;
   menuStatus: string;
+  activePlansCount: number;
+  approvedPlansCount: number;
+  pendingPlansCount: number;
   monthlyPurchaseSpend: number;
 }
 
@@ -78,17 +86,20 @@ export const SAdminCenterAnalytics: React.FC = () => {
     try {
       const rows = await Promise.all(
         allCenters.map(async (center) => {
-          const [stock, recipes, menuPlan, auditLogs] = await Promise.all([
+          const [stock, recipes, menuPlans, auditLogs] = await Promise.all([
             kitchenDbService.fetchCenterStock(center.id),
             kitchenDbService.fetchCenterRecipes(center.id),
-            kitchenDbService.fetchCenterMenuPlan(center.id),
+            kitchenDbService.fetchCenterMenuPlans(center.id),
             kitchenDbService.fetchCenterAuditLogs(center.id, 100),
           ]);
+
+          const primaryPlan = selectDefaultActivePlan(menuPlans) || menuPlans[0];
+          const activeUpcoming = getActiveOrUpcomingPlans(menuPlans);
 
           const stockMap = new Map(stock.map((s) => [s.id, s]));
           const recipeMap = new Map(recipes.map((r) => [r.id, r]));
           const reqSummary = calculateDayWiseAndShoppingRequirements(
-            menuPlan,
+            primaryPlan,
             recipeMap,
             stockMap
           );
@@ -125,7 +136,10 @@ export const SAdminCenterAnalytics: React.FC = () => {
             menuCost15Days: reqSummary.totalMenuCost,
             netToProcure: reqSummary.totalNetProcurementCost,
             avgDailyCost: reqSummary.totalMenuCost / activeDays,
-            menuStatus: menuPlan.status,
+            menuStatus: primaryPlan.status,
+            activePlansCount: activeUpcoming.length,
+            approvedPlansCount: activeUpcoming.filter((p) => p.status === 'approved').length,
+            pendingPlansCount: activeUpcoming.filter((p) => p.status === 'pending_approval').length,
             monthlyPurchaseSpend,
           };
         })
@@ -172,7 +186,9 @@ export const SAdminCenterAnalytics: React.FC = () => {
       'Net To Procure (INR)',
       'Avg Daily Cost (INR)',
       `Purchases ${selectedMonth} (INR)`,
-      'Menu Status',
+      'Active Plan Status',
+      'Scheduled Plans (of 6)',
+      'Approved / Pending Plans',
     ];
     const lines = reports.map((r) =>
       [
@@ -190,6 +206,8 @@ export const SAdminCenterAnalytics: React.FC = () => {
         r.avgDailyCost.toFixed(2),
         r.monthlyPurchaseSpend.toFixed(2),
         sanitizeCsvCell(r.menuStatus),
+        `${r.activePlansCount}/${MAX_ADVANCE_PLANS}`,
+        `${r.approvedPlansCount} / ${r.pendingPlansCount}`,
       ].join(',')
     );
     const csv = [headers.join(','), ...lines].join('\n');
@@ -440,7 +458,7 @@ export const SAdminCenterAnalytics: React.FC = () => {
 
                   <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1">
                     <span>
-                      Workforce: <strong className="text-slate-700 dark:text-slate-200">{r.devoteeCount}</strong> ({r.adminCount} Admin)
+                      Plans: <strong className="text-slate-700 dark:text-slate-200">{r.activePlansCount}/{MAX_ADVANCE_PLANS}</strong> ({r.approvedPlansCount} Approved{r.pendingPlansCount > 0 ? `, ${r.pendingPlansCount} Pending` : ''})
                     </span>
                     <span>
                       Recipes: <strong className="text-slate-700 dark:text-slate-200">{r.recipeCount}</strong> &bull; Stock: <strong className="text-slate-700 dark:text-slate-200">{r.stockItemCount}</strong>
@@ -505,13 +523,18 @@ export const SAdminCenterAnalytics: React.FC = () => {
                         ₹{r.avgDailyCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </td>
                       <td className="px-5 py-3.5">
-                        <span
-                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap ${getPlanStatusBadgeClass(
-                            r.menuStatus
-                          )}`}
-                        >
-                          {r.menuStatus.replace('_', ' ')}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span
+                            className={`inline-block w-fit text-[10px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap ${getPlanStatusBadgeClass(
+                              r.menuStatus
+                            )}`}
+                          >
+                            {r.menuStatus.replace('_', ' ')}
+                          </span>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
+                            {r.activePlansCount}/{MAX_ADVANCE_PLANS} plans ({r.approvedPlansCount} ok{r.pendingPlansCount > 0 ? `, ${r.pendingPlansCount} pend` : ''})
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   ))}

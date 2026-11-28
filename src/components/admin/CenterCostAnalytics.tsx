@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useKitchen } from '../../context/KitchenContext';
 import { useAuth } from '../../context/AuthContext';
+import { calculateDayWiseAndShoppingRequirements } from '../../core/daywiseRequirementCalculator';
+import { getActiveOrUpcomingPlans, getPlanTimingStatus, MAX_ADVANCE_PLANS } from '../../core/menuPlanUtils';
 import { formatDateDDMMYYYY, sanitizeCsvCell } from '../../utils/formatters';
 import {
   TrendingUp,
@@ -44,15 +46,28 @@ function toISODate(d: Date): string {
 }
 
 export const CenterCostAnalytics: React.FC = () => {
-  const { requisitionSummary, stockItems, auditLogs, activeMenuPlan } = useKitchen();
+  const { menuPlans, recipeMap, stockMap, stockItems, auditLogs } = useKitchen();
   const { currentCenter, centerUsers } = useAuth();
+
+  const perPlanSummaries = useMemo(() => {
+    return menuPlans.map((plan) => ({
+      plan,
+      timing: getPlanTimingStatus(plan),
+      summary: calculateDayWiseAndShoppingRequirements(plan, recipeMap, stockMap),
+    }));
+  }, [menuPlans, recipeMap, stockMap]);
+
+  const activeUpcomingPlans = useMemo(
+    () => getActiveOrUpcomingPlans(menuPlans),
+    [menuPlans]
+  );
 
   const currentYM = useMemo(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   }, []);
 
-  // Build list of selectable months from data + recent 6 months
+  // Build list of selectable months from all scheduled plans + recent 6 months
   const availableMonths = useMemo(() => {
     const set = new Set<string>();
     const now = new Date();
@@ -60,14 +75,16 @@ export const CenterCostAnalytics: React.FC = () => {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
     }
-    requisitionSummary.dailyRequirements.forEach((dr) => {
-      if (dr.date && dr.date.length >= 7) set.add(dr.date.slice(0, 7));
+    perPlanSummaries.forEach(({ summary }) => {
+      summary.dailyRequirements.forEach((dr) => {
+        if (dr.date && dr.date.length >= 7) set.add(dr.date.slice(0, 7));
+      });
     });
     auditLogs.forEach((log) => {
       if (log.timestamp && log.timestamp.length >= 7) set.add(log.timestamp.slice(0, 7));
     });
     return Array.from(set).sort((a, b) => b.localeCompare(a));
-  }, [requisitionSummary.dailyRequirements, auditLogs]);
+  }, [perPlanSummaries, auditLogs]);
 
   const [selectedMonth, setSelectedMonth] = useState<string>(
     availableMonths[0] || currentYM
@@ -79,27 +96,36 @@ export const CenterCostAnalytics: React.FC = () => {
     return toISODate(d);
   });
 
-  // Combine daily menu requirements + audit purchase logs by date
+  // Combine daily menu requirements across ALL scheduled plans + audit purchase logs by date
   const allDailyRows = useMemo(() => {
     const map = new Map<string, DailyCostRow>();
+    const statusPriority = (s: string) =>
+      s === 'approved' ? 3 : s === 'pending_approval' ? 2 : s === 'draft' ? 1 : 0;
 
-    requisitionSummary.dailyRequirements.forEach((dr) => {
-      if (!dr.date) return;
-      const topDishes = [...dr.recipes]
-        .sort((a, b) => b.recipeTotalCost - a.recipeTotalCost)
-        .slice(0, 3)
-        .map((r) => r.recipeName);
+    // Sort plans so higher-priority plans overwrite if legacy dates ever overlapped
+    const orderedSummaries = [...perPlanSummaries].sort(
+      (a, b) => statusPriority(a.plan.status) - statusPriority(b.plan.status)
+    );
 
-      map.set(dr.date, {
-        date: dr.date,
-        dayLabel: `Day ${dr.dayNumber}`,
-        occasionName: dr.occasionName,
-        isEkadashi: dr.isEkadashi,
-        headcount: dr.totalHeadcount,
-        menuCost: dr.dayTotalCost,
-        purchaseSpend: 0,
-        totalCost: dr.dayTotalCost,
-        topDishes,
+    orderedSummaries.forEach(({ plan, summary }) => {
+      summary.dailyRequirements.forEach((dr) => {
+        if (!dr.date) return;
+        const topDishes = [...dr.recipes]
+          .sort((a, b) => b.recipeTotalCost - a.recipeTotalCost)
+          .slice(0, 3)
+          .map((r) => r.recipeName);
+
+        map.set(dr.date, {
+          date: dr.date,
+          dayLabel: `Day ${dr.dayNumber} (${plan.title})`,
+          occasionName: dr.occasionName,
+          isEkadashi: dr.isEkadashi,
+          headcount: dr.totalHeadcount,
+          menuCost: dr.dayTotalCost,
+          purchaseSpend: 0,
+          totalCost: dr.dayTotalCost,
+          topDishes,
+        });
       });
     });
 
@@ -128,7 +154,7 @@ export const CenterCostAnalytics: React.FC = () => {
     });
 
     return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
-  }, [requisitionSummary.dailyRequirements, auditLogs]);
+  }, [perPlanSummaries, auditLogs]);
 
   // Monthly aggregates
   const monthRows = useMemo(
@@ -345,15 +371,76 @@ export const CenterCostAnalytics: React.FC = () => {
 
         <div className="bg-white/85 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border-x border-slate-200/60 dark:border-slate-800/70 border-t-2 border-t-indigo-500/75 border-b-2 border-b-purple-500/40 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Center Workforce</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Scheduled Cycles</span>
             <Users className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">
-            {centerUsers.length} Devotees
+            {activeUpcomingPlans.length}/{MAX_ADVANCE_PLANS} Plans
           </div>
           <span className="text-[11px] text-slate-500 dark:text-slate-400">
-            Plan: {activeMenuPlan.status.replace('_', ' ').toUpperCase()}
+            {activeUpcomingPlans.filter((p) => p.status === 'approved').length} Approved &bull; {centerUsers.length} Devotees
           </span>
+        </div>
+      </div>
+
+      {/* Scheduled Multi-Plan Cost Overview */}
+      <div className="modern-card p-5 rounded-2xl space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="font-bold text-slate-900 dark:text-white text-sm flex items-center space-x-2">
+              <Calendar className="w-4 h-4 text-indigo-500" />
+              <span>Scheduled Advance Cycles ({menuPlans.length} Total)</span>
+            </h3>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Cost projection per 15-day cycle across your 3-month planning horizon (up to {MAX_ADVANCE_PLANS} active/upcoming cycles)
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {perPlanSummaries.map(({ plan, timing, summary }) => (
+            <div
+              key={plan.id}
+              className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white/70 dark:bg-slate-800/50 space-y-2 text-xs"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                    timing === 'current'
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/70 dark:text-emerald-300'
+                      : timing === 'upcoming'
+                      ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/70 dark:text-indigo-300'
+                      : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  {timing === 'current' ? 'Live Now' : timing === 'upcoming' ? 'Upcoming' : 'Completed'}
+                </span>
+                <span
+                  className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                    plan.status === 'approved'
+                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                      : plan.status === 'pending_approval'
+                      ? 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                  }`}
+                >
+                  {plan.status.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="font-extrabold text-slate-900 dark:text-white truncate">
+                {plan.title}
+              </div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                {formatDateDDMMYYYY(plan.startDate)} → {formatDateDDMMYYYY(plan.endDate)}
+              </div>
+              <div className="pt-1.5 border-t border-slate-100 dark:border-slate-700/70 flex justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Menu Cost:</span>
+                <span className="font-black text-orange-600 dark:text-orange-400">
+                  ₹{summary.totalMenuCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

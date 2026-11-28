@@ -65,12 +65,12 @@ export const GuidedTourModal: React.FC<GuidedTourModalProps> = ({
       {
         id: 'menu_planner',
         badge: 'Step 1 • Planning',
-        title: '15-Day Menu Planner',
+        title: '15-Day Menu Planner (Up to 6 Advance Cycles)',
         description:
-          'Pick any Start Date to automatically calculate a 2-week cycle and auto-fill menus, including Ekadashi fasting rules and Brahmacari Ashram meals.',
+          'Create and manage up to 6 non-overlapping 15-day plans (3 months in advance), with automatic Vaishnava Ekadashi fasting rules and Brahmacari Ashram rotation.',
         tips: [
-          'Click "+ Add Dish" or "Auto-Rotate Ashram" to customize any meal.',
-          'Click "Update" when ready to save changes and record them in the Audit Trail.',
+          'Use "+ Plan New Cycle" to schedule upcoming periods with real-time overlap detection.',
+          'Click "Update" when ready to save changes, notify admins, and record them in the Audit Trail.',
         ],
         icon: Flame,
         accentClass: 'from-orange-500 to-rose-500',
@@ -196,7 +196,7 @@ export const GuidedTourModal: React.FC<GuidedTourModalProps> = ({
   };
 
   return (
-    <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-[400px] z-50 animate-fade-in pointer-events-auto">
+    <div className="fixed bottom-20 md:bottom-4 right-3 left-3 sm:left-auto sm:w-[400px] z-50 animate-fade-in pointer-events-auto">
       <div className="relative w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl shadow-[0_20px_50px_rgba(15,23,42,0.28)] border-x border-slate-200/90 dark:border-slate-700/90 border-t-2 border-t-orange-500 border-b-2 border-b-indigo-500/60 p-5 space-y-3.5">
         <button
           type="button"

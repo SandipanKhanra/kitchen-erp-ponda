@@ -11,6 +11,8 @@ export type AuditActionType =
   | 'RECIPE_UPDATE'       // Recipe edited
   | 'RECIPE_DELETE'       // Recipe removed
   | 'MENU_PLAN_SAVE'      // 15-day menu plan modified / recipes assigned
+  | 'MENU_PLAN_CREATE'    // New advance 15-day menu plan created
+  | 'MENU_PLAN_DELETE'    // Advance 15-day menu plan deleted
   | 'MENU_PLAN_APPROVE'   // Menu plan approved (Maker-Checker)
   | 'MENU_PLAN_REJECT';   // Menu plan rejected
 

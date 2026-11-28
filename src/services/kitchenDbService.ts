@@ -69,12 +69,20 @@ export class KitchenDbService implements IKitchenDbService {
   }
 
   // Menus
+  fetchCenterMenuPlans(centerId: string): Promise<FifteenDayMenuPlan[]> {
+    return this.menuRepo.fetchCenterMenuPlans(centerId);
+  }
+
   fetchCenterMenuPlan(centerId: string): Promise<FifteenDayMenuPlan> {
     return this.menuRepo.fetchCenterMenuPlan(centerId);
   }
 
   saveCenterMenuPlan(centerId: string, plan: FifteenDayMenuPlan): Promise<void> {
     return this.menuRepo.saveCenterMenuPlan(centerId, plan);
+  }
+
+  deleteCenterMenuPlan(centerId: string, planId: string): Promise<void> {
+    return this.menuRepo.deleteCenterMenuPlan(centerId, planId);
   }
 
   // Audit Logs
@@ -143,12 +151,16 @@ export class KitchenDbService implements IKitchenDbService {
         )
       );
 
-      // 5. Sync 15-Day Menu Plan to 'menus'
-      const menuPlan = await this.fetchCenterMenuPlan(centerId);
-      await setDoc(
-        doc(db, 'menus', menuPlan.id),
-        { ...menuPlan, centerId, updatedAt: new Date().toISOString() },
-        { merge: true }
+      // 5. Sync 15-Day Menu Plans to 'menus'
+      const menuPlans = await this.fetchCenterMenuPlans(centerId);
+      await Promise.all(
+        menuPlans.map((menuPlan) =>
+          setDoc(
+            doc(db!, 'menus', menuPlan.id),
+            { ...menuPlan, centerId, updatedAt: menuPlan.updatedAt || new Date().toISOString() },
+            { merge: true }
+          )
+        )
       );
 
       return {
@@ -157,7 +169,7 @@ export class KitchenDbService implements IKitchenDbService {
           stock: stockItems.length,
           recipes: recipes.length,
           patterns: patterns.length,
-          menus: 1,
+          menus: menuPlans.length,
         },
       };
     } catch (err) {

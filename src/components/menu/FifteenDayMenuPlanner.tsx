@@ -30,8 +30,19 @@ import { MealType, Recipe, MenuPattern, Occasion } from '../../types/recipe';
 import { FifteenDayMenuPlan } from '../../types/menu';
 import { sanitizeNumericChange } from '../../utils/numberInput';
 import { generateAshramWeeklyRotation, generateFull15DayMenuFromStartDate, formatDateISO, addDaysISO } from '../../core/rotationEngine';
+import {
+  MAX_ADVANCE_PLANS,
+  MAX_ADVANCE_MONTHS,
+  diffDaysISO,
+  formatCycleTitle,
+  getActiveOrUpcomingPlans,
+  getMaxAdvanceStartDateISO,
+  getNextAvailableStartDate,
+  getPlanTimingStatus,
+  validatePlanSchedule,
+} from '../../core/menuPlanUtils';
 import { resolveCenterLocation } from '../../core/gaurabdaCalendarEngine';
-import { formatDateDDMMYYYY } from '../../utils/formatters';
+import { formatDateDDMMYYYY, formatUserRole } from '../../utils/formatters';
 import { useModalClose } from '../../hooks/useModalClose';
 
 export type MealSlotKey = 'breakfast' | 'lunch' | 'dinner' | 'brahmacariBreakfast' | 'brahmacariLunch';
@@ -56,7 +67,11 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   const { currentUser, currentCenter, isAdmin, isSAdmin, allUsers } = useAuth();
   const { showToast } = useToast();
   const {
+    menuPlans,
     activeMenuPlan,
+    selectMenuPlan,
+    createMenuPlan,
+    deleteMenuPlan,
     saveMenuPlan,
     approveMenuPlan,
     rejectMenuPlan,
@@ -68,13 +83,94 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     patterns,
   } = useKitchen();
 
+  const todayISO = formatDateISO(new Date());
+  const maxAdvanceStartDate = useMemo(() => getMaxAdvanceStartDateISO(todayISO), [todayISO]);
+  const activeUpcomingPlans = useMemo(
+    () => getActiveOrUpcomingPlans(menuPlans, todayISO),
+    [menuPlans, todayISO]
+  );
+  const pastPlans = useMemo(
+    () => menuPlans.filter((p) => getPlanTimingStatus(p, todayISO) === 'past'),
+    [menuPlans, todayISO]
+  );
+  const pendingPlans = useMemo(
+    () => menuPlans.filter((p) => p.status === 'pending_approval'),
+    [menuPlans]
+  );
+
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
-  const [newCycleConfirm, setNewCycleConfirm] = useState<{
-    newStartDate: string;
-    newEndDate: string;
+  const [showPastPlans, setShowPastPlans] = useState<boolean>(false);
+  const [startDateConflict, setStartDateConflict] = useState<{
+    attemptedStartDate: string;
+    reason: string;
+    suggestedDate: string;
   } | null>(null);
+
+  // Create Advance Plan Modal State
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  const [newPlanStartDate, setNewPlanStartDate] = useState<string>(() =>
+    getNextAvailableStartDate(menuPlans)
+  );
+  const [newPlanTitle, setNewPlanTitle] = useState<string>('');
+  const [newPlanTitleEdited, setNewPlanTitleEdited] = useState<boolean>(false);
+  const [newPlanMode, setNewPlanMode] = useState<'autofill' | 'copy' | 'blank'>('autofill');
+  const [copySourcePlanId, setCopySourcePlanId] = useState<string>('');
+  const [isCreatingPlan, setIsCreatingPlan] = useState<boolean>(false);
+  useModalClose(isCreateModalOpen, () => setIsCreateModalOpen(false));
+
+  // Delete Plan Modal State
+  const [planToDelete, setPlanToDelete] = useState<FifteenDayMenuPlan | null>(null);
+  const [isDeletingPlan, setIsDeletingPlan] = useState<boolean>(false);
+  useModalClose(Boolean(planToDelete), () => setPlanToDelete(null));
+
+  // Reject Plan Modal State
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState<boolean>(false);
+  const [rejectReasonText, setRejectReasonText] = useState<string>('');
+  useModalClose(isRejectModalOpen, () => setIsRejectModalOpen(false));
+
+  const createValidation = useMemo(
+    () =>
+      validatePlanSchedule({
+        startDate: newPlanStartDate,
+        plans: menuPlans,
+        isNewPlan: true,
+        todayISO,
+      }),
+    [newPlanStartDate, menuPlans, todayISO]
+  );
+
+  const openCreatePlanModal = (preferredDate?: string) => {
+    const suggested =
+      preferredDate || getNextAvailableStartDate(menuPlans, undefined, undefined, todayISO);
+    setNewPlanStartDate(suggested);
+    setNewPlanTitle(formatCycleTitle(suggested));
+    setNewPlanTitleEdited(false);
+    setNewPlanMode('autofill');
+    setCopySourcePlanId(activeMenuPlan.id);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleSelectPlanCard = (plan: FifteenDayMenuPlan) => {
+    if (plan.id === activeMenuPlan.id) return;
+    if (hasUnsavedChanges) {
+      const ok = window.confirm(
+        `You have unsaved changes on "${activeMenuPlan.title}". Switch plans anyway and discard unsaved local edits?`
+      );
+      if (!ok) return;
+    }
+    selectMenuPlan(plan.id);
+    setHasUnsavedChanges(false);
+    setStartDateConflict(null);
+    // Jump to today's day number if selecting the currently live cycle, else Day 1
+    if (getPlanTimingStatus(plan, todayISO) === 'current') {
+      const offset = Math.min(15, Math.max(1, diffDaysISO(plan.startDate, todayISO) + 1));
+      setSelectedDay(offset);
+    } else {
+      setSelectedDay(1);
+    }
+  };
 
   // Day Editing State
   const [addDishModalMeal, setAddDishModalMeal] = useState<MealSlotKey | null>(null);
@@ -105,16 +201,39 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     const year = Number(newStartDate.slice(0, 4));
     if (year < 2000) return;
 
-    // 1. If the current plan is APPROVED, block direct start-date edits and require a "Start New Cycle" confirmation
+    // 1. If the current plan is APPROVED, keep it intact and open the "+ Plan New Cycle" flow instead
     if (isApproved && !isSAdmin) {
-      const previewEnd = addDaysISO(newStartDate, 14);
-      setNewCycleConfirm({ newStartDate, newEndDate: previewEnd });
+      openCreatePlanModal(newStartDate);
       return;
     }
 
+    // 2. Overlap & 3-month advance guard against all other plans
+    const validation = validatePlanSchedule({
+      startDate: newStartDate,
+      plans: menuPlans,
+      excludePlanId: activeMenuPlan.id,
+      isNewPlan: false,
+      todayISO,
+    });
+
+    if (!validation.isValid) {
+      setStartDateConflict({
+        attemptedStartDate: newStartDate,
+        reason: validation.reason || 'Selected dates conflict with another plan.',
+        suggestedDate: validation.suggestedStartDate,
+      });
+      showToast(validation.reason || 'Dates overlap another scheduled cycle.', 'error');
+      return;
+    }
+
+    setStartDateConflict(null);
     const centerLocation = resolveCenterLocation(currentCenter);
     const generated = generateFull15DayMenuFromStartDate(newStartDate, recipes, activeMenuPlan, centerLocation);
-    saveMenuPlan(generated, { recordAudit: false });
+    const updatedWithTitle: FifteenDayMenuPlan = {
+      ...generated,
+      title: formatCycleTitle(generated.startDate, generated.endDate),
+    };
+    saveMenuPlan(updatedWithTitle, { recordAudit: false });
     setHasUnsavedChanges(true);
     showToast(
       `Calculated 2-week cycle (${formatDateDDMMYYYY(generated.startDate)} to ${formatDateDDMMYYYY(generated.endDate)}) and auto-filled menus! Click "Update" to save.`,
@@ -125,43 +244,90 @@ export const FifteenDayMenuPlanner: React.FC = () => {
   const handleAutoFill = () => {
     const startDate = activeMenuPlan.startDate || formatDateISO(new Date());
 
-    // If the current plan is APPROVED, treat Auto-Fill as a new cycle request too
     if (isApproved && !isSAdmin) {
-      const previewEnd = addDaysISO(startDate, 14);
-      setNewCycleConfirm({ newStartDate: startDate, newEndDate: previewEnd });
+      openCreatePlanModal();
       return;
     }
 
     handleStartDateChange(startDate);
   };
 
-  const handleConfirmNewCycle = () => {
-    if (!newCycleConfirm) return;
-    const centerLocation = resolveCenterLocation(currentCenter);
-    const generated = generateFull15DayMenuFromStartDate(
-      newCycleConfirm.newStartDate,
-      recipes,
-      activeMenuPlan,
-      centerLocation
-    );
-    saveMenuPlan(generated, { recordAudit: false });
-    setHasUnsavedChanges(true);
-    setNewCycleConfirm(null);
-    showToast(
-      `New cycle started: ${formatDateDDMMYYYY(generated.startDate)} to ${formatDateDDMMYYYY(generated.endDate)}. Click "Update" to save.`,
-      'info'
-    );
+  const handleCreateNewPlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createValidation.isValid) {
+      showToast(createValidation.reason || 'Cannot create plan with conflicting dates.', 'error');
+      return;
+    }
+    setIsCreatingPlan(true);
+    try {
+      const res = await createMenuPlan({
+        startDate: newPlanStartDate,
+        title: newPlanTitle,
+        mode: newPlanMode,
+        sourcePlanId: newPlanMode === 'copy' ? copySourcePlanId : undefined,
+      });
+      if (res.success && res.plan) {
+        setIsCreateModalOpen(false);
+        setHasUnsavedChanges(false);
+        setSelectedDay(1);
+        setStartDateConflict(null);
+        showToast(
+          `Created "${res.plan.title}" (${formatDateDDMMYYYY(res.plan.startDate)} to ${formatDateDDMMYYYY(res.plan.endDate)}). Review dishes & click "Update" to submit for approval!`,
+          'success'
+        );
+      } else {
+        showToast(res.error || 'Could not create plan.', 'error');
+      }
+    } finally {
+      setIsCreatingPlan(false);
+    }
+  };
+
+  const handleConfirmDeletePlan = async () => {
+    if (!planToDelete) return;
+    setIsDeletingPlan(true);
+    try {
+      const res = await deleteMenuPlan(planToDelete.id);
+      if (res.success) {
+        showToast(`Deleted plan "${planToDelete.title}".`, 'info');
+        setPlanToDelete(null);
+        setHasUnsavedChanges(false);
+        setSelectedDay(1);
+      } else {
+        showToast(res.error || 'Could not delete plan.', 'error');
+      }
+    } finally {
+      setIsDeletingPlan(false);
+    }
   };
 
   const handleCommitUpdate = async () => {
+    const validation = validatePlanSchedule({
+      startDate: activeMenuPlan.startDate,
+      plans: menuPlans,
+      excludePlanId: activeMenuPlan.id,
+      isNewPlan: false,
+      todayISO,
+    });
+    if (validation.conflicts.length > 0 || validation.exceedsHorizonLimit) {
+      setStartDateConflict({
+        attemptedStartDate: activeMenuPlan.startDate,
+        reason: validation.reason || 'Date conflict detected.',
+        suggestedDate: validation.suggestedStartDate,
+      });
+      showToast(validation.reason || 'Cannot save overlapping plan dates.', 'error');
+      return;
+    }
+
     setIsUpdating(true);
     try {
       await saveMenuPlan(activeMenuPlan, { recordAudit: true });
       setHasUnsavedChanges(false);
+      setStartDateConflict(null);
       showToast('15-Day Menu Plan updated & recorded in Audit Trail!', 'success');
-    } catch (err) {
+    } catch (err: any) {
       console.error('[FifteenDayMenuPlanner] Failed to update menu plan:', err);
-      showToast('Failed to save menu plan to Firestore. Please try again.', 'error');
+      showToast(err?.message || 'Failed to save menu plan to Firestore. Please try again.', 'error');
     } finally {
       setIsUpdating(false);
     }
@@ -174,6 +340,18 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     } else {
       showToast(res.error || 'Could not approve menu plan.', 'error');
     }
+  };
+
+  const handleReject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejectReasonText.trim()) {
+      showToast('Please enter a reason for rejection.', 'warning');
+      return;
+    }
+    await rejectMenuPlan(activeMenuPlan.id, rejectReasonText.trim());
+    setIsRejectModalOpen(false);
+    setRejectReasonText('');
+    showToast('Menu plan marked as Rejected.', 'info');
   };
 
   // Remove a single recipe from meal slot
@@ -387,7 +565,9 @@ export const FifteenDayMenuPlanner: React.FC = () => {
 
   const isPending = activeMenuPlan.status === 'pending_approval';
   const isApproved = activeMenuPlan.status === 'approved';
+  const isRejected = activeMenuPlan.status === 'rejected';
   const isSelfCreated = activeMenuPlan.createdBy === currentUser.uid;
+  const isLockedForUser = isApproved && !isAdmin && !isSAdmin;
 
   const displayApprovedByName = useMemo(() => {
     if (!activeMenuPlan.approvedByName) return '';
@@ -395,17 +575,233 @@ export const FifteenDayMenuPlanner: React.FC = () => {
     const approverUser =
       allUsers?.find((u) => u.uid === approverUid) ||
       (currentUser.uid === approverUid ? currentUser : null);
-    if (
-      approverUser?.role === 'sadmin' ||
-      activeMenuPlan.approvedByName.toLowerCase().includes('sandipan')
-    ) {
-      return activeMenuPlan.approvedByName.replace(/\(Admin\)/i, '(Super Admin)');
+    if (approverUser) {
+      const cleanName = activeMenuPlan.approvedByName
+        .replace(/\s*\((Super Admin|Admin|Devotee|User)\)\s*$/i, '')
+        .trim();
+      return `${cleanName || approverUser.name} (${formatUserRole(approverUser.role)})`;
     }
     return activeMenuPlan.approvedByName;
   }, [activeMenuPlan.approvedByName, activeMenuPlan.approvedBy, allUsers, currentUser]);
 
+  const visibleSchedulePlans = useMemo(() => {
+    if (showPastPlans || getPlanTimingStatus(activeMenuPlan, todayISO) === 'past') {
+      return menuPlans;
+    }
+    return activeUpcomingPlans.length > 0 ? activeUpcomingPlans : menuPlans;
+  }, [showPastPlans, menuPlans, activeUpcomingPlans, activeMenuPlan, todayISO]);
+
+  const horizonEndISO = useMemo(() => addDaysISO(maxAdvanceStartDate, 14), [maxAdvanceStartDate]);
+  const horizonTotalDays = useMemo(
+    () => Math.max(90, diffDaysISO(todayISO, horizonEndISO) + 1),
+    [todayISO, horizonEndISO]
+  );
+
   return (
     <div className="space-y-6">
+      {/* Multi-Plan Advance Scheduler Bar (Up to 6 Plans / 3 Months Horizon) */}
+      <div className="modern-card p-4 sm:p-5 rounded-3xl space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <div className="flex items-center flex-wrap gap-2">
+              <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                Advance 15-Day Menu Schedule
+              </h1>
+              <span
+                className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                  activeUpcomingPlans.length >= MAX_ADVANCE_PLANS
+                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border-rose-300 dark:border-rose-800'
+                    : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                }`}
+              >
+                {activeUpcomingPlans.length} / {MAX_ADVANCE_PLANS} Active Plans &bull; {MAX_ADVANCE_MONTHS}-Month Horizon
+              </span>
+              {pendingPlans.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleSelectPlanCard(pendingPlans[0])}
+                  className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-700 transition cursor-pointer"
+                  title="Jump to plan awaiting approval"
+                >
+                  {pendingPlans.length} Pending Approval
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Plan up to {MAX_ADVANCE_PLANS} non-overlapping cycles ({MAX_ADVANCE_MONTHS} months in advance up to{' '}
+              <strong>{formatDateDDMMYYYY(maxAdvanceStartDate)}</strong>).
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs w-full sm:w-auto justify-end">
+            {pastPlans.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowPastPlans((prev) => !prev)}
+                className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+              >
+                {showPastPlans ? 'Hide Completed' : `Show Completed (${pastPlans.length})`}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => openCreatePlanModal()}
+              disabled={activeUpcomingPlans.length >= MAX_ADVANCE_PLANS}
+              className="flex items-center space-x-1.5 px-4 py-2 rounded-xl font-bold bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white shadow-md shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              title={
+                activeUpcomingPlans.length >= MAX_ADVANCE_PLANS
+                  ? `Limit reached (${MAX_ADVANCE_PLANS} active/upcoming plans). Delete an unused draft to add another.`
+                  : 'Create another 15-day plan in advance'
+              }
+            >
+              <Plus className="w-4 h-4" />
+              <span>Plan New Cycle</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Visual 3-Month Horizon Timeline Strip */}
+        <div className="bg-slate-50/90 dark:bg-slate-900/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/70 space-y-1.5">
+          <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 dark:text-slate-400">
+            <span>3-Month Occupancy Timeline (Click a block to switch)</span>
+            <span>
+              {formatDateDDMMYYYY(todayISO)} → {formatDateDDMMYYYY(horizonEndISO)}
+            </span>
+          </div>
+          <div className="relative h-5 bg-slate-200/70 dark:bg-slate-800 rounded-full overflow-hidden">
+            {activeUpcomingPlans.map((plan) => {
+              const pStart = diffDaysISO(todayISO, plan.startDate);
+              const pEnd = diffDaysISO(todayISO, plan.endDate || addDaysISO(plan.startDate, 14)) + 1;
+              const clippedStart = Math.max(0, pStart);
+              const clippedEnd = Math.min(horizonTotalDays, pEnd);
+              if (clippedEnd <= clippedStart) return null;
+              const leftPct = (clippedStart / horizonTotalDays) * 100;
+              const widthPct = Math.max(3, ((clippedEnd - clippedStart) / horizonTotalDays) * 100);
+              const isSelected = plan.id === activeMenuPlan.id;
+              const barColor =
+                plan.status === 'approved'
+                  ? 'bg-emerald-500'
+                  : plan.status === 'pending_approval'
+                  ? 'bg-amber-500'
+                  : plan.status === 'rejected'
+                  ? 'bg-rose-500'
+                  : 'bg-indigo-500';
+
+              return (
+                <button
+                  key={plan.id}
+                  type="button"
+                  onClick={() => handleSelectPlanCard(plan)}
+                  style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                  title={`${plan.title} (${formatDateDDMMYYYY(plan.startDate)} → ${formatDateDDMMYYYY(plan.endDate)}) • ${plan.status.replace('_', ' ').toUpperCase()}`}
+                  className={`absolute top-0.5 bottom-0.5 rounded-full transition-all cursor-pointer ${barColor} ${
+                    isSelected
+                      ? 'ring-2 ring-slate-900 dark:ring-white z-10 brightness-110'
+                      : 'opacity-80 hover:opacity-100'
+                  }`}
+                />
+              );
+            })}
+          </div>
+          <div className="flex justify-between text-[9px] font-semibold text-slate-400 dark:text-slate-500 px-0.5">
+            <span>Today</span>
+            <span>+1 Month</span>
+            <span>+2 Months</span>
+            <span>+3 Months</span>
+          </div>
+        </div>
+
+        {/* Scrollable / Grid Plan Cards */}
+        <div className="flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
+          {visibleSchedulePlans.map((plan) => {
+            const timing = getPlanTimingStatus(plan, todayISO);
+            const isSelected = plan.id === activeMenuPlan.id;
+            const configuredDays = Object.values(plan.days || {}).filter(
+              (d) =>
+                (d?.breakfast?.recipeIds?.length || 0) +
+                  (d?.lunch?.recipeIds?.length || 0) +
+                  (d?.dinner?.recipeIds?.length || 0) >
+                0
+            ).length;
+            const hasStockDeducted = Object.values(plan.days || {}).some((d) => Boolean(d?.stockDeducted));
+            const canDeleteThisPlan =
+              !hasStockDeducted &&
+              (isSAdmin ||
+                isAdmin ||
+                (plan.createdBy === currentUser.uid &&
+                  (plan.status === 'draft' || plan.status === 'rejected')));
+
+            return (
+              <div
+                key={plan.id}
+                onClick={() => handleSelectPlanCard(plan)}
+                className={`min-w-[215px] max-w-[240px] flex-shrink-0 p-3 rounded-2xl border transition-all cursor-pointer relative group ${
+                  isSelected
+                    ? 'bg-gradient-to-br from-orange-50 to-amber-50/90 dark:from-orange-950/50 dark:to-amber-950/30 border-orange-400 dark:border-orange-500 ring-2 ring-orange-400/30 shadow-sm'
+                    : 'bg-white/85 dark:bg-slate-900/70 border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-700'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span
+                      className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                        timing === 'current'
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/70 dark:text-emerald-300'
+                          : timing === 'upcoming'
+                          ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/70 dark:text-indigo-300'
+                          : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {timing === 'current' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                      <span>{timing === 'current' ? 'Live Now' : timing === 'upcoming' ? 'Upcoming' : 'Past'}</span>
+                    </span>
+                    <span
+                      className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${
+                        plan.status === 'approved'
+                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                          : plan.status === 'pending_approval'
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
+                          : plan.status === 'rejected'
+                          ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                          : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                      }`}
+                    >
+                      {plan.status.replace('_', ' ')}
+                    </span>
+                  </div>
+
+                  {canDeleteThisPlan && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPlanToDelete(plan);
+                      }}
+                      className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition"
+                      title="Delete this plan"
+                      aria-label={`Delete ${plan.title}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="font-extrabold text-xs text-slate-900 dark:text-white mt-2 truncate">
+                  {plan.title}
+                </div>
+                <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mt-0.5">
+                  {formatDateDDMMYYYY(plan.startDate)} → {formatDateDDMMYYYY(plan.endDate)}
+                </div>
+                <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 flex items-center justify-between">
+                  <span>{configuredDays}/15 days planned</span>
+                  {isSelected && <span className="text-orange-600 dark:text-orange-400 font-bold">Editing</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Top Banner: Maker-Checker Approval Status */}
       <div
         className={`p-5 rounded-3xl transition-all backdrop-blur-md ${
@@ -413,6 +809,8 @@ export const FifteenDayMenuPlanner: React.FC = () => {
             ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-x border-emerald-200/80 dark:border-emerald-800/70 border-t-2 border-t-emerald-500 border-b-2 border-b-teal-500/50'
             : isPending
             ? 'bg-amber-50/90 dark:bg-amber-950/40 border-x border-amber-200/80 dark:border-amber-800/70 border-t-2 border-t-amber-500 border-b-2 border-b-orange-500/50'
+            : isRejected
+            ? 'bg-rose-50/90 dark:bg-rose-950/40 border-x border-rose-200/80 dark:border-rose-800/70 border-t-2 border-t-rose-500 border-b-2 border-b-orange-500/50'
             : 'modern-card'
         }`}
       >
@@ -425,6 +823,8 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
                     : isPending
                     ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                    : isRejected
+                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-300 border-rose-300 dark:border-rose-700'
                     : 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600'
                 }`}
               >
@@ -443,6 +843,11 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                   &bull; Approved by: <strong className="text-emerald-600 dark:text-emerald-400">{displayApprovedByName}</strong>
                 </span>
               )}
+              {isRejected && activeMenuPlan.rejectionReason && (
+                <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                  &bull; Rejected: {activeMenuPlan.rejectionReason}
+                </span>
+              )}
             </div>
 
             {/* Start Date Selector -> Auto-Calculates 2 Weeks & Fills Menus */}
@@ -455,6 +860,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                 <input
                   id="cycle-start-date"
                   type="date"
+                  max={maxAdvanceStartDate}
                   value={activeMenuPlan.startDate}
                   onChange={(e) => handleStartDateChange(e.target.value)}
                   disabled={isApproved && !isSAdmin}
@@ -468,12 +874,13 @@ export const FifteenDayMenuPlanner: React.FC = () => {
               {isApproved && !isSAdmin ? (
                 <button
                   type="button"
-                  onClick={handleAutoFill}
-                  className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-indigo-100/90 hover:bg-indigo-200 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-300 dark:border-indigo-700 transition"
-                  title="Start a new 15-day cycle from this date (replaces the current approved plan)"
+                  onClick={() => openCreatePlanModal()}
+                  disabled={activeUpcomingPlans.length >= MAX_ADVANCE_PLANS}
+                  className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-indigo-100/90 hover:bg-indigo-200 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-300 dark:border-indigo-700 disabled:opacity-50 transition"
+                  title="Schedule a new 15-day plan in advance without modifying this approved cycle"
                 >
-                  <CalendarIcon className="w-3.5 h-3.5" />
-                  <span>Start New Cycle</span>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Plan Next Cycle</span>
                 </button>
               ) : (
                 <button
@@ -487,10 +894,28 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                 </button>
               )}
             </div>
+
+            {startDateConflict && (
+              <div className="mt-3 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                  <span>{startDateConflict.reason}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleStartDateChange(startDateConflict.suggestedDate)}
+                  className="px-3 py-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold flex-shrink-0 transition"
+                >
+                  Use Free Date ({formatDateDDMMYYYY(startDateConflict.suggestedDate)})
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Maker-Checker Action Buttons & Audit Trail */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
+            {/* Update button: hidden for regular users when menu is approved */}
+            {!isLockedForUser && (
             <button
               onClick={handleCommitUpdate}
               disabled={isUpdating}
@@ -504,6 +929,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
               {isUpdating ? <LoadingSpinner size="xs" /> : <Save className="w-4 h-4" />}
               <span>{isUpdating ? 'Updating...' : hasUnsavedChanges ? 'Update*' : 'Update'}</span>
             </button>
+            )}
 
             <button
               onClick={() => openAuditModal('menu_planner')}
@@ -562,19 +988,29 @@ export const FifteenDayMenuPlanner: React.FC = () => {
             })()}
 
             {isPending && canApproveActiveMenu && (
-              <button
-                onClick={handleApprove}
-                className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl font-bold shadow-md shadow-emerald-600/20"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Approve 15-Day Menu</span>
-              </button>
+              <>
+                <button
+                  onClick={handleApprove}
+                  className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl font-bold shadow-md shadow-emerald-600/20"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Approve 15-Day Menu</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsRejectModalOpen(true)}
+                  className="flex items-center space-x-1.5 border border-rose-300 dark:border-rose-700 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 px-3.5 py-2 rounded-xl font-bold transition"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Reject</span>
+                </button>
+              </>
             )}
 
             {isApproved && (
               <span className="flex items-center space-x-1.5 text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-100 dark:bg-emerald-900/60 px-3.5 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800">
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Live & Approved</span>
+                <span>{isLockedForUser ? 'Approved & Locked (Read-Only)' : 'Live & Approved'}</span>
               </span>
             )}
           </div>
@@ -671,6 +1107,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
           </div>
 
           {/* Day Menu Editing Toolbar */}
+          {!isLockedForUser ? (
           <div className="flex flex-wrap items-center gap-2">
             {/* Toggle Ekadashi */}
             <button
@@ -738,6 +1175,11 @@ export const FifteenDayMenuPlanner: React.FC = () => {
               <span>Clear Day</span>
             </button>
           </div>
+          ) : (
+            <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
+              Read-only view of approved menu. Use &ldquo;+ Plan New Cycle&rdquo; above for future dates.
+            </div>
+          )}
         </div>
 
         {/* 3 Meals: Breakfast, Lunch, Dinner */}
@@ -781,6 +1223,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                       type="number"
                       min="0"
                       placeholder="0"
+                      disabled={isLockedForUser}
                       value={slot.headcount === 0 ? '' : slot.headcount}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => {
@@ -797,7 +1240,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                         };
                         applyMenuDraft(updatedPlan);
                       }}
-                      className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -853,6 +1296,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                                 </div>
                               </div>
 
+                              {!isLockedForUser && (
                               <button
                                 onClick={() => handleRemoveRecipeFromMeal(mealKey, rId)}
                                 className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition flex-shrink-0"
@@ -860,6 +1304,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                               >
                                 <X className="w-3.5 h-3.5" />
                               </button>
+                              )}
                             </div>
                           );
                         })
@@ -868,6 +1313,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                   </div>
 
                   {/* Meal Slot Action Buttons: Add Dish & Apply Pattern */}
+                  {!isLockedForUser && (
                   <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-2">
                     <button
                       onClick={() => {
@@ -895,6 +1341,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                       </button>
                     )}
                   </div>
+                  )}
 
                   {/* Dedicated Brahmacari Ashram Section for Breakfast & Lunch */}
                   {ashramSlotKey && ashramSlot && (
@@ -922,6 +1369,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                           type="number"
                           min="0"
                           placeholder="0"
+                          disabled={isLockedForUser}
                           value={ashramSlot.headcount === 0 ? '' : ashramSlot.headcount}
                           onFocus={(e) => e.target.select()}
                           onChange={(e) => {
@@ -938,7 +1386,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                             };
                             applyMenuDraft(updatedPlan);
                           }}
-                          className="w-full mt-1 p-2 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-900 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          className="w-full mt-1 p-2 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-900 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                       </div>
 
@@ -994,6 +1442,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                                     </div>
                                   </div>
 
+                                  {!isLockedForUser && (
                                   <button
                                     onClick={() => handleRemoveRecipeFromMeal(ashramSlotKey, rId)}
                                     className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition flex-shrink-0"
@@ -1001,6 +1450,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                                   >
                                     <X className="w-3.5 h-3.5" />
                                   </button>
+                                  )}
                                 </div>
                               );
                             })
@@ -1009,6 +1459,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                       </div>
 
                       {/* Ashram Slot Action Buttons */}
+                      {!isLockedForUser && (
                       <div className="pt-2 flex gap-2">
                         <button
                           onClick={() => {
@@ -1038,6 +1489,7 @@ export const FifteenDayMenuPlanner: React.FC = () => {
                           </button>
                         )}
                       </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1264,63 +1716,274 @@ export const FifteenDayMenuPlanner: React.FC = () => {
         </div>
       )}
 
-      {/* New Cycle Confirmation Modal (shown when trying to change start date on an APPROVED plan) */}
-      {newCycleConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-orange-200 dark:border-orange-800 w-full max-w-md p-6 space-y-4">
-            {/* Header */}
-            <div className="flex items-start space-x-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950 flex items-center justify-center flex-shrink-0">
-                <CalendarIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+      {/* Create Advance 15-Day Cycle Modal */}
+      {isCreateModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto animate-fade-in"
+          onClick={() => setIsCreateModalOpen(false)}
+        >
+          <form
+            onSubmit={handleCreateNewPlan}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg p-6 space-y-4 my-auto"
+          >
+            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-start space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                  <CalendarIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="font-black text-slate-900 dark:text-white text-base">
+                    Plan New 15-Day Cycle
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Slot {Math.min(activeUpcomingPlans.length + 1, MAX_ADVANCE_PLANS)} of {MAX_ADVANCE_PLANS} &bull; Advance scheduling up to {MAX_ADVANCE_MONTHS} months
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="font-extrabold text-slate-900 dark:text-white text-base">Start a New 15-Day Cycle?</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  The current plan is <span className="font-bold text-emerald-600 dark:text-emerald-400">Approved & Live</span>. Starting a new cycle will replace it.
-                </p>
-              </div>
-            </div>
-
-            {/* Current plan info */}
-            <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 space-y-1.5 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400 font-semibold">Active Plan</span>
-                <span className="font-bold text-slate-700 dark:text-slate-200">{activeMenuPlan.title}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400 font-semibold">Current Span</span>
-                <span className="font-bold text-emerald-700 dark:text-emerald-300">
-                  {formatDateDDMMYYYY(activeMenuPlan.startDate)} → {formatDateDDMMYYYY(activeMenuPlan.endDate)}
-                </span>
-              </div>
-              <div className="border-t border-slate-200 dark:border-slate-700 pt-1.5 mt-1 flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400 font-semibold">New Cycle</span>
-                <span className="font-bold text-orange-600 dark:text-orange-400">
-                  {formatDateDDMMYYYY(newCycleConfirm.newStartDate)} → {formatDateDDMMYYYY(newCycleConfirm.newEndDate)}
-                </span>
-              </div>
-            </div>
-
-            <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 rounded-xl px-3 py-2 border border-amber-200 dark:border-amber-800">
-              ⚠️ The current approved plan will be <strong>replaced</strong>. The old plan details are preserved in the <strong>Audit Trail</strong>.
-            </p>
-
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-1">
               <button
-                onClick={() => setNewCycleConfirm(null)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition"
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-600 dark:text-slate-300 block mb-1">
+                  Start Date (15-Day Cycle)
+                </label>
+                <input
+                  type="date"
+                  required
+                  max={maxAdvanceStartDate}
+                  value={newPlanStartDate}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNewPlanStartDate(val);
+                    if (!newPlanTitleEdited && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                      setNewPlanTitle(formatCycleTitle(val));
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Ends: <strong>{formatDateDDMMYYYY(addDaysISO(newPlanStartDate, 14))}</strong> (15 days)
+                </span>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-600 dark:text-slate-300 block mb-1">
+                  Plan Title
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 01 Dec – 15 Dec Cycle"
+                  value={newPlanTitle}
+                  onChange={(e) => {
+                    setNewPlanTitle(e.target.value);
+                    setNewPlanTitleEdited(true);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Max horizon: {formatDateDDMMYYYY(maxAdvanceStartDate)}
+                </span>
+              </div>
+            </div>
+
+            {/* Live Overlap & Quota Detection Panel */}
+            {createValidation.isValid ? (
+              <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2 font-semibold">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>No date overlap detected. Dates are open and within the 3-month window.</span>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 space-y-2">
+                <div className="flex items-start gap-2 font-bold">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                  <span>{createValidation.reason}</span>
+                </div>
+                {createValidation.conflicts.length > 0 && (
+                  <ul className="list-disc list-inside space-y-0.5 text-[11px] opacity-90">
+                    {createValidation.conflicts.map((c) => (
+                      <li key={c.plan.id}>
+                        <strong>{c.plan.title}</strong> ({formatDateDDMMYYYY(c.plan.startDate)} → {formatDateDDMMYYYY(c.plan.endDate)}, {c.plan.status.replace('_', ' ')}) — {c.overlapDays} day(s) overlap
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {!createValidation.exceedsPlanLimit && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextDate = createValidation.suggestedStartDate;
+                      setNewPlanStartDate(nextDate);
+                      if (!newPlanTitleEdited) {
+                        setNewPlanTitle(formatCycleTitle(nextDate));
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] transition"
+                  >
+                    Use Next Free Date ({formatDateDDMMYYYY(createValidation.suggestedStartDate)})
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Menu Fill Method */}
+            <div className="space-y-2 text-xs">
+              <label className="font-bold text-slate-600 dark:text-slate-300 block">
+                Initial Menu Setup
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {(
+                  [
+                    { id: 'autofill', label: 'Auto-Fill Menu', desc: 'Smart rotation + Ekadashi' },
+                    { id: 'copy', label: 'Copy Existing', desc: 'Reuse dishes & pax' },
+                    { id: 'blank', label: 'Blank Draft', desc: 'Dates & Ekadashi only' },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setNewPlanMode(opt.id)}
+                    className={`p-2.5 rounded-xl border text-left transition ${
+                      newPlanMode === opt.id
+                        ? 'bg-orange-50 dark:bg-orange-950/50 border-orange-400 text-orange-900 dark:text-orange-200 ring-1 ring-orange-400'
+                        : 'bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    <div className="font-extrabold">{opt.label}</div>
+                    <div className="text-[10px] opacity-75">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+
+              {newPlanMode === 'copy' && (
+                <select
+                  value={copySourcePlanId}
+                  onChange={(e) => setCopySourcePlanId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  {menuPlans.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      Copy from: {p.title} ({formatDateDDMMYYYY(p.startDate)} → {formatDateDDMMYYYY(p.endDate)})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="px-4 py-2 rounded-xl font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition"
               >
                 Cancel
               </button>
               <button
-                onClick={handleConfirmNewCycle}
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/20 transition"
+                type="submit"
+                disabled={!createValidation.isValid || isCreatingPlan}
+                className="px-5 py-2 rounded-xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1.5"
               >
-                Yes, Start New Cycle
+                {isCreatingPlan ? <LoadingSpinner size="xs" /> : <Plus className="w-4 h-4" />}
+                <span>{isCreatingPlan ? 'Creating...' : 'Create Advance Plan'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Delete Plan Confirmation Modal */}
+      {planToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={() => setPlanToDelete(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-rose-200 dark:border-rose-800 w-full max-w-md p-6 space-y-4"
+          >
+            <div className="flex items-start space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+              </div>
+              <div>
+                <h2 className="font-extrabold text-slate-900 dark:text-white text-base">
+                  Delete 15-Day Plan?
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  This removes <strong>{planToDelete.title}</strong> ({formatDateDDMMYYYY(planToDelete.startDate)} → {formatDateDDMMYYYY(planToDelete.endDate)}) and frees up an advance slot.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2.5 text-xs pt-2">
+              <button
+                type="button"
+                onClick={() => setPlanToDelete(null)}
+                className="px-4 py-2 rounded-xl font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingPlan}
+                onClick={handleConfirmDeletePlan}
+                className="px-4 py-2 rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-50"
+              >
+                {isDeletingPlan ? 'Deleting...' : 'Delete Plan'}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Reject Plan Reason Modal */}
+      {isRejectModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={() => setIsRejectModalOpen(false)}
+        >
+          <form
+            onSubmit={handleReject}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-rose-200 dark:border-rose-800 w-full max-w-md p-6 space-y-4 text-xs"
+          >
+            <h2 className="font-extrabold text-slate-900 dark:text-white text-base">
+              Reject Menu Plan
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400">
+              Provide feedback for <strong>{activeMenuPlan.title}</strong> so the kitchen team can revise and resubmit.
+            </p>
+            <textarea
+              required
+              rows={3}
+              placeholder="Reason for rejection (e.g. Ekadashi day has grain dish, headcounts need update)..."
+              value={rejectReasonText}
+              onChange={(e) => setRejectReasonText(e.target.value)}
+              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+            />
+            <div className="flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsRejectModalOpen(false)}
+                className="px-4 py-2 rounded-xl font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white"
+              >
+                Confirm Rejection
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

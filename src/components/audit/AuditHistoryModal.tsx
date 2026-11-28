@@ -139,6 +139,18 @@ export const AuditHistoryModal: React.FC<AuditHistoryModalProps> = ({
           classes: 'bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300 border-amber-200 dark:border-amber-800',
           icon: Flame,
         };
+      case 'MENU_PLAN_CREATE':
+        return {
+          label: 'Advance Plan Created',
+          classes: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+          icon: Calendar,
+        };
+      case 'MENU_PLAN_DELETE':
+        return {
+          label: 'Menu Plan Deleted',
+          classes: 'bg-rose-100 text-rose-700 dark:bg-rose-950/80 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+          icon: AlertTriangle,
+        };
       case 'MENU_PLAN_APPROVE':
         return {
           label: 'Maker-Checker Approved',

@@ -56,6 +56,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   completeCenterSelection: (centerId: string, centerName: string) => Promise<void>;
+  markTourSeen: () => Promise<void>;
   switchCenter: (centerId: string) => void;
   // Center Creation Request Workflow (Feature c)
   raiseCenterRequest: (data: { name: string; code: string; city: string; state: string; country: string }) => Promise<void>;
@@ -149,6 +150,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubscribe();
     };
   }, []);
+
+  // Re-fetch users & center requests once Firebase user signs in (Firestore rules require auth)
+  useEffect(() => {
+    if (!isFirebaseConfigured || !firebaseUser?.uid) return;
+    authService.getAllUsers().then((fetchedUsers) => {
+      if (fetchedUsers && fetchedUsers.length > 0) {
+        setUsers((prev) => {
+          const map = new Map<string, UserProfile>();
+          for (const u of [...prev, ...fetchedUsers]) {
+            const key = u.uid || (u.emailLower || u.email).trim().toLowerCase();
+            map.set(key, u);
+          }
+          return Array.from(map.values());
+        });
+      }
+    });
+    authService.getCenterRequests().then((fetchedRequests) => {
+      if (fetchedRequests && fetchedRequests.length > 0) {
+        setCenterRequests(fetchedRequests);
+      }
+    });
+  }, [firebaseUser?.uid]);
 
   // Sync current center when user or centers change
   useEffect(() => {
@@ -269,6 +292,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (chosenCenter) {
       setCurrentCenter(chosenCenter);
     }
+  };
+
+  const markTourSeen = async () => {
+    if (!currentUser.uid) return;
+    setCurrentUser((prev) =>
+      prev.hasSeenTour ? prev : { ...prev, hasSeenTour: true, updatedAt: new Date().toISOString() }
+    );
+    await authService.markTourSeen(currentUser.uid);
   };
 
   const switchCenter = (centerId: string) => {
@@ -447,6 +478,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logout,
       resetPassword,
       completeCenterSelection,
+      markTourSeen,
       switchCenter,
       raiseCenterRequest,
       approveCenterRequest,

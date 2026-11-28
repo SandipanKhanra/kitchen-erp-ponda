@@ -12,6 +12,7 @@ export interface UserProfile {
   fcmTokens?: string[];
   authProviders?: string[];
   needsCenterSelection?: boolean;
+  hasSeenTour?: boolean;
   emailVerified?: boolean;
   registrationStatus?: 'pending_verification' | 'active';
   verificationExpiresAt?: string;
