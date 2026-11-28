@@ -263,9 +263,9 @@ export const CenterCostAnalytics: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Filter Controls Bar */}
-      <div className="modern-card p-4 sm:p-5 rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div className="flex flex-wrap items-center gap-3 text-xs">
-          <div className="flex items-center space-x-2 bg-slate-100/90 dark:bg-slate-800/90 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
+      <div className="modern-card p-4 sm:p-5 rounded-2xl flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 text-xs">
+          <div className="flex items-center space-x-2 bg-slate-100/90 dark:bg-slate-800/90 h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700">
             <Calendar className="w-4 h-4 text-orange-500" />
             <span className="font-bold text-slate-600 dark:text-slate-300">Month:</span>
             <select
@@ -284,7 +284,7 @@ export const CenterCostAnalytics: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-xl">
+          <div className="toolbar-pill-group">
             {(
               [
                 { id: 'month', label: 'Full Month' },
@@ -298,7 +298,7 @@ export const CenterCostAnalytics: React.FC = () => {
                 key={opt.id}
                 type="button"
                 onClick={() => setRangeMode(opt.id)}
-                className={`px-2.5 py-1.5 rounded-lg font-bold transition ${
+                className={`px-2.5 py-1.5 rounded-lg font-bold transition whitespace-nowrap ${
                   rangeMode === opt.id
                     ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -314,7 +314,7 @@ export const CenterCostAnalytics: React.FC = () => {
               type="date"
               value={customDate}
               onChange={(e) => setCustomDate(e.target.value)}
-              className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="h-9 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           )}
         </div>
@@ -322,7 +322,7 @@ export const CenterCostAnalytics: React.FC = () => {
         <button
           type="button"
           onClick={handleExportCSV}
-          className="flex items-center space-x-1.5 modern-btn-secondary px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+          className="modern-btn-secondary w-full lg:w-auto justify-center"
         >
           <Download className="w-3.5 h-3.5 text-emerald-500" />
           <span>Export Cost Report (CSV)</span>

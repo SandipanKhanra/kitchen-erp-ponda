@@ -60,24 +60,22 @@ export const AdminUserManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <div className="flex items-center space-x-2">
-            <span className="bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400 text-xs font-black px-2.5 py-1 rounded-md border border-orange-200 dark:border-orange-900">
-              CENTER ADMINISTRATION
-            </span>
-            <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-              {currentCenter.name} &bull; Devotee Management
-            </h1>
-          </div>
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div className="flex items-center flex-wrap gap-2">
+          <span className="bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400 text-[10px] sm:text-xs font-black px-2.5 py-1 rounded-md border border-orange-200 dark:border-orange-900">
+            CENTER ADMINISTRATION
+          </span>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            {currentCenter.name} &bull; Devotee Management
+          </h1>
         </div>
 
-        <div className="toolbar-btn-row">
-          <div className="toolbar-pill-group text-xs font-bold">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 w-full lg:w-auto">
+          <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 text-xs font-bold w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setAdminSubTab('analytics')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                 adminSubTab === 'analytics'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -89,7 +87,7 @@ export const AdminUserManagement: React.FC = () => {
             <button
               type="button"
               onClick={() => setAdminSubTab('users')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                 adminSubTab === 'users'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -100,14 +98,16 @@ export const AdminUserManagement: React.FC = () => {
             </button>
           </div>
 
-          {/* Feature c: Admin can only raise request to add a new center (Do not show for sadmin) */}
+          {/* Admin can raise request to add a new center (hidden for sadmin) */}
           {!isSAdmin && (
             <button
+              type="button"
               onClick={() => setIsRequestModalOpen(true)}
-              className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2.5 rounded-xl font-bold modern-btn-primary shadow-orange-500/20 text-xs transition-all"
+              title="Request New Center (SAdmin Approval)"
+              className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white modern-btn-primary shadow-orange-500/20"
             >
               <Building2 className="w-4 h-4" />
-              <span>Request New Center (SAdmin Approval)</span>
+              <span>Request New Center</span>
             </button>
           )}
         </div>
@@ -264,17 +264,19 @@ export const AdminUserManagement: React.FC = () => {
                           </span>
                         ) : u.role === 'admin' ? (
                           <button
+                            type="button"
                             onClick={() => assignUserRole(u.uid, 'user')}
                             disabled={isSelf}
-                            className="text-rose-600 dark:text-rose-400 hover:underline font-bold disabled:opacity-40"
+                            className="px-3 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 font-bold disabled:opacity-40 transition"
                             title={isSelf ? 'Cannot demote yourself' : 'Remove Admin role'}
                           >
                             Demote to User
                           </button>
                         ) : (
                           <button
+                            type="button"
                             onClick={() => assignUserRole(u.uid, 'admin')}
-                            className="text-emerald-600 dark:text-emerald-400 hover:underline font-bold"
+                            className="px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 font-bold transition"
                           >
                             Promote to Admin
                           </button>
