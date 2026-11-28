@@ -70,9 +70,6 @@ export const AdminUserManagement: React.FC = () => {
               {currentCenter.name} &bull; Devotee Management
             </h1>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Features c & d: Manage user roles strictly inside your center and raise center addition requests for Super Admin approval.
-          </p>
         </div>
 
         <div className="toolbar-btn-row">
